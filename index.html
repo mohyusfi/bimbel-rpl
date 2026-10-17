@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bimbel Tadulako Cendekia — Bimbingan Belajar SD, SMP, SMA & UTBK di Kota Palu</title>
+  <meta name="description" content="Bimbel tatap muka di Kota Palu untuk SD, SMP, SMA, dan persiapan UTBK. Paling banyak 12 siswa per kelas, orang tua dapat kabar kehadiran setiap pertemuan.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Instrument+Sans:wght@400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="landing.css">
+  <!-- Lucide Icons Official CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="landing">
+
+  <!-- ================= HEADER ================= -->
+  <header class="lp-header">
+    <div class="container lp-header-inner">
+      <a href="#beranda" class="lp-logo">Tadulako <span>Cendekia</span></a>
+
+      <nav class="lp-nav" aria-label="Navigasi utama">
+        <a href="#program">Program</a>
+        <a href="#orang-tua">Untuk Orang Tua</a>
+        <a href="#cara-daftar">Cara Daftar</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div class="lp-header-actions">
+        <a href="dashboard.html" class="lp-header-login">Masuk</a>
+        <button type="button" class="btn btn-primary btn-sm" onclick="openRegisterModal()">Daftar</button>
+      </div>
+
+      <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()" aria-label="Buka menu">
+        <i data-lucide="menu" class="lucide"></i>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= HERO ================= -->
+    <section id="beranda" class="lp-hero">
+      <div class="container">
+        <div class="lp-hero-grid">
+          <div class="lp-hero-main">
+            <p class="lp-kicker">Bimbingan belajar tatap muka di Kota Palu</p>
+
+            <h1 class="lp-hero-title">Kelas kecil, jadwal pasti, orang tua selalu <em>tahu.</em></h1>
+
+            <p class="lp-hero-lead">
+              Untuk anak SD, SMP, SMA, dan yang sedang bersiap UTBK. Tutor mendampingi langsung, dan Anda dapat kabar lewat WhatsApp setiap kali anak hadir di kelas.
+            </p>
+            <div class="lp-hero-actions">
+              <button type="button" class="btn btn-accent btn-lg" onclick="openRegisterModal()">
+                Daftar sekarang <i data-lucide="arrow-right" class="lucide"></i>
+              </button>
+              <a href="#program" class="lp-link">Lihat program</a>
+            </div>
+          </div>
+
+          <aside class="lp-board" aria-label="Jadwal kelas mingguan">
+            <div class="lp-board-head">
+              <span class="lp-board-title">Jadwal Kelas Sore</span>
+              <span class="lp-board-loc">Kota Palu</span>
+            </div>
+            <ul class="lp-board-list">
+              <li>
+                <button type="button" class="lp-board-row" onclick="selectProgramAndRegister('SD')">
+                  <div class="lp-board-row-top">
+                    <strong>SD Cendekia</strong>
+                    <span class="lp-board-seat">Sisa 3 kursi</span>
+                  </div>
+                  <span class="lp-board-time">Senin, Rabu, Jumat · 15.00–16.30</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="lp-board-row" onclick="selectProgramAndRegister('SMP')">
+                  <div class="lp-board-row-top">
+                    <strong>SMP Prestasi</strong>
+                    <span class="lp-board-seat">Sisa 4 kursi</span>
+                  </div>
+                  <span class="lp-board-time">Selasa, Kamis, Sabtu · 15.30–17.00</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="lp-board-row" onclick="selectProgramAndRegister('SMA')">
+                  <div class="lp-board-row-top">
+                    <strong>SMA Sukses</strong>
+                    <span class="lp-board-seat">Sisa 2 kursi</span>
+                  </div>
+                  <span class="lp-board-time">Senin, Rabu, Jumat · 16.30–18.00</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="lp-board-row is-utbk" onclick="selectProgramAndRegister('UTBK')">
+                  <div class="lp-board-row-top">
+                    <strong>Intensif UTBK-SNBT</strong>
+                    <span class="lp-board-seat is-hot">Sisa 2 kursi</span>
+                  </div>
+                  <span class="lp-board-time">Selasa, Kamis, Sabtu · 16.00–18.00</span>
+                </button>
+              </li>
+            </ul>
+            <div class="lp-board-foot">
+              <span>Klik jenjang untuk daftar &amp; ikut 1x kelas gratis.</span>
+            </div>
+          </aside>
+        </div>
+
+        <ul class="lp-facts">
+          <li class="lp-fact">
+            <span class="lp-fact-value">12</span>
+            <span class="lp-fact-label">siswa paling banyak dalam satu kelas</span>
+          </li>
+          <li class="lp-fact">
+            <span class="lp-fact-value">4</span>
+            <span class="lp-fact-label">jenjang: SD, SMP, SMA, dan UTBK</span>
+          </li>
+          <li class="lp-fact">
+            <span class="lp-fact-value">Gratis</span>
+            <span class="lp-fact-label">kelas pertama dan konsultasi belajar</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= PROGRAM ================= -->
+    <section id="program" class="lp-section">
+      <div class="container">
+        <header class="lp-section-head">
+          <h2 class="lp-h2">Pilih sesuai jenjang anak</h2>
+          <p>Setiap paket sudah termasuk modul, latihan soal online, dan try out. Tidak ada biaya tambahan.</p>
+        </header>
+
+        <ol class="lp-programs">
+          <li class="lp-program">
+            <span class="lp-program-num">01</span>
+            <div class="lp-program-name">
+              <h3>SD Cendekia</h3>
+              <span>Kelas 1–6</span>
+            </div>
+            <div class="lp-program-desc-wrap">
+              <p class="lp-program-desc">Membaca, menulis, berhitung, matematika dasar, dan IPA dengan contoh sehari-hari. Anak dibiasakan belajar sendiri tanpa dipaksa.</p>
+              <ul class="lp-program-points">
+                <li>Paling banyak 10 siswa</li>
+                <li>Modul cetak & digital</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-outline" onclick="selectProgramAndRegister('SD')">Pilih SD</button>
+          </li>
+
+          <li class="lp-program">
+            <span class="lp-program-num">02</span>
+            <div class="lp-program-name">
+              <h3>SMP Prestasi</h3>
+              <span>Kelas 7–9</span>
+            </div>
+            <div class="lp-program-desc-wrap">
+              <p class="lp-program-desc">Matematika, IPA, dan Bahasa Inggris dibahas sampai paham, untuk ujian sekolah dan asesmen. Anak juga bisa bertanya soal PR.</p>
+              <ul class="lp-program-points">
+                <li>Paling banyak 12 siswa</li>
+                <li>Try out berkala</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-outline" onclick="selectProgramAndRegister('SMP')">Pilih SMP</button>
+          </li>
+
+          <li class="lp-program">
+            <span class="lp-program-num">03</span>
+            <div class="lp-program-name">
+              <h3>SMA Sukses</h3>
+              <span>Kelas 10–12</span>
+            </div>
+            <div class="lp-program-desc-wrap">
+              <p class="lp-program-desc">Pelajaran peminatan IPA atau IPS, menjaga nilai rapor, dan mulai bersiap masuk perguruan tinggi negeri.</p>
+              <ul class="lp-program-points">
+                <li>Laporan perkembangan bulanan</li>
+                <li>Bank soal online</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-outline" onclick="selectProgramAndRegister('SMA')">Pilih SMA</button>
+          </li>
+
+          <li class="lp-program is-featured">
+            <span class="lp-program-num">04</span>
+            <div class="lp-program-name">
+              <span class="lp-program-badge">Program unggulan</span>
+              <h3>Intensif UTBK-SNBT</h3>
+              <span>Kelas 12, persiapan PTN</span>
+            </div>
+            <div class="lp-program-desc-wrap">
+              <p class="lp-program-desc">Bedah soal TPS, literasi, dan penalaran matematika. Try out bertahap yang mirip UTBK asli, plus bantuan memilih jurusan yang realistis.</p>
+              <ul class="lp-program-points">
+                <li>Try out mirip UTBK asli</li>
+                <li>Hitung peluang lolos jurusan</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-accent" onclick="selectProgramAndRegister('UTBK')">Pilih UTBK</button>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ================= UNTUK ORANG TUA ================= -->
+    <section id="orang-tua" class="lp-section lp-parents">
+      <div class="container lp-parents-grid">
+        <div class="lp-parents-intro">
+          <h2 class="lp-h2">Anak sudah sampai di kelas? Anda langsung tahu.</h2>
+          <p>Tidak perlu menelepon tutor atau menunggu rapor akhir semester. Semua kabar penting soal belajar anak bisa Anda lihat dari HP.</p>
+
+          <figure class="lp-message">
+            <div class="lp-message-bubble">
+              <div class="lp-message-head">
+                <strong>Tadulako Cendekia</strong>
+                <span>16.02</span>
+              </div>
+              <p>Fahri sudah hadir di kelas Fisika UTBK hari ini, pukul 16.00–17.30.</p>
+              <span class="lp-message-tag">Hadir</span>
+            </div>
+            <figcaption>Contoh pesan yang Anda terima di WhatsApp.</figcaption>
+          </figure>
+
+          <a href="dashboard.html?role=parent" class="lp-link">
+            Lihat contoh halaman orang tua <i data-lucide="arrow-right" class="lucide"></i>
+          </a>
+        </div>
+
+        <ul class="lp-benefits">
+          <li class="lp-benefit">
+            <h3>Kabar setiap pertemuan</h3>
+            <p>Tutor mencatat kehadiran di awal kelas. Anda langsung tahu anak hadir, sakit, izin, atau tidak datang.</p>
+          </li>
+          <li class="lp-benefit">
+            <h3>Nilai dan catatan tutor</h3>
+            <p>Hasil try out dan catatan perkembangan dari tutor bisa dibuka kapan saja. Lebih dari satu anak? Semuanya ada di satu akun.</p>
+          </li>
+          <li class="lp-benefit">
+            <h3>Jadwal tidak pernah bentrok</h3>
+            <p>Jadwal tutor dan ruang kelas dicek otomatis sebelum disusun, jadi tidak ada dua kelas di ruangan atau jam yang sama.</p>
+          </li>
+          <li class="lp-benefit">
+            <h3>Bayar les tanpa repot</h3>
+            <p>Kirim foto bukti transfer dari HP. Setelah dicek admin, kwitansi resmi bisa langsung diunduh dan dicetak.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================= CARA DAFTAR ================= -->
+    <section id="cara-daftar" class="lp-section lp-steps-section">
+      <div class="container">
+        <header class="lp-section-head">
+          <h2 class="lp-h2">Tiga langkah untuk mulai</h2>
+          <p>Tidak perlu datang ke kantor untuk mendaftar. Semuanya bisa dari HP.</p>
+        </header>
+
+        <ol class="lp-steps">
+          <li class="lp-step">
+            <span class="lp-step-num" aria-hidden="true">1</span>
+            <div class="lp-step-body">
+              <h3>Isi formulir</h3>
+              <p>Masukkan data anak, sekolah, paket yang dipilih, dan nomor WhatsApp orang tua.</p>
+            </div>
+          </li>
+          <li class="lp-step">
+            <span class="lp-step-num" aria-hidden="true">2</span>
+            <div class="lp-step-body">
+              <h3>Kami hubungi Anda</h3>
+              <p>Admin mengecek kursi yang masih tersedia, lalu menghubungi lewat WhatsApp untuk jadwal kelas pertama.</p>
+            </div>
+          </li>
+          <li class="lp-step">
+            <span class="lp-step-num" aria-hidden="true">3</span>
+            <div class="lp-step-body">
+              <h3>Ikut kelas pertama gratis</h3>
+              <p>Rasakan dulu cara tutor mengajar. Setelah itu, Anda yang memutuskan mau lanjut atau tidak.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section id="faq" class="lp-section lp-faq">
+      <div class="container lp-faq-grid">
+        <h2 class="lp-h2">Yang sering ditanyakan</h2>
+
+        <div class="faq-list">
+          <div class="faq-item active">
+            <button type="button" class="faq-trigger" aria-expanded="true" aria-controls="faq-ans-1">
+              <span>Apa bedanya dengan bimbel lain?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-1" class="faq-panel">
+              <div class="faq-answer">
+                <p>Kelasnya kecil, paling banyak 12 siswa, jadi tutor bisa memperhatikan tiap anak. Jadwal disusun supaya tidak bentrok, dan orang tua dapat kabar kehadiran lewat WhatsApp setiap pertemuan. Materinya mengikuti kurikulum sekolah di Palu dan standar UTBK-SNBT.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-2">
+              <span>Di YouTube banyak video materi gratis. Kenapa harus ikut bimbel?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-2" class="faq-panel">
+              <div class="faq-answer">
+                <p>Video tidak bisa menjawab saat anak bingung di soal yang sulit, dan tidak ada yang mengecek apakah anak benar-benar paham. Di sini tutor mendampingi langkah demi langkah, dan try out rutin menunjukkan seberapa siap anak sebenarnya.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-3">
+              <span>Apakah ada kelas percobaan gratis?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-3" class="faq-panel">
+              <div class="faq-answer">
+                <p>Ada. Calon siswa bisa ikut konsultasi belajar dan satu kelas pertama tanpa biaya. Setelah merasakan cara tutor mengajar, baru putuskan mau lanjut atau tidak.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-4">
+              <span>Kalau daftar satu paket, bisa ikut kelas jenjang lain?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-4" class="faq-panel">
+              <div class="faq-answer">
+                <p>Tidak. Setiap pendaftaran untuk satu jenjang (SD, SMP, SMA, atau UTBK) supaya belajarnya fokus. Di dalam paket itu, modul cetak, latihan soal online, bantuan PR, dan try out sudah termasuk. Tidak ada biaya tambahan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-5">
+              <span>Materinya sampai mana?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-5" class="faq-panel">
+              <div class="faq-answer">
+                <p>Mulai dari konsep dasar kurikulum nasional, bantuan PR, persiapan ujian semester, sampai soal penalaran, TPS, dan literasi untuk masuk PTN seperti Untad, Unhas, UI, dan ITB.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-6">
+              <span>Ada aplikasinya?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-6" class="faq-panel">
+              <div class="faq-answer">
+                <p>Ada, berupa website yang bisa dibuka dari HP, tablet, atau laptop tanpa perlu instal. Siswa melihat jadwal dan materi. Orang tua melihat kehadiran, nilai, dan tagihan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button type="button" class="faq-trigger" aria-expanded="false" aria-controls="faq-ans-7">
+              <span>Bagaimana cara mendaftar?</span>
+              <span class="faq-icon"><i data-lucide="chevron-down" class="lucide"></i></span>
+            </button>
+            <div id="faq-ans-7" class="faq-panel">
+              <div class="faq-answer">
+                <p>Klik tombol Daftar, lalu isi data anak dan nomor WhatsApp orang tua. Admin kami mengecek kursi yang tersedia dan menghubungi Anda untuk jadwal kelas pertama.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= CTA + FOOTER ================= -->
+  <div class="lp-end">
+    <section class="container lp-cta">
+      <h2 class="lp-cta-title">Coba satu kelas dulu. <em>Gratis.</em></h2>
+      <div class="lp-cta-bottom">
+        <p>Daftar dalam beberapa menit. Admin kami akan menghubungi lewat WhatsApp untuk mengatur jadwal kelas pertama.</p>
+        <div class="lp-cta-actions">
+          <button type="button" class="btn btn-accent btn-lg" onclick="openRegisterModal()">
+            Daftar sekarang <i data-lucide="arrow-right" class="lucide"></i>
+          </button>
+          <a href="https://wa.me/6282199887766" class="btn btn-ghost-light btn-lg" target="_blank" rel="noopener">Tanya lewat WhatsApp</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="container lp-footer">
+      <div class="lp-footer-grid">
+        <div>
+          <a href="#beranda" class="lp-logo">Tadulako <span>Cendekia</span></a>
+          <p>Bimbingan belajar tatap muka untuk SD, SMP, SMA, dan UTBK di Kota Palu, Sulawesi Tengah.</p>
+        </div>
+
+        <nav aria-label="Program">
+          <h2>Program</h2>
+          <ul>
+            <li><a href="#program">SD Cendekia</a></li>
+            <li><a href="#program">SMP Prestasi</a></li>
+            <li><a href="#program">SMA Sukses</a></li>
+            <li><a href="#program">Intensif UTBK-SNBT</a></li>
+          </ul>
+        </nav>
+
+        <nav aria-label="Masuk portal">
+          <h2>Masuk</h2>
+          <ul>
+            <li><a href="dashboard.html?role=student">Siswa</a></li>
+            <li><a href="dashboard.html?role=parent">Orang tua</a></li>
+            <li><a href="dashboard.html?role=tutor">Tutor</a></li>
+            <li><a href="dashboard.html?role=admin">Admin</a></li>
+          </ul>
+        </nav>
+
+        <div>
+          <h2>Kontak</h2>
+          <address>
+            Jl. Soekarno-Hatta, area Kampus Bumi Tadulako<br>
+            Kota Palu, Sulawesi Tengah 94118<br>
+            WhatsApp: <a href="https://wa.me/6282199887766" target="_blank" rel="noopener">0821-9988-7766</a>
+          </address>
+        </div>
+      </div>
+
+      <div class="lp-footer-bottom">© 2026 Bimbel Tadulako Cendekia, Kota Palu.</div>
+    </footer>
+  </div>
+
+  <!-- ================= MOBILE NAVIGATION DRAWER ================= -->
+  <div id="mobileDrawerOverlay" class="mobile-drawer-overlay" onclick="closeMobileMenu()"></div>
+  <div id="mobileDrawer" class="mobile-drawer" role="dialog" aria-label="Menu">
+    <div class="mobile-drawer-header">
+      <span class="lp-logo">Tadulako <span>Cendekia</span></span>
+      <button type="button" class="mobile-drawer-close" onclick="closeMobileMenu()" aria-label="Tutup menu">
+        <i data-lucide="x" class="lucide"></i>
+      </button>
+    </div>
+    <nav class="mobile-drawer-nav" aria-label="Navigasi utama">
+      <a href="#program" onclick="closeMobileMenu()">Program</a>
+      <a href="#orang-tua" onclick="closeMobileMenu()">Untuk Orang Tua</a>
+      <a href="#cara-daftar" onclick="closeMobileMenu()">Cara Daftar</a>
+      <a href="#faq" onclick="closeMobileMenu()">FAQ</a>
+    </nav>
+    <div class="mobile-drawer-actions">
+      <button type="button" class="btn btn-primary" onclick="openRegisterModal(); closeMobileMenu();">Daftar</button>
+      <a href="dashboard.html" class="btn btn-outline">Masuk</a>
+    </div>
+  </div>
+
+  <!-- ================= MODAL PENDAFTARAN SISWA BARU (AUTH-01) ================= -->
+  <div id="registerModal" class="modal-overlay">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="regTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="regTitle">Daftar siswa baru</h2>
+          <p>Isi data anak dan kontak orang tua. Admin akan menghubungi Anda lewat WhatsApp.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeRegisterModal()" aria-label="Tutup formulir">
+          <i data-lucide="x" class="lucide"></i>
+        </button>
+      </div>
+
+      <form id="regForm" onsubmit="handleRegistrationSubmit(event)">
+        <div class="modal-body">
+          <h3 class="lp-form-section">Data siswa</h3>
+
+          <div class="form-group">
+            <label class="form-label form-label-required" for="studentName">Nama lengkap siswa</label>
+            <input type="text" id="studentName" class="form-input" placeholder="Contoh: Muhammad Rafly" autocomplete="name" required>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label form-label-required" for="studentEmail">Email siswa</label>
+              <input type="email" id="studentEmail" class="form-input" placeholder="nama@email.com" autocomplete="email" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label form-label-required" for="studentPhone">WhatsApp siswa</label>
+              <input type="tel" id="studentPhone" class="form-input" placeholder="0821-xxxx-xxxx" autocomplete="tel" required>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label form-label-required" for="studentSchool">Sekolah asal</label>
+              <input type="text" id="studentSchool" class="form-input" placeholder="Contoh: SMAN 1 Palu" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label form-label-required" for="studentPackage">Paket</label>
+              <select id="studentPackage" class="form-select" required>
+                <option value="UTBK" selected>Intensif UTBK-SNBT</option>
+                <option value="SMA">SMA Sukses</option>
+                <option value="SMP">SMP Prestasi</option>
+                <option value="SD">SD Cendekia</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 class="lp-form-section">Data orang tua / wali</h3>
+
+          <div class="form-group">
+            <label class="form-label form-label-required" for="parentName">Nama lengkap orang tua / wali</label>
+            <input type="text" id="parentName" class="form-input" placeholder="Contoh: Ahmad Dahlan" required>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label form-label-required" for="parentEmail">Email orang tua</label>
+              <input type="email" id="parentEmail" class="form-input" placeholder="ortu@email.com" required>
+              <span class="form-helper">Untuk masuk ke halaman orang tua</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label form-label-required" for="parentPhone">WhatsApp orang tua</label>
+              <input type="tel" id="parentPhone" class="form-input" placeholder="0812-xxxx-xxxx" required>
+              <span class="form-helper">Untuk kabar kehadiran anak</span>
+            </div>
+          </div>
+
+          <div id="regSuccessAlert" class="lp-form-success" style="display: none;" role="status">
+            <strong>Pendaftaran terkirim</strong>
+            Admin akan mengecek kursi yang tersedia dan menghubungi Anda lewat WhatsApp.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeRegisterModal()">Batal</button>
+          <button type="submit" id="submitRegBtn" class="btn btn-accent">Kirim Pendaftaran</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
