@@ -271,13 +271,17 @@ function openRegisterModal() {
   const modal = document.getElementById('registerModal');
   if (modal) {
     modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
     refreshIcons();
   }
 }
 
 function closeRegisterModal() {
   const modal = document.getElementById('registerModal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
 }
 
 function selectProgramAndRegister(pkgCode) {
@@ -361,12 +365,16 @@ function showReceiptModal(number, student, amount, program, method, date) {
   if (dateEl) dateEl.textContent = finalDate;
 
   modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
   refreshIcons();
 }
 
 function closeReceiptModal() {
   const modal = document.getElementById('receiptModal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
 }
 
 // Notification Popover placeholder
@@ -465,6 +473,19 @@ document.addEventListener('DOMContentLoaded', () => {
       closeDashboardSidebar();
       closeRegisterModal();
       closeReceiptModal();
+    }
+  });
+
+  // Handle click on backdrop to close modals
+  ['registerModal', 'receiptModal'].forEach((id) => {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          if (id === 'registerModal') closeRegisterModal();
+          if (id === 'receiptModal') closeReceiptModal();
+        }
+      });
     }
   });
 

@@ -1,8 +1,8 @@
 # DESIGN.md — Reusable Design System &amp; UI/UX Specification
 
 &gt; \*\*Project profile:\*\* Sistem Informasi Bimbingan Belajar Berbasis Web, Kota Palu  
-&gt; \*\*Document version:\*\* 1.1  
-&gt; \*\*Status:\*\* Design baseline, diselaraskan dengan referensi visual (\`referensi.jpg\`)  
+&gt; \*\*Document version:\*\* 2.0  
+&gt; \*\*Status:\*\* Design baseline — Poster Kontras Tinggi (\`#000000\`, \`#CB2957\`, \`#EEEEEE\`)  
 &gt; \*\*Primary language:\*\* Bahasa Indonesia  
 &gt; \*\*Design approach:\*\* Mobile-first, responsive, accessible, role-aware, and domain-configurable
 
@@ -32,55 +32,39 @@ Mengacu pada PRD, sistem bimbel perlu mendukung:
 - Notifikasi dalam aplikasi untuk peristiwa operasional yang relevan.
 - Pembatasan akses antarpengguna sesuai peran dan relasi data.
 
-### 2.2 Referensi visual
+### 2.2 Arah visual: Poster Kontras Tinggi
 
-Referensi visual (\`referensi.jpg\`) adalah landing page agensi desain dengan pendekatan \*\*editorial minimalis\*\*. Karakter yang diambil:
+Landing page memakai pendekatan \*\*poster editorial kontras tinggi\*\* yang tegas, bebas jargon teknis, dan langsung berbicara kepada orang tua serta siswa:
 
-- Latar putih hangat, teks hitam kebiruan, dan satu aksen cokelat-beige yang dipakai hemat.
-- Headline hero besar, tebal, rapat (tracking negatif), rata kiri, dua baris.
-- Hero asimetris: teks di kiri, grid empat visual berukuran berbeda di kanan, sudut nyaris siku, jarak antar-tile sempit.
-- Tombol utama gelap berkontras tinggi dengan ikon panah; aksi sekunder berupa tautan teks atau tombol outline tipis.
-- Kartu datar: border 1 px, radius kecil, tanpa shadow, ikon garis tanpa latar.
-- Label kecil huruf kapital dengan tracking lebar (eyebrow) di atas judul section.
-- Ritme section bergantian antara rata tengah (layanan, testimoni) dan rata kiri (galeri, alasan memilih, tarif).
-- Pita testimoni berlatar hangat, blok CTA gelap, dan footer gelap empat kolom.
+- Kanvas terang abu-abu dingin (\`#EEEEEE\`), teks dan garis struktur hitam pekat (\`#000000\`), serta satu aksen merah kirmizi (\`#CB2957\`) yang dipakai terukur.
+- Tipografi display memakai grotesk tebal/condensed (\`Archivo\`) untuk judul besar dan angka, dipadukan dengan sans-serif bersih (\`Instrument Sans\`) untuk paragraf dan UI.
+- Hero tipografi skala penuh tanpa mockup aplikasi SaaS generik; diakhiri strip 3 fakta nyata di bagian bawah.
+- Pemisah antarbagian dan antarelemen menggunakan garis hitam tegas (\`1–2px\`), sudut tajam (\`2–4px\`), tanpa shadow pada halaman publik (\`landing.css\`).
+- Ikon dikurangi seminimal mungkin di halaman publik: hanya panah pada CTA utama, chevron pada accordion FAQ, dan tombol menu mobile.
+- Copy menggunakan bahasa sehari-hari yang sopan ("Anak Anda", "kamu") tanpa istilah internal sistem (seperti kode fitur, nama database, atau jargon operasional).
 
 Karakter ini diterapkan dengan dua tingkat kepadatan:
 
-1. \*\*Halaman publik:\*\* lebih editorial, visual, berorientasi pada kepercayaan dan pendaftaran.
-2. \*\*Aplikasi setelah login:\*\* lebih terstruktur dan informatif, dengan navigasi konsisten, tabel yang mudah dipindai, status yang jelas, serta tindakan utama yang tidak tersembunyi.
+1. \*\*Halaman publik (\`index.html\` + \`landing.css\`):\*\* tajam, datar, tipografis, berorientasi pada kejelasan manfaat bagi orang tua dan pendaftaran cepat.
+2. \*\*Aplikasi setelah login (\`dashboard.html\` + \`styles.css\`):\*\* mewarisi palet warna dan pasangan font yang sama dari \`:root\`, namun mempertahankan radius yang nyaman (\`6–14px\`) dan permukaan kartu putih (\`#FFFFFF\`) agar tabel, form, dan tugas harian mudah dipindai.
 
-#### Pemetaan bagian referensi ke produk
+#### Pemetaan blok halaman publik
 
-| Bagian referensi | Padanan di bimbel | Syarat data | Flag section |
+| Blok | Fungsi utama | Aturan konten & visual | Flag section |
 |---|---|---|---|
-| Hero dengan grid 4 visual dan avatar | Hero pendaftaran dengan foto kegiatan belajar atau tampilan platform | Foto atau tangkapan layar resmi; avatar hanya dengan izin | \`hero\` (wajib) |
-| Layanan (4 kartu) | Program: SD, SMP, SMA, UTBK | Daftar paket resmi | \`programs\` (wajib) |
-| Realisasi (4 tile) | Suasana belajar: ruang kelas, materi, tutor, kegiatan | Foto milik lembaga atau berizin | \`gallery\` |
-| Alasan memilih dan 3 statistik | Cara belajar dan pemantauan; statistik bila ada | Angka terverifikasi; bila tidak ada, tiga poin layanan tanpa angka | \`whyUs\` |
-| Testimoni 2 kolom | Testimoni orang tua atau siswa | Testimoni asli dengan izin publikasi | \`testimonials\` |
-| Tarif 3 paket dan label populer | Paket bimbingan dan biaya | Harga resmi; label rekomendasi harus punya dasar | \`pricing\` |
-| Blok CTA gelap dan footer | Ajakan mendaftar dan footer resmi | Kontak resmi lembaga | \`cta\` (wajib), \`footer\` |
-
-Teks, angka, harga, nama klien, dan testimoni pada gambar referensi hanyalah contoh dan tidak boleh dipakai sebagai konten.
-
-#### Penyimpangan sadar dari referensi
-
-| Pada referensi | Pada dokumen ini | Alasan |
-|---|---|---|
-| Eyebrow dan tautan aksen berwarna beige terang | \`--accent-text\`, cokelat lebih gelap | Kontras beige terang pada putih sekitar 2.7:1, di bawah batas AA 4.5:1 untuk teks kecil |
-| Daftar fitur paket abu-abu sangat muda | \`--muted-foreground\` | Keterbacaan |
-| Bintang rating dan statistik sebagai elemen tetap | Hanya dari data nyata | Aturan konten pada bagian 6.1 dan 7 |
-| Carousel testimoni | Tidak wajib, terutama di mobile | Aksesibilitas dan kesederhanaan |
-| Teks tertanam di dalam gambar hero | Teks di luar gambar; keterangan lewat \`alt\` | Terbaca screen reader dan mudah diganti lewat konfigurasi |
+| Header | Identitas, 4 tautan jangkar, \`Masuk\` (link), \`Daftar\` (tombol hitam) | Logo teks tanpa kotak monogram | \`header\` (wajib) |
+| Hero | Headline raksasa + 1 kata aksen merah, kalimat pendukung, CTA + link, strip 3 fakta | Tanpa mockup; angka diambil dari fakta nyata layanan | \`hero\` (wajib) |
+| Program (\`01–04\`) | Daftar baris bernomor untuk SD, SMP, SMA, dan UTBK | Bukan grid kartu; baris \`04\` (UTBK) disorot dengan blok hitam penuh | \`programs\` (wajib) |
+| Untuk Orang Tua | Menjelaskan manfaat pemantauan anak + contoh pesan WhatsApp kehadiran | 2 kolom: kiri narasi + contoh pesan WA hitam, kanan 4 poin manfaat | \`forParents\` (wajib) |
+| Cara Daftar | 3 langkah sederhana dari isi formulir sampai kelas percobaan gratis | Nomor raksasa berwarna \`#CB2957\`, tanpa kotak kartu/ikon | \`steps\` (wajib) |
+| FAQ | 7 pertanyaan umum dengan accordion | Judul di kiri (sticky pada desktop), daftar accordion di kanan | \`faq\` (wajib) |
+| CTA & Footer | Permukaan hitam penutup berisi ajakan kelas gratis + informasi lembaga | Blok hitam menyatu dari CTA hingga footer 4 kolom | \`cta\`, \`footer\` (wajib) |
 
 #### Yang dibawa ke aplikasi setelah login
 
-Dibawa: palet netral dan border tipis, tombol primary gelap, Inter dengan heading semibold bertracking negatif, radius \`md\` dan \`lg\`, ikon garis 1.5 px, serta \`--accent-text\` untuk tautan dan item navigasi aktif.
+Dibawa: token warna \`:root\` (\`--background: #EEEEEE\`, \`--foreground: #000000\`, \`--accent: #CB2957\`, warna status semantik yang diredam), serta pasangan font \`Archivo\` (heading) dan \`Instrument Sans\` (body/tabel/form).
 
-Tidak dibawa: eyebrow, grid visual asimetris, blok gelap berukuran besar, panah pada setiap tautan, dan font serif.
-
-Jangan menyalin susunan halaman agensi desain secara mentah. Ambil prinsip visualnya, lalu sesuaikan dengan kebutuhan orang tua, siswa, tutor, dan pengelola bimbel. Dashboard bukan portofolio; kejelasan tugas pengguna lebih penting daripada komposisi dekoratif.
+Tidak dibawa: sudut siku tajam \`2px\`, garis pemisah hitam \`2px\`, ukuran judul poster raksasa, dan penghapusan shadow pada modal/panel melayang.
 
 ## 3. Prinsip Desain
 
@@ -100,16 +84,15 @@ Jangan menyalin susunan halaman agensi desain secara mentah. Ambil prinsip visua
 ### 3.2 Hindari
 
 - Gradien mencolok, efek kaca, bayangan berlebihan, dan animasi dekoratif yang tidak membantu tugas.
+- Mockup dashboard generik ala template SaaS atau istilah teknis internal di halaman publik yang ditujukan untuk orang tua/siswa.
 - Menampilkan terlalu banyak kartu KPI tanpa menjelaskan arti atau tindakan lanjutnya.
-- Menggunakan warna merah untuk semua hal yang dianggap penting.
+- Menggunakan warna merah untuk semua hal yang dianggap penting, atau mencampuradukkan merah brand (\`#CB2957\`) dengan merah error (\`--destructive\`).
 - Mengandalkan placeholder sebagai label form.
 - Menampilkan tabel desktop penuh di layar ponsel tanpa strategi responsif.
 - Menampilkan seluruh menu semua role kepada setiap pengguna.
 - Menggunakan dialog untuk setiap operasi kecil; gunakan halaman atau panel kontekstual bila tugasnya panjang.
 - Mengandalkan toast sebagai satu-satunya penjelasan untuk kesalahan penting.
-- Menggunakan gambar stok generik yang tidak berkaitan dengan konteks produk.
-- Menyalin teks berkontras rendah dari referensi, misalnya daftar fitur abu-abu sangat muda atau eyebrow beige terang.
-- Membawa eyebrow, panah di setiap tautan, atau grid asimetris ke dashboard; elemen itu khusus halaman publik.
+- Menggunakan gambar stok generik atau ikon dekoratif di setiap paragraf/kartu.
 
 ---
 
@@ -117,59 +100,58 @@ Jangan menyalin susunan halaman agensi desain secara mentah. Ambil prinsip visua
 
 ### 4.1 Karakter merek
 
-\*\*Kata kunci:\*\* tenang, profesional, humanis, terorganisir, terpercaya, modern, dan tidak mengintimidasi.
+\*\*Kata kunci:\*\* tegas, jujur, terorganisir, transparan, mudah dipahami, dan tidak bertele-tele.
 
-Antarmuka sebaiknya terasa seperti layanan pendidikan yang dikelola dengan baik, bukan sistem administrasi lama yang hanya dipindahkan ke browser. Tampilan tidak perlu kekanak-kanakan. Gunakan ilustrasi atau foto pendidikan seperlunya, sedangkan dashboard mengutamakan data dan alur kerja.
+Halaman publik berbicara langsung kepada orang tua dan siswa dengan bahasa sehari-hari yang jelas, sedangkan dashboard mengutamakan keterbacaan data dan kecepatan kerja harian.
 
 ### 4.2 Palet warna dasar
 
-Palet berikut menjadi baseline netral. Nilai dapat dipetakan ke CSS variables/shadcn tokens dan diganti lewat konfigurasi tema. Pastikan seluruh pasangan teks dan latar diuji terhadap kontras WCAG AA.
+Palet utama dibangun dari tiga warna inti (\`#EEEEEE\`, \`#000000\`, \`#CB2957\`) dan dipetakan ke CSS variables pada \`:root\` di \`styles.css\`.
 
 | Token | Nilai | Kegunaan |
 |---|---|---|
-| \`--background\` | \`#FFFFFF\` | Latar utama halaman publik dan panel bersih |
-| \`--foreground\` | \`#202124\` | Teks utama |
-| \`--surface\` | \`#FFFFFF\` | Kartu, dialog, menu, dan panel |
-| \`--surface-muted\` | \`#F6F5F2\` | Area sekunder, bagian pembuka dashboard, atau section selang-seling |
-| \`--surface-subtle\` | \`#F0EFEB\` | Hover lembut, kelompok kontrol, dan latar kosong |
-| \`--surface-warm\` | \`#FAF8F5\` | Pita testimoni dan section selang-seling di halaman publik |
-| \`--border\` | \`#E4E1DB\` | Garis kartu, separator, dan tabel |
-| \`--border-input\` | \`#8A877F\` | Garis input, select, dan kontrol form (kontras sekitar 3.6:1 pada putih) |
-| \`--muted-foreground\` | \`#686963\` | Keterangan, metadata, label sekunder |
-| \`--primary\` | \`#202124\` | Tombol utama dan elemen dengan prioritas tertinggi |
-| \`--primary-foreground\` | \`#FFFFFF\` | Teks/ikon di atas warna primary |
-| \`--inverse-muted\` | \`#C2C5CA\` | Teks sekunder di atas permukaan gelap (blok CTA, footer) |
-| \`--accent\` | \`#B59A7B\` | Aksen dekoratif: bintang, garis, ikon dekoratif, ring avatar. Bukan untuk teks kecil di latar terang |
-| \`--accent-text\` | \`#7F5F3F\` | Eyebrow, tautan beraksen, dan item navigasi aktif |
-| \`--accent-foreground\` | \`#24211D\` | Teks di atas \`--accent\`; tetap cek kontras aktual |
-| \`--ring\` | \`#6D8B9A\` | Focus ring yang terlihat jelas |
-| \`--success\` | \`#247447\` | Keberhasilan dan status positif |
-| \`--warning\` | \`#946200\` | Peringatan dan kondisi yang membutuhkan perhatian |
-| \`--destructive\` | \`#B42318\` | Kesalahan serius, penolakan, atau tindakan destruktif |
-| \`--info\` | \`#245EA8\` | Informasi netral dan status sedang diproses |
+| \`--background\` | \`#EEEEEE\` | Kanvas utama halaman publik dan latar kerja dashboard |
+| \`--foreground\` | \`#000000\` | Teks utama dan garis struktur pada landing page |
+| \`--surface\` | \`#FFFFFF\` | Permukaan kartu dashboard, tabel, dan input form |
+| \`--surface-muted\` | \`#EEEEEE\` | Area sekunder setara kanvas |
+| \`--surface-subtle\` | \`#E3E3E3\` | Hover lembut dan kelompok kontrol |
+| \`--surface-warm\` | \`#F6F6F6\` | Permukaan terang sekunder (mis. kwitansi) |
+| \`--border\` | \`#D2D2D2\` | Garis kartu, separator, dan tabel di dashboard |
+| \`--border-input\` | \`#6B6B6B\` | Garis input, select, dan kontrol form di dashboard |
+| \`--muted-foreground\` | \`#555555\` | Keterangan, metadata, dan teks sekunder |
+| \`--primary\` | \`#000000\` | Tombol hitam utama, baris unggulan UTBK, serta blok CTA & footer |
+| \`--primary-foreground\` | \`#EEEEEE\` | Teks di atas permukaan hitam \`--primary\` |
+| \`--inverse-muted\` | \`#A3A3A3\` | Teks sekunder di atas permukaan hitam (CTA, footer, baris UTBK) |
+| \`--accent\` | \`#CB2957\` | Aksen utama: tombol CTA merah, 1 kata sorotan di headline, nomor langkah besar, garis bawah hover |
+| \`--accent-text\` | \`#A81E46\` | Varian merah lebih gelap untuk teks kecil beraksen di latar terang |
+| \`--accent-foreground\` | \`#7A1534\` | Teks di atas latar \`--accent-light\` |
+| \`--accent-on\` | \`#FFFFFF\` | Teks di atas tombol/badge \`--accent\` (\`#CB2957\`) |
+| \`--accent-light\` | \`#FBEAEF\` | Latar merah sangat muda untuk badge aksen |
+| \`--ring\` | \`#CB2957\` | Focus ring yang terlihat jelas |
+| \`--success\` | \`#2E6B4C\` | Keberhasilan dan status positif (diredam agar selaras dengan palet) |
+| \`--warning\` | \`#85600F\` | Peringatan dan kondisi yang membutuhkan perhatian |
+| \`--destructive\` | \`#A1301C\` | Kesalahan/penolakan (merah bata ber-hue oranye agar berbeda dari \`#CB2957\`) |
+| \`--info\` | \`#3A5A80\` | Informasi netral dan status sedang diproses |
 
 \*\*Aturan penggunaan warna:\*\*
 
-- Warna utama untuk tombol CTA dan dua permukaan gelap di halaman publik (blok CTA penutup dan footer), bukan seluruh permukaan layar.
-- Aksen punya dua peran. \`--accent\` (beige) hanya untuk dekorasi seperti bintang, garis, dan ikon. \`--accent-text\` (cokelat lebih gelap) untuk eyebrow, tautan beraksen, dan item navigasi aktif. Referensi memakai beige terang untuk teks kecil; nilainya digelapkan di sini agar lolos kontras AA.
-- Pada permukaan gelap, \`--accent\` boleh dipakai sebagai teks (sekitar 6:1 pada \`--primary\`).
-- Warna status bersifat semantik, bukan dekorasi. Status yang sama harus memiliki warna dan label yang konsisten di seluruh modul.
-- Jangan memakai warna sebagai satu-satunya cara membedakan status. Contoh: gunakan \`Ikon + Hadir\`, bukan titik hijau tanpa label.
-- Berikan warna latar status yang pucat dan teks yang lebih gelap; hindari teks putih di atas warna status cerah kecuali kontrasnya sudah diuji.
+- Kanvas utama memakai \`#EEEEEE\` dan struktur teks/garis memakai \`#000000\`. Permukaan hitam penuh di halaman publik hanya digunakan pada baris program unggulan (UTBK) serta bagian penutup (CTA + footer).
+- \`#CB2957\` (\`--accent\`) dipakai secara hemat untuk mengarahkan mata: tombol CTA utama, 1 kata penekanan pada headline hero/CTA, angka langkah \`1–2–3\`, penanda poin program, dan garis bawah hover.
+- Karena rasio kontras \`#CB2957\` di atas \`#EEEEEE\` adalah \*\*4.5:1\*\* (tepat di batas minimum AA), gunakan \`#CB2957\` hanya pada teks besar/tebal atau elemen grafis. Untuk teks kecil beraksen di latar terang, gunakan \`--accent-text\` (\`#A81E46\`, 5.9:1).
+- Di atas permukaan \`#CB2957\` (seperti tombol CTA dan badge unggulan), selalu gunakan teks putih \`#FFFFFF\` (\`--accent-on\`, 5.3:1). Jangan pernah meletakkan teks hitam di atas \`#CB2957\`.
+- Warna status di dashboard bersifat semantik dan selalu disertai label teks atau ikon supaya tidak tertukar dengan merah brand.
 
-\*\*Kontras pasangan utama\*\* (dihitung dengan rumus WCAG 2.x; uji ulang bila nilai token diubah):
+\*\*Kontras pasangan utama\*\* (dihitung dengan rumus WCAG 2.x):
 
 | Teks / elemen | Latar | Rasio | Catatan |
 |---|---|---:|---|
-| \`--accent-text\` | \`--background\` | 5.8:1 | Lolos AA untuk teks kecil |
-| \`--accent-text\` | \`--surface-muted\` | 5.3:1 | Lolos AA |
-| \`--accent-text\` | \`--surface-warm\` | 5.5:1 | Lolos AA |
-| \`--muted-foreground\` | \`--background\` | 5.5:1 | Lolos AA |
-| \`--muted-foreground\` | \`--surface-muted\` | 5.1:1 | Lolos AA |
-| \`--accent\` | \`--background\` | 2.7:1 | Hanya dekoratif |
-| \`--accent\` | \`--primary\` | 6.0:1 | Boleh untuk teks di permukaan gelap |
-| \`--inverse-muted\` | \`--primary\` | 9.3:1 | Lolos AA |
-| \`--ring\` | \`--background\` | 3.6:1 | Lolos 3:1 untuk fokus |
+| \`--foreground\` (\`#000000\`) | \`--background\` (\`#EEEEEE\`) | 18.1:1 | Lolos AAA untuk semua ukuran teks |
+| \`--muted-foreground\` (\`#555555\`) | \`--background\` (\`#EEEEEE\`) | 6.5:1 | Lolos AA untuk teks kecil |
+| \`--accent\` (\`#CB2957\`) | \`--background\` (\`#EEEEEE\`) | 4.5:1 | Pas batas AA; batasi untuk teks besar/tebal & aksen |
+| \`--accent-text\` (\`#A81E46\`) | \`--background\` (\`#EEEEEE\`) | 5.9:1 | Lolos AA untuk teks kecil |
+| \`--accent-on\` (\`#FFFFFF\`) | \`--accent\` (\`#CB2957\`) | 5.3:1 | Lolos AA untuk tombol CTA & badge |
+| \`--primary-foreground\` (\`#EEEEEE\`) | \`--primary\` (\`#000000\`) | 18.1:1 | Lolos AAA di blok hitam |
+| \`--inverse-muted\` (\`#A3A3A3\`) | \`--primary\` (\`#000000\`) | 8.3:1 | Lolos AAA untuk teks sekunder di blok hitam |
 
 ### 4.3 Warna status domain bimbel
 
@@ -190,36 +172,28 @@ Label UI sebaiknya ramah pengguna. Status internal database boleh memakai enum b
 
 ### 4.4 Tipografi
 
-Gunakan keluarga sans-serif yang jelas dan tersedia luas. Preferensi awal: \*\*Inter\*\* untuk antarmuka; fallback \`ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif\`. Bila aset font eksternal tidak tersedia, fallback sistem tetap harus terlihat layak.
+Gunakan pasangan font yang kontras antara judul dan isi:
 
-Satu keluarga serif dipakai sangat terbatas untuk kutipan testimoni dan monogram logo: serif dengan gaya italic seperti \*\*Source Serif 4\*\*, fallback \`Georgia, "Times New Roman", serif\`. Serif tidak dipakai di dashboard, tabel, atau form.
+- \*\*Display / Heading (\`--font-display\`):\*\* \*\*Archivo\*\* (variable width \`62..125\`, weight \`500..900\`), digunakan dengan \`font-stretch: 70%–85%\` dan weight \`700–800\` untuk memberikan karakter poster yang padat dan tegas.
+- \*\*Body & UI (\`--font-sans\`):\*\* \*\*Instrument Sans\*\* (weight \`400..700\`), fallback \`ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif\`.
 
 | Token | Ukuran / line-height | Pemakaian |
 |---|---|---|
-| \`display\` | \`clamp(2.75rem, 5.5vw, 4.75rem) / 1.04\`, weight 700, tracking \`-0.035em\` | Heading hero halaman publik saja; maksimal dua baris |
-| \`h1\` | \`clamp(1.75rem, 3vw, 2.5rem) / 1.15\` | Judul halaman utama |
-| \`h2\` | \`1.5rem / 1.25\` | Judul section |
-| \`h2-landing\` | \`clamp(1.5rem, 2.5vw, 2rem) / 1.2\`, weight 600, tracking \`-0.02em\` | Judul section landing page |
-| \`h3\` | \`1.125rem / 1.35\` | Judul kartu/panel |
-| \`h4\` | \`1rem / 1.4\` | Subjudul kecil |
-| \`body\` | \`0.9375rem–1rem / 1.55\` | Paragraf dan informasi normal |
-| \`body-sm\` | \`0.875rem / 1.5\` | Deskripsi pendek |
-| \`label\` | \`0.875rem / 1.4\` | Label form |
+| \`display-hero\` | \`clamp(3.25rem, 9vw, 8.25rem) / 0.9\`, \`Archivo\` stretch 72%, weight 800, tracking \`-0.025em\` | Headline hero halaman publik |
+| \`display-cta\` | \`clamp(2.75rem, 7vw, 6rem) / 0.92\`, \`Archivo\` stretch 72%, weight 800 | Judul blok CTA penutup |
+| \`h2-landing\` | \`clamp(2.25rem, 5vw, 4rem) / 0.95\`, \`Archivo\` stretch 75%, weight 800 | Judul section halaman publik |
+| \`h1\` (dashboard) | \`clamp(1.75rem, 3vw, 2.5rem) / 1.15\`, \`Archivo\` weight 700 | Judul halaman utama di dashboard |
+| \`h2\` / \`h3\` | \`1.125rem–1.5rem / 1.15–1.35\`, \`Archivo\` weight 700 | Judul subbagian, baris program, dan panel |
+| \`body-landing\` | \`1rem–1.1875rem / 1.55–1.6\`, \`Instrument Sans\` | Paragraf halaman publik |
+| \`body\` (dashboard) | \`0.9375rem / 1.55\`, \`Instrument Sans\` | Paragraf, tabel, dan informasi operasional |
+| \`label\` / \`button\` | \`0.875rem–0.9375rem / 1.25\`, weight 600 | Label form dan tombol |
 | \`caption\` | \`0.75rem–0.8125rem / 1.4\` | Metadata, timestamp, helper text |
-| \`button\` | \`0.875rem–0.9375rem / 1.2\`, weight 500–600 | Label tombol |
-| \`metric\` | \`1.75rem–2.25rem / 1.1\`, weight 600 | Angka KPI yang benar-benar penting; pada statistik landing diberi ikon 20 px di atasnya |
-| \`eyebrow\` | \`0.75rem / 1.2\`, weight 500, uppercase, tracking \`0.14em\`, \`--accent-text\` | Label kecil di atas judul section halaman publik |
-| \`quote\` | \`1rem / 1.65\`, serif italic | Kutipan testimoni |
 
 Aturan tipografi:
 
-- Gunakan maksimal dua tingkat font weight dominan dalam satu panel.
-- Heading tidak uppercase. Hanya eyebrow yang uppercase: satu per section, hanya di halaman publik, selalu \`--accent-text\`. Terapkan uppercase lewat CSS (\`text-transform\`), bukan pada teksnya, agar pembaca layar membacanya normal.
-- Heading 24 px ke atas memakai weight 600–700 dengan tracking negatif ringan (\`-0.02em\` sampai \`-0.035em\`); body memakai weight 400.
-- Satu headline satu warna. Jangan menonjolkan satu kata dengan warna atau italic.
-- Paragraf utama dibatasi sekitar 60–75 karakter per baris bila ruang memungkinkan.
-- Angka nilai, uang, jumlah, persentase, dan tanggal harus mudah dipindai. Gunakan angka tabular bila didukung.
-- Jangan mengecilkan teks penting di tabel untuk memaksakan semua kolom masuk ke layar.
+- Pada headline hero dan judul CTA penutup di halaman publik, diperbolehkan menyorot \*\*maksimal satu kata kunci\*\* dengan warna \`--accent\` (\`#CB2957\`) menggunakan elemen \`<em>\` (\`font-style: normal\`).
+- Paragraf utama dibatasi sekitar 45–65 karakter per baris agar nyaman dibaca.
+- Angka statistik, nomor urut program (\`01–04\`), nilai, dan nominal uang wajib memakai \`font-variant-numeric: tabular-nums\`.
 
 ### 4.5 Spacing dan ukuran
 
@@ -240,40 +214,19 @@ Gunakan skala berbasis kelipatan 4 px untuk menjaga konsistensi.
 | \`space-20\` | 80px |
 | \`space-24\` | 96px |
 
-Aturan penggunaan:
-
-- Jarak antarelemen di dalam kontrol biasanya 8–12 px.
-- Jarak label ke input 6–8 px.
-- Padding kartu sederhana 16–20 px pada ponsel dan 20–24 px pada desktop.
-- Jarak antar-section landing page 64–80 px pada desktop dan 40–56 px pada ponsel. Referensi cukup rapat; jangan melebihi 96 px.
-- Kartu layanan dan kartu paket: padding 24 px, gap grid 16 px.
-- Grid visual hero dan galeri: gap 8 px.
-- Jangan menggunakan padding besar pada setiap kartu dashboard karena akan menurunkan jumlah informasi yang terlihat.
-
 ### 4.6 Radius, border, dan shadow
 
-| Token | Nilai awal | Pemakaian |
-|---|---|---|
-| \`radius-xs\` | 2px | Tile visual (grid hero, galeri); nyaris siku sesuai referensi |
-| \`radius-sm\` | 4px | Badge, tab "Paling populer", field kecil |
-| \`radius-md\` | 8px | Tombol, input, menu |
-| \`radius-lg\` | 10px | Kartu, dialog, panel, kartu paket |
-| \`radius-xl\` | 14px | Blok CTA penutup dan panel besar |
-| \`radius-full\` | 9999px | Avatar, chip, tombol panah bulat |
-| \`shadow-sm\` | Sangat halus | Popover |
-| \`shadow-md\` | Halus | Dropdown/dialog bila diperlukan |
+Sistem membedakan perlakuan bentuk antara halaman publik (\`body.landing\` di \`landing.css\`) dan aplikasi dashboard (\`styles.css\`):
 
-Kartu pada referensi datar: border 1 px \`--border\`, tanpa shadow. Pertahankan itu di halaman publik dan dashboard. Shadow hanya untuk lapisan yang melayang (popover, dropdown, dialog).
+| Konteks | Radius | Border & Pemisah | Shadow |
+|---|---|---|---|
+| \*\*Landing Page (\`body.landing\`)\*\* | Tajam: \`2px\` (\`--radius-sm/md\`) hingga \`4px\` (\`--radius-lg/xl\`) | Garis hitam tegas \`2px solid #000000\` (\`--rule\`) untuk struktur utama dan \`1px solid #000000\` (\`--rule-thin\`) untuk sub-baris | \*\*Tidak ada shadow\*\* (\`none\`) pada seluruh elemen termasuk modal |
+| \*\*Dashboard (\`styles.css\`)\*\* | Nyaman: \`6px\` (\`sm\`), \`10px\` (\`md\`), \`14px\` (\`lg\`) | Border abu-abu \`1px solid #D2D2D2\` (\`--border\`) untuk kartu dan tabel | Halus (\`--shadow-sm\` s.d. \`--shadow-lg\`) untuk kartu dan dialog melayang |
 
-### 4.7 Ikon dan ilustrasi
+### 4.7 Ikon
 
-- Gunakan satu keluarga ikon garis secara konsisten, misalnya Lucide melalui ekosistem shadcn/ui.
-- Ukuran ikon standar 16, 18, atau 20 px. Ikon di dalam tombol harus sejajar secara optis dengan teks.
-- Tombol icon-only wajib memiliki accessible name/tooltip dan area klik yang cukup besar.
-- Gunakan ilustrasi atau foto hanya bila menambahkan konteks. Untuk aplikasi bimbel, visual dapat menampilkan kegiatan belajar, ruang kelas, materi, atau profil tutor dengan izin penggunaan yang sesuai.
-- Hindari emoji sebagai pengganti ikon antarmuka permanen.
-- Ikon layanan di kartu publik berukuran 20 px, stroke 1.5 px, warna \`--foreground\`, tanpa kotak atau lingkaran latar.
-- Panah (\`ArrowRight\`, 14–16 px) hanya untuk CTA dan tautan yang pindah halaman, bukan untuk tombol submit atau aksi di dalam halaman.
+- Di halaman publik (\`index.html\`), penggunaan ikon dibatasi secara ketat: hanya panah (\`arrow-right\`) pada CTA utama, \`chevron-down\` pada pemicu FAQ, serta ikon \`menu\` dan \`x\` pada navigasi mobile/modal. Jangan menambahkan ikon dekoratif pada daftar program, langkah pendaftaran, atau poin manfaat.
+- Di dashboard (\`dashboard.html\`), ikon Lucide (\`16–20px\`) tetap digunakan pada sidebar, tombol aksi, dan indikator status untuk mempercepat pemindaian tugas operasional.
 
 ---
 
@@ -281,86 +234,34 @@ Kartu pada referensi datar: border 1 px \`--border\`, tanpa shadow. Pertahankan 
 
 ### 5.1 Grid dan container
 
-- Gunakan container terpusat dengan lebar maksimum \`1280px\` untuk halaman publik, padding horizontal 16 px pada ponsel dan 32 px pada tablet, serta margin otomatis pada desktop.
-- Area kerja dashboard menggunakan sisa lebar layar setelah sidebar, dengan batas baca yang nyaman untuk konten formulir.
-- Grid publik memakai 12 kolom pada desktop, 8 kolom pada tablet, dan 4 kolom pada mobile bila diperlukan.
-- Gunakan gap 16–24 px pada grid kartu dashboard.
-- Untuk halaman form panjang, batasi lebar konten sekitar \`680–800px\` dan hindari field membentang selebar layar tanpa alasan.
-- Tabel data boleh memanfaatkan lebar penuh workspace.
+- Gunakan container terpusat dengan lebar maksimum \`1240px\`, padding horizontal \`16px\` pada ponsel dan \`24px\` pada desktop.
+- Area kerja dashboard menggunakan sisa lebar layar setelah sidebar (\`256px\`).
 
 ### 5.2 Breakpoint responsif
 
-Breakpoint berikut merupakan pedoman awal, bukan alasan memaksakan layout jika konten belum muat.
-
 | Nama | Lebar | Perilaku utama |
 |---|---:|---|
-| \`xs\` | \`&lt; 480px\` | Satu kolom, menu mobile, tindakan utama full-width bila membantu |
-| \`sm\` | \`480–639px\` | Satu kolom; form dapat mulai memakai grid untuk pasangan field pendek |
-| \`md\` | \`640–767px\` | Layout tablet kecil; navigasi tetap collapsible |
-| \`lg\` | \`768–1023px\` | Sidebar dapat menjadi rail atau drawer; grid dua kolom untuk beberapa halaman |
-| \`xl\` | \`1024–1279px\` | Sidebar tetap, grid utama dua/ tiga kolom sesuai konten |
-| \`2xl\` | \`&gt;= 1280px\` | Container penuh dengan batas lebar; jangan merentangkan baris teks |
-
-\*\*Responsive rules:\*\*
-
-- Breakpoint ditentukan saat konten membutuhkan perubahan, bukan karena setiap komponen harus memakai semua breakpoint.
-- Prioritaskan urutan konten, ukuran target sentuh, dan keterbacaan daripada mempertahankan posisi desktop.
-- Pada ponsel, hindari layout yang memerlukan hover. Fungsi harus tersedia melalui tap/focus.
-- Konten tidak boleh memaksa scroll horizontal pada seluruh halaman. Jika tabel memang butuh overflow, batasi overflow pada area tabel dan berikan petunjuk visual.
-- Uji pada lebar 320, 360, 390, 768, 1024, 1280, dan 1440 px.
+| \`xs / sm\` | \`&lt; 768px\` | Satu kolom penuh, strip fakta hero tersusun vertikal, baris program dan langkah pendaftaran bertumpuk, tombol CTA full-width |
+| \`md\` | \`768–900px\` | Navigasi header berubah menjadi tombol hamburger + drawer samping; grid 2 kolom disederhanakan menjadi 1 kolom |
+| \`lg\` | \`901–1024px\` | Baris program menyusun tombol di bawah deskripsi; sidebar dashboard menjadi drawer |
+| \`xl+\` | \`&gt; 1024px\` | Layout desktop penuh |
 
 ### 5.3 Target sentuh dan fokus
 
-- Target interaksi ideal minimal 44 × 44 px untuk touch; ukuran visual ikon boleh lebih kecil selama area klik tetap memadai.
-- Berikan jarak memadai antara aksi berisiko seperti \`Hapus\` dan aksi umum seperti \`Edit\`.
-- Semua komponen interaktif harus memiliki state hover, focus-visible, active, disabled, dan loading bila relevan.
-- Fokus keyboard harus tampak jelas dan tidak tertutup sticky header, sidebar, atau modal.
+- Target interaksi minimal \`44 × 44 px\` pada perangkat sentuh.
+- Semua elemen interaktif memiliki focus ring \`2px solid var(--ring)\` (\`#CB2957\`).
 
 ---
 
 ## 6. Arsitektur Pengalaman Pengguna
 
-Sistem terdiri dari dua area pengalaman yang saling terhubung, tetapi memiliki kebutuhan visual berbeda.
+### 6.1 Area publik (\`index.html\`)
 
-### 6.1 Area publik
+Tujuan: menjelaskan manfaat nyata bimbingan belajar kepada orang tua dan siswa tanpa istilah teknis, menampilkan program SD–UTBK, dan mengarahkan ke pendaftaran atau percobaan kelas gratis.
 
-Tujuan: membantu calon pengguna memahami layanan, percaya pada lembaga, melihat program yang tersedia, dan melanjutkan pendaftaran atau login.
+### 6.2 Area aplikasi setelah login (\`dashboard.html\`)
 
-Halaman awal yang disarankan:
-
-- \`/\` — halaman utama dan pengenalan layanan.
-- \`/program\` atau \`/paket\` — daftar paket bimbingan.
-- \`/tentang\` — profil lembaga dan pendekatan belajar.
-- \`/kontak\` — informasi kontak/lokasi yang memang tersedia.
-- \`/daftar\` — pendaftaran calon siswa.
-- \`/login\` — masuk ke sistem.
-
-Rute publik tersebut adalah rekomendasi struktur navigasi; detail konten harus mengikuti informasi lembaga yang benar-benar tersedia. Jangan menciptakan angka prestasi, testimoni, harga, alamat, atau klaim hasil belajar tanpa sumber.
-
-### 6.2 Area aplikasi setelah login
-
-Tujuan: menyelesaikan pekerjaan dan mendapatkan informasi personal dengan cepat.
-
-Rute awal dari PRD:
-
-- \`/admin\` — operasional dan administrasi.
-- \`/tutor\` — kegiatan mengajar, presensi, materi, evaluasi.
-- \`/student\` — jadwal, materi, presensi, nilai, tagihan.
-- \`/parent\` — pemantauan anak, presensi, nilai, tagihan, kwitansi.
-
-Setelah login berhasil, arahkan pengguna ke dashboard sesuai role yang diperoleh dari sumber otorisasi tepercaya. Menyembunyikan menu di frontend bukan pengganti validasi izin pada server dan database.
-
-### 6.3 Navigasi global
-
-Navigasi harus menunjukkan:
-
-- Identitas produk/brand.
-- Halaman atau section aktif.
-- Akses ke notifikasi bila relevan.
-- Profil akun dan tindakan akun yang tersedia.
-- Bantuan atau kontak, bila kanal tersebut memang disediakan.
-
-Jangan mencampur navigasi pemasaran dengan navigasi kerja harian setelah pengguna login.
+Tujuan: menyelesaikan pekerjaan harian untuk empat peran (\`admin\`, \`tutor\`, \`student\`, \`parent\`).
 
 ---
 
@@ -368,158 +269,91 @@ Jangan mencampur navigasi pemasaran dengan navigasi kerja harian setelah penggun
 
 ### 7.0 Urutan section dan wireframe
 
-Urutan mengikuti referensi. Hanya \`hero\`, \`programs\`, \`cta\`, dan \`footer\` yang wajib. Section lain aktif bila datanya resmi tersedia (lihat 17.1).
+Halaman publik terdiri dari **5 blok utama** di atas permukaan hitam penutup (CTA + Footer):
 
 \`\`\`text
 ┌────────────────────────────────────────────────────────────────────┐
-│ Logo      Beranda   Program   Tentang   Kontak        \[ Daftar → \] │  header 72px
+│ Tadulako Cendekia     Program  Untuk Orang Tua  Cara Daftar  FAQ   │
+│                                                  Masuk   [Daftar]  │  header (border 2px hitam)
 ├────────────────────────────────────────────────────────────────────┤
-│ EYEBROW                                 ┌─────────────┬───────┐    │
-│ Headline besar                          │             │       │    │  hero
-│ dua baris                               │   tile A    │ tile C│    │  rata kiri
-│ Ringkasan 2–3 kalimat                   │             │       │    │
-│                                         ├─────────────┤       │    │
-│ \[ Daftar sekarang → \]  Lihat X          │             ├───────┤    │
-│ (avatar) bukti sosial                   │   tile B    │ tile D│    │
-│                                         └─────────────┴───────┘    │
+│ Bimbingan belajar tatap muka     │ █ JADWAL KELAS SORE · PALU █    │  1. HERO 2 kolom:
+│ KELAS KECIL, JADWAL PASTI,       │ ─────────────────────────────── │     teks utama (kiri) +
+│ ORANG TUA SELALU TAHU.           │ SD Cendekia      [Sisa 3 kursi] │     papan jadwal (kanan)
+│                                  │ SMP Prestasi     [Sisa 4 kursi] │
+│ Paragraf ringkas & aksi:         │ SMA Sukses       [Sisa 2 kursi] │
+│ [Daftar sekarang →] Lihat program│ Intensif UTBK    [Sisa 2 kursi] │
+│ ─────────────────────────────────┴──────────────────────────────── │
+│ 12 siswa maks/kelas   │ 4 jenjang SD–UTBK    │ Gratis kelas 1      │  strip 3 fakta
 ├────────────────────────────────────────────────────────────────────┤
-│                           EYEBROW                                  │  programs
-│                         Judul section                              │  rata tengah
-│                                                                    │
-│    ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
-│    │   ikon   │  │   ikon   │  │   ikon   │  │   ikon   │          │
-│    │    SD    │  │   SMP    │  │   SMA    │  │   UTBK   │          │
-│    │ Pelajari │  │ Pelajari │  │ Pelajari │  │ Pelajari │          │
-│    └──────────┘  └──────────┘  └──────────┘  └──────────┘          │
+│ PILIH SESUAI JENJANG ANAK                   Ringkasan paket        │  2. PROGRAM (baris 01–04)
+│ ══════════════════════════════════════════════════════════════════ │
+│ 01  SD Cendekia       │ Deskripsi & 2 poin utama       │ [Pilih]   │
+│ ──────────────────────┼────────────────────────────────┼────────── │
+│ 02  SMP Prestasi      │ Deskripsi & 2 poin utama       │ [Pilih]   │
+│ ──────────────────────┼────────────────────────────────┼────────── │
+│ 03  SMA Sukses        │ Deskripsi & 2 poin utama       │ [Pilih]   │
+│ ██████████████████████████████████████████████████████████████████ │
+│ █ 04 [PROGRAM UNGGULAN]                                          █ │  baris UTBK blok hitam
+│ █    Intensif UTBK    │ Deskripsi & 2 poin utama       │ [Pilih] █ │
+│ ██████████████████████████████████████████████████████████████████ │
 ├────────────────────────────────────────────────────────────────────┤
-│ EYEBROW / Judul (kiri)                      Lihat semua →          │  gallery
-│ \[tile\] \[tile\] \[tile\] \[tile\]  + keterangan 2 baris                  │  (opsional)
+│ ANAK SUDAH SAMPAI DI KELAS?   │ Kabar setiap pertemuan             │  3. UNTUK ORANG TUA
+│ ANDA LANGSUNG TAHU.           │ ────────────────────────────────── │
+│ ┌───────────────────────────┐ │ Nilai dan catatan tutor            │
+│ │ Contoh pesan WhatsApp     │ │ ────────────────────────────────── │
+│ │ kehadiran anak (hitam)    │ │ Jadwal tidak pernah bentrok        │
+│ └───────────────────────────┘ │ ────────────────────────────────── │
+│ Lihat contoh halaman ortu →   │ Bayar les tanpa repot              │
 ├────────────────────────────────────────────────────────────────────┤
-│ ┌──────────────────┐   EYEBROW / Judul 2 baris                     │  whyUs
-│ │    foto besar    │   Paragraf pendek                             │  (opsional)
-│ └──────────────────┘   \[ikon angka\]  \[ikon angka\]  \[ikon angka\]    │
+│ TIGA LANGKAH UNTUK MULAI                                           │  4. CARA DAFTAR
+│ ───────────────────  ───────────────────  ──────────────────────── │
+│ 1 (merah besar)      2 (merah besar)      3 (merah besar)          │
+│ Isi formulir         Kami hubungi Anda    Ikut kelas pertama gratis│
 ├────────────────────────────────────────────────────────────────────┤
-│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  testimonials
-│ ░ kutipan 1 ░░░░░░░░░░░░░░░░░░░░│░ kutipan 2 ░░░░░░░░░░░░░░░░░░░░  │  (opsional)
-├────────────────────────────────────────────────────────────────────┤
-│ EYEBROW / Judul (kiri)     \[paket\]   \[paket + tab\]   \[paket\]       │  pricing
-│                                                                    │  (opsional)
-├────────────────────────────────────────────────────────────────────┤
-│ █ Blok CTA gelap: judul + ringkasan           \[ Daftar → \]       █ │  cta
-├────────────────────────────────────────────────────────────────────┤
-│ █ Footer gelap:  brand │ Navigasi │ Program │ Kontak             █ │  footer
+│ YANG SERING          │ Apa bedanya dengan bimbel lain?           ^ │  5. FAQ (accordion)
+│ DITANYAKAN           │ ─────────────────────────────────────────── │
+│                      │ Pertanyaan 2–7                            v │
+├════════════════════════════════════════════════════════════════════┤
+│ █ COBA SATU KELAS DULU. GRATIS.                                  █ │  CTA + FOOTER hitam
+│ █ Ringkasan singkat          [Daftar sekarang →] [Tanya via WA]  █ │
+│ █ ────────────────────────────────────────────────────────────── █ │
+│ █ Tadulako Cendekia │ Program │ Masuk (4 peran) │ Kontak         █ │
 └────────────────────────────────────────────────────────────────────┘
 \`\`\`
 
-Perataan: rata kiri untuk hero, galeri, alasan memilih, dan tarif; rata tengah hanya untuk judul section program dan testimoni. Teks panjang tidak pernah rata tengah.
-
 ### 7.1 Header
 
-\*\*Desktop:\*\* tinggi 72 px. Logo di kiri, tautan navigasi di tengah, satu CTA gelap di ujung kanan. \`Masuk\` berupa tautan teks atau tombol ghost di sebelah kiri CTA, bukan tombol primary kedua.
-
-\*\*Logo:\*\* wordmark dua baris (nama lembaga, 13–14 px, weight 600) dengan monogram serif di sisi kiri. Logo berasal dari konfigurasi (\`brand.logoPath\`).
-
-\*\*Navigasi:\*\* tautan 14 px, weight 400. Item aktif memakai \`--accent-text\`, weight 500, dan \`aria-current="page"\`. Hover cukup dengan underline atau perubahan ke \`--foreground\`.
-
-\*\*CTA:\*\* tombol \`primary\` setinggi 40 px, radius \`md\`, teks pendek seperti \`Daftar sekarang\`, dengan ikon panah 16 px.
-
-\*\*Mobile:\*\* logo di kiri dan tombol menu di kanan. Drawer/menu harus menampilkan tautan, CTA, serta \`Masuk\` dengan jelas. Tutup menu setelah pengguna memilih rute dan sediakan perilaku Escape/focus yang baik.
-
-Aturan:
-
-- Header dapat sticky bila bermanfaat, tetapi jangan menghabiskan banyak tinggi layar ponsel.
-- Jangan menampilkan dua tombol yang sama-sama terlihat sebagai primary.
-- Hindari navigasi terlalu panjang; kelompokkan halaman sekunder.
+- **Logo:** Teks \`Tadulako Cendekia\` (\`Archivo\` condensed, \`Tadulako\` tebal 800, \`Cendekia\` 500), tanpa kotak ikon/monogram.
+- **Navigasi desktop:** 4 tautan (\`Program\`, \`Untuk Orang Tua\`, \`Cara Daftar\`, \`FAQ\`) dengan garis bawah merah \`2px\` saat hover.
+- **Aksi kanan:** \`Masuk\` sebagai tautan teks dan \`Daftar\` sebagai tombol hitam (\`.btn-primary\`).
+- **Mobile (\`<= 900px\`):** Tombol hamburger berbingkai hitam \`2px\` membuka drawer kanan berlatar \`#EEEEEE\`.
 
 ### 7.2 Hero
 
-Komposisi mengikuti referensi: teks di kiri, grid visual asimetris di kanan.
+- **Grid 2 kolom (\`.lp-hero-grid\`):**
+  - **Kolom kiri (\`.lp-hero-main\`):** Baris pengantar singkat, headline \`Archivo\` raksasa (\`clamp(3.25rem, 6.8vw, 6.25rem)\`) dengan kata terakhir \`tahu.\` berwarna \`#CB2957\`, paragraf penjelasan, serta tombol \`.btn-accent\` (\`Daftar sekarang\`) + tautan \`Lihat program\`.
+  - **Kolom kanan (\`aside.lp-board\`):** Papan **Jadwal Kelas Sore** bergaya poster cetak (bingkai \`2px solid #000000\`, header hitam pekat, 4 baris interaktif SD, SMP, SMA, dan UTBK beserta hari/jam dan sisa kursi). Setiap baris dapat diklik untuk langsung membuka modal pendaftaran sesuai jenjang.
+- Di bawah grid 2 kolom terdapat daftar 3 fakta nyata yang dipisahkan garis hitam (\`12\` siswa maks/kelas, \`4\` jenjang, \`Gratis\` kelas pertama).
 
-\*\*Kolom teks\*\* (rata kiri, 5 dari 12 kolom), dari atas ke bawah:
+### 7.3 Section Program (\`01–04\`)
 
-1. Eyebrow: kategori lembaga, satu baris, \`--accent-text\`.
-2. Headline \`display\`, maksimal dua baris, berisi manfaat utama dengan bahasa konkret.
-3. Ringkasan 2–3 kalimat pendek, \`body\`, \`--muted-foreground\`, sekitar 44 karakter per baris.
-4. CTA utama \`primary\` dengan panah, ditemani tautan sekunder berupa teks weight 500 tanpa border dan tanpa panah. Jarak antar-keduanya 24 px.
-5. Bukti sosial satu baris: tumpukan 3–4 avatar (32 px, saling tumpang −8 px, ring putih 2 px) diikuti teks \`caption\`. Tampilkan hanya bila ada data terverifikasi dan foto berizin. Bila tidak, ganti dengan satu kalimat proses, misalnya daftar online, diverifikasi admin, lalu jadwal muncul di akun.
+- Disusun sebagai daftar baris horizontal (\`<ol class="lp-programs">\`), bukan kartu.
+- Setiap baris memiliki 4 kolom pada desktop: nomor urut (\`01–04\`), nama jenjang + kelas, deskripsi + poin fitur (dengan penanda kotak kecil merah \`8×8px\`), dan tombol pilih paket yang langsung membuka modal pendaftaran sesuai jenjang.
+- Baris \`04\` (\`Intensif UTBK-SNBT\`) menggunakan blok latar hitam penuh (\`.is-featured\`), badge \`Program unggulan\` berlatar \`#CB2957\` dengan teks putih, dan tombol merah.
 
-\*\*Kolom visual\*\* (7 dari 12 kolom): grid empat tile dalam dua kolom dengan lebar sekitar 64% dan 36%. Kolom kiri berisi dua tile bertumpuk dengan tinggi sama. Kolom kanan berisi satu tile tinggi (sekitar 59% dari tinggi kolom) di atas satu tile yang lebih pendek. Rasio keseluruhan grid sekitar 4:3. Gap 8 px, radius \`radius-xs\`, \`object-fit: cover\`.
+### 7.4 Section Untuk Orang Tua
 
-Isi tile untuk bimbel: foto kegiatan belajar, ruang kelas, materi cetak, dan tangkapan layar platform yang asli (jadwal atau presensi). Tidak ada teks yang tertanam di dalam gambar; keterangan memakai \`alt\`.
+- Dua kolom: kolom kiri (sticky pada desktop) memuat judul, penjelasan singkat, simulasi gelembung pesan WhatsApp kehadiran anak berlatar hitam, serta tautan ke simulasi halaman orang tua (\`dashboard.html?role=parent\`).
+- Kolom kanan memuat 4 manfaat operasional yang ditulis dari sudut pandang orang tua (kabar kehadiran, nilai & catatan tutor, jadwal bebas bentrok, dan pembayaran/kwitansi).
 
-\*\*Responsif:\*\*
+### 7.5 Section Cara Daftar
 
-- Desktop: teks dan grid berdampingan.
-- Tablet: teks di atas, grid menjadi 2×2 dengan ukuran sama.
-- Mobile: urutkan teks terlebih dahulu, kemudian visual (satu tile lebar 4:3 diikuti dua tile kecil berdampingan; tile keempat disembunyikan), kecuali hasil pengujian menunjukkan visual lebih penting untuk pemahaman awal.
+- Tiga kolom langkah berurutan tanpa kartu dan tanpa ikon: angka \`1\`, \`2\`, \`3\` berukuran raksasa (\`clamp(4.5rem, 8vw, 7rem)\`) dengan warna \`#CB2957\` di bawah garis hitam \`2px\`.
 
-Spesifikasi konten:
+### 7.6 Section FAQ, Blok CTA, dan Footer
 
-- Headline menyatakan manfaat utama dengan bahasa konkret.
-- CTA utama mengarah ke langkah berikut yang jelas, umumnya pendaftaran.
-- Social proof hanya menggunakan data terverifikasi. Bila belum ada data sah, gunakan penjelasan proses atau nilai layanan alih-alih membuat angka palsu.
-
-### 7.3 Section program/layanan
-
-- Header section rata tengah: eyebrow, judul \`h2-landing\` maksimal dua baris, dan deskripsi satu atau dua kalimat (\`body\`, \`--muted-foreground\`, sekitar 60 karakter per baris).
-- Empat kartu \`ServiceCard\` dalam satu baris pada desktop (sesuai jenjang SD, SMP, SMA, UTBK; tiga kartu bila programnya tiga), dua kolom pada tablet, satu kolom pada mobile.
-- Struktur kartu dari atas: ikon 20 px, judul \`h3\` weight 600, deskripsi \`body-sm\` \`--muted-foreground\` maksimal tiga baris, lalu tautan \`Pelajari program\` berwarna \`--accent-text\`, weight 500, dengan panah 14 px. Padding 24 px, jarak antarelemen 12–16 px, tautan didorong ke dasar kartu agar sejajar antar-kartu.
-- Latar \`--surface\`, border 1 px \`--border\`, radius \`lg\`, tanpa shadow. Jangan memberi warna latar kuat pada kartu.
-- Seluruh kartu boleh menjadi area klik, tetapi hanya dengan satu tautan di dalamnya dan ring fokus pada kartu.
-- Informasi harga hanya bila harga resmi tersedia (lihat 7.8); jika tidak, arahkan ke informasi pendaftaran/kontak tanpa angka rekaan.
-
-### 7.4 Section cara kerja
-
-Bagian ini tidak ada di referensi. Bila dipakai, gambarkan alur sederhana, misalnya daftar → verifikasi → memilih/mendapat jadwal → mengikuti pembelajaran → memantau perkembangan. Gunakan langkah bernomor atau garis alur 1 px \`--border\` yang tetap terbaca di mobile, tanpa kartu. Jangan memakai ilustrasi proses terlalu rumit.
-
-### 7.5 Galeri kegiatan (opsional)
-
-Padanan bagian "realisasi" pada referensi. Aktifkan hanya bila lembaga memiliki foto sendiri atau foto berizin.
-
-- Baris judul: eyebrow dan \`h2-landing\` rata kiri, dengan tautan \`Lihat semua\` rata kanan di baris yang sama (\`--accent-text\`, 14 px, panah).
-- Empat tile berdampingan (dua kolom pada tablet dan mobile), rasio sekitar 4:3, radius \`radius-xs\`, gap 8 px.
-- Keterangan di bawah tile, dua baris: kategori (\`caption\`, \`--muted-foreground\`) dan judul (\`body-sm\`, weight 500). Tidak ada overlay, gradien, atau teks di atas gambar.
-- Jangan memakai gambar stok yang tidak berkaitan dengan lembaga.
-
-### 7.6 Alasan memilih dan statistik (opsional)
-
-- Layout dua kolom: foto besar di kiri (sekitar 55% lebar, rasio sekitar 3:2, radius \`radius-xs\`) dan teks di kanan, rata kiri dan berada di tengah secara vertikal.
-- Teks: eyebrow, \`h2-landing\` dua baris, paragraf 2–3 kalimat, lalu tiga item sebaris.
-- Item statistik (\`StatItem\`): ikon garis 20 px, angka \`metric\`, lalu label \`caption\` \`--muted-foreground\`. Tanpa kartu atau border.
-- Angka hanya dari data terverifikasi. Bila belum ada, ganti ketiganya dengan poin layanan tanpa angka, misalnya pemantauan presensi oleh orang tua, jadwal tanpa bentrok, atau kwitansi digital, dengan ikon dan label yang sama. Pilihan lain: profil tutor dan kompetensi, cara evaluasi belajar, serta fasilitas.
-- Mobile: foto di atas, teks di bawah, tiga item tetap sebaris bila muat atau menjadi daftar vertikal.
-
-### 7.7 Testimoni (opsional)
-
-Aktifkan hanya bila ada testimoni asli yang memiliki izin publikasi.
-
-- Pita lebar penuh berlatar \`--surface-warm\`; eyebrow dan judul rata tengah.
-- Dua kolom kutipan dipisahkan garis vertikal 1 px \`--border\`. Tiap kolom berisi avatar 44–48 px (inisial bila tanpa foto), kutipan bergaya \`quote\`, nama weight 600, dan peran \`caption\` \`--muted-foreground\`.
-- Bintang rating hanya bila rating nyata, berwarna \`--accent\`, dengan teks alternatif seperti \`5 dari 5\`. Jangan dipakai sebagai dekorasi.
-- Dua tombol panah bulat (ghost, border 1 px) di sisi kanan judul hanya bila testimoni lebih dari dua. Area klik 44 px dengan label \`Testimoni sebelumnya\` dan \`Testimoni berikutnya\`.
-- Mobile: satu kolom bertumpuk; carousel tidak wajib.
-
-### 7.8 Paket dan harga (opsional)
-
-Aktifkan hanya bila harga resmi tersedia.
-
-- Dua zona: kolom kiri (sekitar 25%) berisi eyebrow dan \`h2-landing\` rata kiri; kolom kanan (sekitar 75%) berisi tiga kartu paket. Tautan \`Minta penawaran\` rata kanan di atas kartu.
-- \`PricingCard\`: nama paket (weight 600), sasaran singkat (\`caption\`), harga bergaya \`metric\` dengan keterangan periode, daftar fitur, lalu tombol di dasar kartu. Border 1 px, radius \`lg\`, padding 24 px, tanpa shadow.
-- Daftar fitur memakai \`body-sm\` \`--muted-foreground\` (bukan abu-abu yang lebih muda seperti pada referensi), jarak antarbaris 12 px, dan ikon centang kecil.
-- Paket yang direkomendasikan: tab gelap \`Paling populer\` menempel di tepi atas kartu (radius atas \`radius-sm\`, teks putih \`caption\`), dengan tombol \`primary\`. Paket lain memakai tombol \`outline\`. Label ini hanya dipakai bila ada dasar nyata, misalnya keputusan lembaga atau jumlah peminat.
-- Format harga \`Rp 150.000\` dengan keterangan per bulan atau per paket sesuai kebijakan lembaga.
-- Mobile: kartu bertumpuk satu kolom; paket rekomendasi di urutan pertama.
-
-### 7.9 Blok CTA dan footer
-
-\*\*Blok CTA penutup:\*\* panel gelap (\`--primary\`) di dalam container, radius \`xl\`, padding 32–40 px. Kiri: judul \`h2\` putih berisi satu kalimat ajakan dan satu baris pendukung \`--inverse-muted\`. Kanan: satu tombol \`inverse\` dengan panah. Pada mobile, teks di atas dan tombol full-width di bawah. Blok ini bukan pop-up dan tidak sticky.
-
-\*\*Footer:\*\* latar \`--primary\`, teks \`--inverse-muted\`, judul kolom putih weight 500. Empat kolom pada desktop: (1) logo, deskripsi 2–3 baris, dan ikon sosial; (2) Navigasi; (3) Program; (4) Kontak. Baris bawah dipisahkan garis 1 px (putih 12%): hak cipta di kiri, tautan kebijakan privasi di kanan.
-
-- Ikon sosial 18 px dengan area klik 44 px dan nama aksesibel; tampilkan hanya akun resmi.
-- Tautan footer 14 px dengan underline saat hover. Fokus keyboard tetap terlihat di latar gelap (ring \`--ring\` atau putih).
-- Pada mobile, susun footer menjadi satu kolom atau accordion yang dapat diakses keyboard.
-- Selalu tampilkan informasi kontak sesuai data resmi lembaga; jangan menampilkan alamat contoh sebagai informasi nyata.
+- **FAQ:** Grid 2 kolom (judul besar di kiri, daftar 7 item accordion di kanan). Animasi buka-tutup menggunakan transisi \`grid-template-rows\` yang ringan dan menghormati \`prefers-reduced-motion\`.
+- **CTA & Footer (\`.lp-end\`):** Satu permukaan hitam penuh (\`#000000\`) di bagian paling bawah halaman. Bagian atas berisi ajakan \`Coba satu kelas dulu. Gratis.\` beserta tombol merah \`Daftar sekarang\` dan tombol outline terang ke WhatsApp; bagian bawah berisi footer 4 kolom.
 
 ---
 
@@ -1218,15 +1052,14 @@ export const productDesignConfig = {
     timezone: "Asia/Makassar",
   },
   brand: {
-    // Tetap gunakan neutral foundation; ubah accent sesuai identitas organisasi.
-    primary: "#202124",
-    accent: "#B59A7B", // dekoratif saja
-    accentText: "#7F5F3F", // teks kecil; wajib lolos kontras AA
-    logoPath: "/brand/logo.svg",
+    background: "#EEEEEE",
+    primary: "#000000",
+    accent: "#CB2957", // CTA utama, sorotan 1 kata di headline, angka langkah
+    accentText: "#A81E46", // teks kecil beraksen di latar terang; lolos kontras AA (5.9:1)
   },
   fonts: {
-    sans: "Inter",
-    serif: "Source Serif 4", // hanya untuk kutipan dan monogram
+    display: "Archivo",
+    sans: "Instrument Sans",
   },
   terminology: {
     people: "Siswa",
@@ -1243,20 +1076,18 @@ export const productDesignConfig = {
     { id: "parent", label: "Orang Tua", homePath: "/parent" },
   \],
   publicNavigation: \[
-    { label: "Beranda", href: "/" },
-    { label: "Program", href: "/program" },
-    { label: "Tentang", href: "/tentang" },
-    { label: "Kontak", href: "/kontak" },
+    { label: "Program", href: "#program" },
+    { label: "Untuk Orang Tua", href: "#orang-tua" },
+    { label: "Cara Daftar", href: "#cara-daftar" },
+    { label: "FAQ", href: "#faq" },
   \],
   landing: {
-    // Section opsional hanya diaktifkan bila datanya resmi dan tersedia.
     sections: \[
       { id: "hero", enabled: true },
       { id: "programs", enabled: true },
-      { id: "gallery", enabled: false },
-      { id: "whyUs", enabled: true },
-      { id: "testimonials", enabled: false },
-      { id: "pricing", enabled: false },
+      { id: "forParents", enabled: true },
+      { id: "steps", enabled: true },
+      { id: "faq", enabled: true },
       { id: "cta", enabled: true },
     \],
   },
@@ -1287,7 +1118,7 @@ Bagian ini adalah pemetaan desain ke stack yang tercantum di PRD, bukan penggant
 
 - \*\*TanStack Start + React 19:\*\* implementasikan kerangka halaman, routing bertipe, dan kebutuhan SSR sesuai arsitektur aplikasi.
 - \*\*Tailwind CSS v4:\*\* petakan design tokens ke custom properties dan utility styles. Token harus memiliki satu sumber kebenaran.
-- \*\*Font:\*\* muat Inter dan serif untuk kutipan secara self-host (misalnya lewat paket Fontsource) dengan \`font-display: swap\` dan fallback sistem sesuai 4.4. Jangan memuat weight atau gaya yang tidak dipakai.
+- \*\*Font:\*\* muat \`Archivo\` (variable width & weight) dan \`Instrument Sans\` dengan \`font-display: swap\` dan fallback sistem sesuai 4.4. Jangan memuat weight atau gaya yang tidak dipakai.
 - \*\*shadcn/ui + Radix UI:\*\* gunakan sebagai basis komponen yang aksesibel, kemudian atur token, varian, dan komposisinya agar sesuai design system.
 - \*\*TanStack Query v5:\*\* konsistenkan state loading/error/refetch dan invalidasi cache untuk perubahan presensi, pembayaran, jadwal, atau materi.
 - \*\*TanStack Table v8:\*\* gunakan untuk daftar administratif dengan sorting/filter/pagination yang sesuai; pilih server-side pagination untuk daftar besar sebagaimana disebut di PRD.
@@ -1295,7 +1126,7 @@ Bagian ini adalah pemetaan desain ke stack yang tercantum di PRD, bukan penggant
 
 ### 18.1 Aturan implementasi tema
 
-- Simpan token warna/typography/spacing di lokasi tema bersama.
+- Simpan token warna/typography/spacing di lokasi tema bersama (\`:root\` pada \`styles.css\`).
 - Jangan menaruh warna brand sebagai literal di setiap komponen.
 - Gunakan semantic token seperti \`background\`, \`foreground\`, \`primary\`, \`muted\`, \`border\`, \`destructive\`, bukan token berdasarkan nama halaman.
 - Bedakan komponen visual dari query/fetching bila memungkinkan.
@@ -1355,22 +1186,20 @@ Daftar subroute di atas adalah usulan pengelompokan UI dari kebutuhan PRD, bukan
 
 ### Visual consistency
 
-- \[ \] Semua halaman memakai token yang sama untuk warna, tipografi, radius, dan spacing.
-- \[ \] Warna aksen digunakan hemat dan tidak menurunkan kontras.
-- \[ \] Hierarki heading dan tombol utama konsisten.
-- \[ \] Kartu hanya digunakan bila membantu pengelompokan informasi.
-- \[ \] Ikon berasal dari keluarga yang sama dan memiliki ukuran konsisten.
+- \[ \] Semua halaman memakai token yang sama untuk warna (\`#EEEEEE\`, \`#000000\`, \`#CB2957\`) dan tipografi (\`Archivo\` + \`Instrument Sans\`).
+- \[ \] Warna aksen \`#CB2957\` digunakan hemat (CTA, 1 kata headline, angka langkah, garis bawah hover) dan tidak menurunkan kontras.
+- \[ \] Tombol/badge berlatar \`#CB2957\` selalu memakai teks putih \`#FFFFFF\` (5.3:1), bukan hitam.
+- \[ \] Landing page memakai sudut tajam (\`2–4px\`), garis hitam (\`1–2px\`), tanpa shadow; dashboard mempertahankan radius nyaman (\`6–14px\`).
+- \[ \] Ikon di landing page dibatasi hanya pada panah CTA, chevron FAQ, dan tombol menu/tutup mobile.
 
-### Kesesuaian dengan referensi
+### Kesesuaian arah halaman publik
 
-- \[ \] Hero memakai teks di kiri dan grid 4 tile asimetris di kanan (gap 8 px, radius tile 2 px).
-- \[ \] Headline hero maksimal dua baris dan satu warna.
-- \[ \] Eyebrow hanya ada di halaman publik, satu per section, dan memakai \`--accent-text\`.
-- \[ \] Hanya ada satu CTA primary gelap per konteks; panah hanya pada tautan yang pindah halaman.
-- \[ \] Kartu datar (border 1 px, tanpa shadow) dengan radius sesuai token.
-- \[ \] Galeri, statistik, testimoni, dan paket hanya tampil bila datanya resmi tersedia.
-- \[ \] Teks aksen lolos kontras 4.5:1 dan tidak ada teks abu-abu sangat muda.
-- \[ \] Blok CTA dan footer gelap memakai \`--inverse-muted\` untuk teks sekunder.
+- \[ \] Hero tipografi penuh dengan 1 kata aksen merah dan strip 3 fakta nyata di bawahnya (tanpa mockup aplikasi generik).
+- \[ \] Daftar program berupa baris bernomor \`01–04\`; hanya baris UTBK yang menggunakan blok latar hitam penuh.
+- \[ \] Blok "Untuk Orang Tua" menampilkan contoh pesan kehadiran WhatsApp dan 4 poin manfaat dalam bahasa sehari-hari.
+- \[ \] Bagian "Cara Daftar" terdiri dari 3 langkah teks dengan nomor besar merah tanpa kartu/ikon.
+- \[ \] Seluruh copy halaman publik bebas dari istilah teknis internal (seperti kode fitur, nama database, atau istilah aksesibilitas).
+- \[ \] Blok CTA dan footer menyatu dalam permukaan hitam penuh di bagian akhir halaman.
 
 ### Responsive behavior
 
@@ -1443,6 +1272,4 @@ Sebuah halaman dinyatakan selesai secara desain jika:
 
 ## 22. Ringkasan Arah Desain
 
-Gunakan gaya editorial minimalis dari referensi untuk membangun identitas yang tenang dan profesional pada halaman publik: latar putih hangat, headline besar dan rapat, hero asimetris dengan grid visual, kartu datar bergaris tipis, aksen beige untuk dekorasi dan cokelat untuk teks kecil, CTA serta footer gelap, dan visual yang relevan. Section opsional (galeri, statistik, testimoni, paket) hanya tampil bila datanya resmi. Setelah login, pertahankan karakter tersebut melalui warna netral, border halus, komponen konsisten, serta hierarki yang jelas, tetapi utamakan kecepatan kerja dan kepadatan informasi yang sesuai.
-
-Untuk implementasi bimbel, desain harus secara eksplisit mendukung empat role, pendaftaran, jadwal anti-bentrok, presensi, materi, progres nilai, pembayaran, dan notifikasi. Untuk penggunaan lintas proyek, pertahankan foundation dan patterns, lalu pindahkan istilah domain, role, rute, status, format data, serta konten pemasaran ke konfigurasi. Dengan pendekatan ini, \`DESIGN.md\` dapat menjadi acuan implementasi yang reusable, bukan sekadar moodboard atau deskripsi visual.
+Gunakan arah **poster kontras tinggi** pada halaman publik: kanvas terang \`#EEEEEE\`, teks dan garis struktur hitam \`#000000\`, serta aksen merah \`#CB2957\` yang terukur; dipadukan dengan tipografi \`Archivo\` (condensed display) dan \`Instrument Sans\` (body), sudut tajam tanpa shadow, serta bahasa sehari-hari yang langsung berbicara kepada orang tua dan siswa. Setelah login, dashboard mewarisi palet warna dan pasangan font yang sama dari \`:root\`, namun mempertahankan radius yang nyaman dan permukaan kartu bersih demi kemudahan membaca tabel, form, dan tugas operasional keempat peran.
