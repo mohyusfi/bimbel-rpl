@@ -12,7 +12,7 @@ const PROGRAM_LINKS = [
 ] as const
 
 const LOGIN_LINKS = [
-  { label: 'Siswa', href: 'dashboard.html?role=student' },
+  { label: 'Siswa', href: '/student' },
   { label: 'Orang tua', href: 'dashboard.html?role=parent' },
   { label: 'Tutor', href: 'dashboard.html?role=tutor' },
   { label: 'Admin', href: 'dashboard.html?role=admin' },

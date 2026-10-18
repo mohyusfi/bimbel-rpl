@@ -123,3 +123,4 @@ Saat proses migrasi dari purwarupa statis ke React TanStack dilakukan, gunakan p
    └── lib/                # Utilitas (cn, format tanggal, formatting mata uang IDR)
    ```
 3. **Penyampaian Respon**: Selalu jawab dengan singkat, jelas, dan langsung ke inti permasalahan (*to the point*), serta gunakan analogi yang sederhana untuk konsep teknis yang kompleks.
+4. **Perintah Verifikasi Wajib**: Sebelum menyatakan suatu tugas selesai, jalankan `npm run typecheck` (`tsc --noEmit`) dan `npm run build`. Repo belum memiliki linter; bila ditambahkan, script `lint` harus ikut dijalankan.

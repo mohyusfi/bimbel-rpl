@@ -153,6 +153,10 @@ img, svg {
 .font-medium { font-weight: 500; }
 .num-tabular { font-variant-numeric: tabular-nums; }
 
+/* 4.4 Font Utility (dipakai lintas komponen dashboard & modal) */
+.font-archivo { font-family: var(--font-display); }
+.font-instrument { font-family: var(--font-sans); }
+
 /* Hairline Metadata Divider (Clean separation without bullets) */
 .meta-divider {
   display: inline-block;
@@ -346,6 +350,14 @@ img, svg {
 .status-badge.tone-rejected {
   color: var(--destructive);
   font-weight: 500;
+}
+
+/* Sesi terjadwal / netral: dot hitam, teks utama */
+.status-badge.tone-neutral {
+  color: var(--foreground);
+}
+.status-badge.tone-neutral .badge-dot {
+  background-color: var(--foreground);
 }
 
 .status-badge svg {

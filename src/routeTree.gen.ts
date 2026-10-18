@@ -10,33 +10,108 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StudentRouteImport } from './routes/student'
+import { Route as StudentIndexRouteImport } from './routes/student/index'
+import { Route as StudentJadwalRouteImport } from './routes/student/jadwal'
+import { Route as StudentMateriRouteImport } from './routes/student/materi'
+import { Route as StudentNilaiRouteImport } from './routes/student/nilai'
+import { Route as StudentTagihanRouteImport } from './routes/student/tagihan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudentRoute = StudentRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentJadwalRoute = StudentJadwalRouteImport.update({
+  id: '/jadwal',
+  path: '/jadwal',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentMateriRoute = StudentMateriRouteImport.update({
+  id: '/materi',
+  path: '/materi',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentNilaiRoute = StudentNilaiRouteImport.update({
+  id: '/nilai',
+  path: '/nilai',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentTagihanRoute = StudentTagihanRouteImport.update({
+  id: '/tagihan',
+  path: '/tagihan',
+  getParentRoute: () => StudentRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/student': typeof StudentRouteWithChildren
+  '/student/jadwal': typeof StudentJadwalRoute
+  '/student/materi': typeof StudentMateriRoute
+  '/student/nilai': typeof StudentNilaiRoute
+  '/student/tagihan': typeof StudentTagihanRoute
+  '/student/': typeof StudentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/student/jadwal': typeof StudentJadwalRoute
+  '/student/materi': typeof StudentMateriRoute
+  '/student/nilai': typeof StudentNilaiRoute
+  '/student/tagihan': typeof StudentTagihanRoute
+  '/student': typeof StudentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/student': typeof StudentRouteWithChildren
+  '/student/jadwal': typeof StudentJadwalRoute
+  '/student/materi': typeof StudentMateriRoute
+  '/student/nilai': typeof StudentNilaiRoute
+  '/student/tagihan': typeof StudentTagihanRoute
+  '/student/': typeof StudentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/student'
+    | '/student/jadwal'
+    | '/student/materi'
+    | '/student/nilai'
+    | '/student/tagihan'
+    | '/student/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/student/jadwal'
+    | '/student/materi'
+    | '/student/nilai'
+    | '/student/tagihan'
+    | '/student'
+  id:
+    | '__root__'
+    | '/'
+    | '/student'
+    | '/student/jadwal'
+    | '/student/materi'
+    | '/student/nilai'
+    | '/student/tagihan'
+    | '/student/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StudentRoute: typeof StudentRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +123,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/': {
+      id: '/student/'
+      path: '/'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/jadwal': {
+      id: '/student/jadwal'
+      path: '/jadwal'
+      fullPath: '/student/jadwal'
+      preLoaderRoute: typeof StudentJadwalRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/materi': {
+      id: '/student/materi'
+      path: '/materi'
+      fullPath: '/student/materi'
+      preLoaderRoute: typeof StudentMateriRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/nilai': {
+      id: '/student/nilai'
+      path: '/nilai'
+      fullPath: '/student/nilai'
+      preLoaderRoute: typeof StudentNilaiRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/tagihan': {
+      id: '/student/tagihan'
+      path: '/tagihan'
+      fullPath: '/student/tagihan'
+      preLoaderRoute: typeof StudentTagihanRouteImport
+      parentRoute: typeof StudentRoute
+    }
   }
 }
 
+interface StudentRouteChildren {
+  StudentJadwalRoute: typeof StudentJadwalRoute
+  StudentMateriRoute: typeof StudentMateriRoute
+  StudentNilaiRoute: typeof StudentNilaiRoute
+  StudentTagihanRoute: typeof StudentTagihanRoute
+  StudentIndexRoute: typeof StudentIndexRoute
+}
+
+const StudentRouteChildren: StudentRouteChildren = {
+  StudentJadwalRoute: StudentJadwalRoute,
+  StudentMateriRoute: StudentMateriRoute,
+  StudentNilaiRoute: StudentNilaiRoute,
+  StudentTagihanRoute: StudentTagihanRoute,
+  StudentIndexRoute: StudentIndexRoute,
+}
+
+const StudentRouteWithChildren =
+  StudentRoute._addFileChildren(StudentRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StudentRoute: StudentRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

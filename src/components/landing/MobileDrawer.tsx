@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
@@ -78,9 +79,9 @@ export function MobileDrawer({
           >
             Daftar
           </button>
-          <a href="dashboard.html" className="btn btn-outline">
+          <Link to="/student" className="btn btn-outline" onClick={onClose}>
             Masuk
-          </a>
+          </Link>
         </div>
       </div>
     </>
