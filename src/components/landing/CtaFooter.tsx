@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 
 interface CtaFooterProps {
@@ -12,10 +13,10 @@ const PROGRAM_LINKS = [
 ] as const
 
 const LOGIN_LINKS = [
-  { label: 'Siswa', href: '/student' },
-  { label: 'Orang tua', href: 'dashboard.html?role=parent' },
-  { label: 'Tutor', href: 'dashboard.html?role=tutor' },
-  { label: 'Admin', href: 'dashboard.html?role=admin' },
+  { label: 'Siswa', to: '/student' },
+  { label: 'Orang tua', to: '/parent' },
+  { label: 'Tutor', to: '/tutor' },
+  { label: 'Admin', to: '/admin' },
 ] as const
 
 export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
@@ -76,7 +77,7 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
             <ul>
               {LOGIN_LINKS.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href}>{link.label}</a>
+                  <Link to={link.to}>{link.label}</Link>
                 </li>
               ))}
             </ul>

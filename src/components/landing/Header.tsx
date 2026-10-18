@@ -21,8 +21,7 @@ export function Header({ onOpenRegister, onToggleMobileMenu }: HeaderProps) {
           <a href="#faq">FAQ</a>
         </nav>
 
-        <div className="lp-header-actions">
-          <Link to="/student" className="lp-header-login">
+          <Link to="/masuk" className="lp-header-login">
             Masuk
           </Link>
           <button

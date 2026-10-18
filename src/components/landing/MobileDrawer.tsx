@@ -79,7 +79,7 @@ export function MobileDrawer({
           >
             Daftar
           </button>
-          <Link to="/student" className="btn btn-outline" onClick={onClose}>
+          <Link to="/masuk" className="btn btn-outline" onClick={onClose}>
             Masuk
           </Link>
         </div>

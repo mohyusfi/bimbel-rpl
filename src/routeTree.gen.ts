@@ -10,108 +10,144 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StudentRouteImport } from './routes/student'
-import { Route as StudentIndexRouteImport } from './routes/student/index'
-import { Route as StudentJadwalRouteImport } from './routes/student/jadwal'
-import { Route as StudentMateriRouteImport } from './routes/student/materi'
-import { Route as StudentNilaiRouteImport } from './routes/student/nilai'
-import { Route as StudentTagihanRouteImport } from './routes/student/tagihan'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminJadwalRouteImport } from './routes/admin/jadwal'
+import { Route as AdminPembayaranRouteImport } from './routes/admin/pembayaran'
+import { Route as AdminPendaftaranRouteImport } from './routes/admin/pendaftaran'
+import { Route as AdminPengumumanRouteImport } from './routes/admin/pengumuman'
+import { Route as AdminRuanganRouteImport } from './routes/admin/ruangan'
+import { Route as AdminSiswaRouteImport } from './routes/admin/siswa'
+import { Route as AdminTutorRouteImport } from './routes/admin/tutor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudentRoute = StudentRouteImport.update({
-  id: '/student',
-  path: '/student',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudentIndexRoute = StudentIndexRouteImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => StudentRoute,
+  getParentRoute: () => AdminRoute,
 } as any)
-const StudentJadwalRoute = StudentJadwalRouteImport.update({
+const AdminJadwalRoute = AdminJadwalRouteImport.update({
   id: '/jadwal',
   path: '/jadwal',
-  getParentRoute: () => StudentRoute,
+  getParentRoute: () => AdminRoute,
 } as any)
-const StudentMateriRoute = StudentMateriRouteImport.update({
-  id: '/materi',
-  path: '/materi',
-  getParentRoute: () => StudentRoute,
+const AdminPembayaranRoute = AdminPembayaranRouteImport.update({
+  id: '/pembayaran',
+  path: '/pembayaran',
+  getParentRoute: () => AdminRoute,
 } as any)
-const StudentNilaiRoute = StudentNilaiRouteImport.update({
-  id: '/nilai',
-  path: '/nilai',
-  getParentRoute: () => StudentRoute,
+const AdminPendaftaranRoute = AdminPendaftaranRouteImport.update({
+  id: '/pendaftaran',
+  path: '/pendaftaran',
+  getParentRoute: () => AdminRoute,
 } as any)
-const StudentTagihanRoute = StudentTagihanRouteImport.update({
-  id: '/tagihan',
-  path: '/tagihan',
-  getParentRoute: () => StudentRoute,
+const AdminPengumumanRoute = AdminPengumumanRouteImport.update({
+  id: '/pengumuman',
+  path: '/pengumuman',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRuanganRoute = AdminRuanganRouteImport.update({
+  id: '/ruangan',
+  path: '/ruangan',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSiswaRoute = AdminSiswaRouteImport.update({
+  id: '/siswa',
+  path: '/siswa',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTutorRoute = AdminTutorRouteImport.update({
+  id: '/tutor',
+  path: '/tutor',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/student': typeof StudentRouteWithChildren
-  '/student/jadwal': typeof StudentJadwalRoute
-  '/student/materi': typeof StudentMateriRoute
-  '/student/nilai': typeof StudentNilaiRoute
-  '/student/tagihan': typeof StudentTagihanRoute
-  '/student/': typeof StudentIndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/student/jadwal': typeof StudentJadwalRoute
-  '/student/materi': typeof StudentMateriRoute
-  '/student/nilai': typeof StudentNilaiRoute
-  '/student/tagihan': typeof StudentTagihanRoute
-  '/student': typeof StudentIndexRoute
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/student': typeof StudentRouteWithChildren
-  '/student/jadwal': typeof StudentJadwalRoute
-  '/student/materi': typeof StudentMateriRoute
-  '/student/nilai': typeof StudentNilaiRoute
-  '/student/tagihan': typeof StudentTagihanRoute
-  '/student/': typeof StudentIndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/student'
-    | '/student/jadwal'
-    | '/student/materi'
-    | '/student/nilai'
-    | '/student/tagihan'
-    | '/student/'
+    | '/admin'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/student/jadwal'
-    | '/student/materi'
-    | '/student/nilai'
-    | '/student/tagihan'
-    | '/student'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin'
   id:
     | '__root__'
     | '/'
-    | '/student'
-    | '/student/jadwal'
-    | '/student/materi'
-    | '/student/nilai'
-    | '/student/tagihan'
-    | '/student/'
+    | '/admin'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  StudentRoute: typeof StudentRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -123,73 +159,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/student': {
-      id: '/student'
-      path: '/student'
-      fullPath: '/student'
-      preLoaderRoute: typeof StudentRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/student/': {
-      id: '/student/'
+    '/admin/': {
+      id: '/admin/'
       path: '/'
-      fullPath: '/student/'
-      preLoaderRoute: typeof StudentIndexRouteImport
-      parentRoute: typeof StudentRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/student/jadwal': {
-      id: '/student/jadwal'
+    '/admin/jadwal': {
+      id: '/admin/jadwal'
       path: '/jadwal'
-      fullPath: '/student/jadwal'
-      preLoaderRoute: typeof StudentJadwalRouteImport
-      parentRoute: typeof StudentRoute
+      fullPath: '/admin/jadwal'
+      preLoaderRoute: typeof AdminJadwalRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/student/materi': {
-      id: '/student/materi'
-      path: '/materi'
-      fullPath: '/student/materi'
-      preLoaderRoute: typeof StudentMateriRouteImport
-      parentRoute: typeof StudentRoute
+    '/admin/pembayaran': {
+      id: '/admin/pembayaran'
+      path: '/pembayaran'
+      fullPath: '/admin/pembayaran'
+      preLoaderRoute: typeof AdminPembayaranRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/student/nilai': {
-      id: '/student/nilai'
-      path: '/nilai'
-      fullPath: '/student/nilai'
-      preLoaderRoute: typeof StudentNilaiRouteImport
-      parentRoute: typeof StudentRoute
+    '/admin/pendaftaran': {
+      id: '/admin/pendaftaran'
+      path: '/pendaftaran'
+      fullPath: '/admin/pendaftaran'
+      preLoaderRoute: typeof AdminPendaftaranRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/student/tagihan': {
-      id: '/student/tagihan'
-      path: '/tagihan'
-      fullPath: '/student/tagihan'
-      preLoaderRoute: typeof StudentTagihanRouteImport
-      parentRoute: typeof StudentRoute
+    '/admin/pengumuman': {
+      id: '/admin/pengumuman'
+      path: '/pengumuman'
+      fullPath: '/admin/pengumuman'
+      preLoaderRoute: typeof AdminPengumumanRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ruangan': {
+      id: '/admin/ruangan'
+      path: '/ruangan'
+      fullPath: '/admin/ruangan'
+      preLoaderRoute: typeof AdminRuanganRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/siswa': {
+      id: '/admin/siswa'
+      path: '/siswa'
+      fullPath: '/admin/siswa'
+      preLoaderRoute: typeof AdminSiswaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tutor': {
+      id: '/admin/tutor'
+      path: '/tutor'
+      fullPath: '/admin/tutor'
+      preLoaderRoute: typeof AdminTutorRouteImport
+      parentRoute: typeof AdminRoute
     }
   }
 }
 
-interface StudentRouteChildren {
-  StudentJadwalRoute: typeof StudentJadwalRoute
-  StudentMateriRoute: typeof StudentMateriRoute
-  StudentNilaiRoute: typeof StudentNilaiRoute
-  StudentTagihanRoute: typeof StudentTagihanRoute
-  StudentIndexRoute: typeof StudentIndexRoute
+interface AdminRouteChildren {
+  AdminJadwalRoute: typeof AdminJadwalRoute
+  AdminPembayaranRoute: typeof AdminPembayaranRoute
+  AdminPendaftaranRoute: typeof AdminPendaftaranRoute
+  AdminPengumumanRoute: typeof AdminPengumumanRoute
+  AdminRuanganRoute: typeof AdminRuanganRoute
+  AdminSiswaRoute: typeof AdminSiswaRoute
+  AdminTutorRoute: typeof AdminTutorRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
-const StudentRouteChildren: StudentRouteChildren = {
-  StudentJadwalRoute: StudentJadwalRoute,
-  StudentMateriRoute: StudentMateriRoute,
-  StudentNilaiRoute: StudentNilaiRoute,
-  StudentTagihanRoute: StudentTagihanRoute,
-  StudentIndexRoute: StudentIndexRoute,
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminJadwalRoute: AdminJadwalRoute,
+  AdminPembayaranRoute: AdminPembayaranRoute,
+  AdminPendaftaranRoute: AdminPendaftaranRoute,
+  AdminPengumumanRoute: AdminPengumumanRoute,
+  AdminRuanganRoute: AdminRuanganRoute,
+  AdminSiswaRoute: AdminSiswaRoute,
+  AdminTutorRoute: AdminTutorRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
-const StudentRouteWithChildren =
-  StudentRoute._addFileChildren(StudentRouteChildren)
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  StudentRoute: StudentRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
