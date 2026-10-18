@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Dialog } from '@base-ui/react/dialog'
 import { X } from 'lucide-react'
+import { adminStore, type PackageCode } from '~/lib/admin-store'
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -53,6 +54,28 @@ export function RegisterModal({
     e.preventDefault()
     setIsSubmitting(true)
     setSubmitText('Memproses...')
+
+    try {
+      const pkgLabels: Record<string, string> = {
+        UTBK: 'Intensif UTBK-SNBT',
+        SMA: 'SMA Sukses',
+        SMP: 'SMP Prestasi',
+        SD: 'SD Cendekia',
+      }
+      adminStore.addRegistration({
+        studentName: formData.studentName,
+        studentEmail: formData.studentEmail,
+        studentPhone: formData.studentPhone,
+        studentSchool: formData.studentSchool,
+        packageCode: formData.studentPackage as PackageCode,
+        packageName: pkgLabels[formData.studentPackage] || 'Intensif UTBK-SNBT',
+        parentName: formData.parentName,
+        parentEmail: formData.parentEmail,
+        parentPhone: formData.parentPhone,
+      })
+    } catch (err) {
+      console.error('Failed to sync to admin store:', err)
+    }
 
     setTimeout(() => {
       setIsSubmitted(true)

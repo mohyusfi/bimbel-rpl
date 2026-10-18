@@ -123,3 +123,18 @@ Saat proses migrasi dari purwarupa statis ke React TanStack dilakukan, gunakan p
    └── lib/                # Utilitas (cn, format tanggal, formatting mata uang IDR)
    ```
 3. **Penyampaian Respon**: Selalu jawab dengan singkat, jelas, dan langsung ke inti permasalahan (*to the point*), serta gunakan analogi yang sederhana untuk konsep teknis yang kompleks.
+4. **Standar Copywriting & Konteks Wilayah (Anti-Slop Copywriting)**:
+   - Nama entitas lokal (*"Kota Palu"*) hanya diperuntukkan bagi halaman publik (Hero, Footer, SEO metadata) dan dokumen faktual (alamat fisik lembaga, surat/kwitansi resmi).
+   - Di dashboard aplikasi, dilarang menaruh embel-embel "· Kota Palu" pada setiap *eyebrow*, heading, atau label menu. Teks harus fungsional, profesional, dan langsung ke inti operasional.
+   - Dilarang keras menampilkan kode PRD internal (seperti `(BILL-01)`, `(BILL-03)`, `(SCHED-01)`, `(SCHED-02)`) pada antarmuka pengguna. Tuliskan deskripsi tindakan secara manusiawi.
+5. **Standar Indikator Status (Zero Background / Border & Anti-Hardcode Emote)**:
+   - Dilarang memberikan background tonal atau border pada status indikator (`StatusBadge`). Status tidak boleh berbentuk kotak atau pill badge tombol yang terlihat seperti tombol (anti-slop).
+   - Seluruh status wajib tampil bersih sebagai **inline text semantik** (`font-medium text-xs`) disertai icon SVG resmi Lucide (`Clock`, `AlertCircle`, `CheckCircle2`, `XCircle`).
+   - Dilarang memakai karakter unicode kasar/hardcoded seperti `✓`, `✗`, `✕`, `•`, `↗` atau huruf `X` telanjang sebagai indikator status.
+   - Dilarang memakai titik mengambang telanjang (*bare naked dots*, seperti `<span className="w-2 h-2 rounded-full" />`).
+6. **Standar Teks Non-Klik (Zero Fake Buttons)**:
+   - Dilarang membungkus teks statis non-klik (nomor invoice, NIS siswa, ID registrasi, kode mapel/ruangan, durasi waktu, metadata) dengan background dan border (`bg-[#F6F6F6] border border-[#D2D2D2]`) yang membuatnya tampak seperti tombol atau chip interaktif.
+   - Teks statis wajib ditampilkan sebagai teks bersih (misal: monospace netral `font-mono text-xs text-[#555555]`). Background dan border hanya untuk tombol nyata, input form, atau elemen yang secara eksplisit diminta pengguna.
+7. **Standar Keseragaman Tipografi Footer Metrik KPI**:
+   - Footer kartu metrik/KPI wajib menggunakan tipografi netral seragam (`font-medium text-[#292524]` dan `text-[11px] text-[#555555]`).
+   - Dilarang menggunakan panah kasar `↗` atau kombinasi warna-warni yang bertabrakan pada footer metrik.

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Menu } from 'lucide-react'
 
 interface HeaderProps {
@@ -21,9 +22,9 @@ export function Header({ onOpenRegister, onToggleMobileMenu }: HeaderProps) {
         </nav>
 
         <div className="lp-header-actions">
-          <a href="dashboard.html" className="lp-header-login">
+          <Link to="/admin" className="lp-header-login">
             Masuk
-          </a>
+          </Link>
           <button
             type="button"
             className="btn btn-primary btn-sm"

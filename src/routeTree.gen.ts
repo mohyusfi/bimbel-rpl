@@ -10,33 +10,144 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminJadwalRouteImport } from './routes/admin/jadwal'
+import { Route as AdminPembayaranRouteImport } from './routes/admin/pembayaran'
+import { Route as AdminPendaftaranRouteImport } from './routes/admin/pendaftaran'
+import { Route as AdminPengumumanRouteImport } from './routes/admin/pengumuman'
+import { Route as AdminRuanganRouteImport } from './routes/admin/ruangan'
+import { Route as AdminSiswaRouteImport } from './routes/admin/siswa'
+import { Route as AdminTutorRouteImport } from './routes/admin/tutor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminJadwalRoute = AdminJadwalRouteImport.update({
+  id: '/jadwal',
+  path: '/jadwal',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPembayaranRoute = AdminPembayaranRouteImport.update({
+  id: '/pembayaran',
+  path: '/pembayaran',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPendaftaranRoute = AdminPendaftaranRouteImport.update({
+  id: '/pendaftaran',
+  path: '/pendaftaran',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPengumumanRoute = AdminPengumumanRouteImport.update({
+  id: '/pengumuman',
+  path: '/pengumuman',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRuanganRoute = AdminRuanganRouteImport.update({
+  id: '/ruangan',
+  path: '/ruangan',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSiswaRoute = AdminSiswaRouteImport.update({
+  id: '/siswa',
+  path: '/siswa',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTutorRoute = AdminTutorRouteImport.update({
+  id: '/tutor',
+  path: '/tutor',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/pembayaran': typeof AdminPembayaranRoute
+  '/admin/pendaftaran': typeof AdminPendaftaranRoute
+  '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/ruangan': typeof AdminRuanganRoute
+  '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/tutor': typeof AdminTutorRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/admin/jadwal'
+    | '/admin/pembayaran'
+    | '/admin/pendaftaran'
+    | '/admin/pengumuman'
+    | '/admin/ruangan'
+    | '/admin/siswa'
+    | '/admin/tutor'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +159,99 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/jadwal': {
+      id: '/admin/jadwal'
+      path: '/jadwal'
+      fullPath: '/admin/jadwal'
+      preLoaderRoute: typeof AdminJadwalRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pembayaran': {
+      id: '/admin/pembayaran'
+      path: '/pembayaran'
+      fullPath: '/admin/pembayaran'
+      preLoaderRoute: typeof AdminPembayaranRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pendaftaran': {
+      id: '/admin/pendaftaran'
+      path: '/pendaftaran'
+      fullPath: '/admin/pendaftaran'
+      preLoaderRoute: typeof AdminPendaftaranRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pengumuman': {
+      id: '/admin/pengumuman'
+      path: '/pengumuman'
+      fullPath: '/admin/pengumuman'
+      preLoaderRoute: typeof AdminPengumumanRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ruangan': {
+      id: '/admin/ruangan'
+      path: '/ruangan'
+      fullPath: '/admin/ruangan'
+      preLoaderRoute: typeof AdminRuanganRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/siswa': {
+      id: '/admin/siswa'
+      path: '/siswa'
+      fullPath: '/admin/siswa'
+      preLoaderRoute: typeof AdminSiswaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tutor': {
+      id: '/admin/tutor'
+      path: '/tutor'
+      fullPath: '/admin/tutor'
+      preLoaderRoute: typeof AdminTutorRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminJadwalRoute: typeof AdminJadwalRoute
+  AdminPembayaranRoute: typeof AdminPembayaranRoute
+  AdminPendaftaranRoute: typeof AdminPendaftaranRoute
+  AdminPengumumanRoute: typeof AdminPengumumanRoute
+  AdminRuanganRoute: typeof AdminRuanganRoute
+  AdminSiswaRoute: typeof AdminSiswaRoute
+  AdminTutorRoute: typeof AdminTutorRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminJadwalRoute: AdminJadwalRoute,
+  AdminPembayaranRoute: AdminPembayaranRoute,
+  AdminPendaftaranRoute: AdminPendaftaranRoute,
+  AdminPengumumanRoute: AdminPengumumanRoute,
+  AdminRuanganRoute: AdminRuanganRoute,
+  AdminSiswaRoute: AdminSiswaRoute,
+  AdminTutorRoute: AdminTutorRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

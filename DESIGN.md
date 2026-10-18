@@ -94,6 +94,27 @@ Tidak dibawa: sudut siku tajam \`2px\`, garis pemisah hitam \`2px\`, ukuran judu
 - Mengandalkan toast sebagai satu-satunya penjelasan untuk kesalahan penting.
 - Menggunakan gambar stok generik atau ikon dekoratif di setiap paragraf/kartu.
 
+### 3.3 Aturan Khusus Copywriting & Indikator Status (Anti-Slop & Anti-Hardcode Emote)
+
+1. **Aturan Copywriting & Konteks Wilayah**:
+   - Frasa nama kota (*"Kota Palu"*) hanya diperuntukkan bagi halaman publik (Hero, Footer, SEO metadata) dan dokumen faktual (alamat fisik lembaga, surat/kwitansi resmi).
+   - Di panel internal/dashboard admin, dilarang menaruh embel-embel "· Kota Palu" pada setiap *eyebrow*, heading, atau label menu. Staf operasional sudah mengetahui entitas lembaganya, sehingga teks harus padat, fungsional, dan langsung ke inti (*to the point*).
+   - Dilarang keras menampilkan kode PRD internal (seperti `(BILL-01)`, `(BILL-03)`, `(SCHED-01)`, `(SCHED-02)`) pada antarmuka pengguna. Tuliskan deskripsi tindakan secara manusiawi dan profesional.
+
+2. **Aturan Indikator Status (Zero Background / Border & Anti-Hardcode Emote)**:
+   - Dilarang menggunakan background tonal atau border pada status indikator (anti-slop). Status tidak boleh berbentuk kotak atau pill badge tombol.
+   - Status wajib tampil bersih sebagai **inline text semantik** (`font-medium text-xs`) disertai ikon resmi Lucide (`Clock`, `AlertCircle`, `CheckCircle2`, `XCircle`).
+   - Dilarang menggunakan karakter unicode kasar/hardcode seperti `✓`, `✗`, `✕`, `•`, `↗`, atau huruf `X` telanjang sebagai indikator status.
+   - Dilarang menggunakan titik mengambang telanjang (*bare naked dots*, seperti `<span className="w-2 h-2 rounded-full" />`).
+
+3. **Aturan Teks Non-Klik (Zero Fake Buttons)**:
+   - Dilarang membungkus teks statis non-klik (seperti nomor invoice, NIS siswa, ID registrasi, kode mapel/ruangan, durasi jam, atau metadata) dengan background dan border (`bg-[#F6F6F6] border border-[#D2D2D2]`) yang membuatnya menyerupai tombol interaktif.
+   - Teks statis dan kode identifikasi wajib ditampilkan sebagai teks bersih (misal: monospace netral `font-mono text-xs text-[#555555]`). Background dan border hanya diizinkan untuk tombol, input form, atau elemen yang secara eksplisit diminta pengguna.
+
+4. **Aturan Keseragaman Tipografi Footer Metrik KPI**:
+   - Footer kartu metrik/KPI wajib menggunakan tipografi netral yang konsisten (`font-medium text-[#292524]` dan `text-[11px] text-[#555555]`).
+   - Dilarang menggunakan panah kasar `↗` atau kombinasi warna-warni yang bertabrakan pada footer metrik.
+
 ---
 
 ## 4. Identitas Visual
@@ -712,21 +733,22 @@ Kartu tidak selalu harus clickable. Bila seluruh kartu dapat diklik, tunjukkan a
 
 ### 11.4 Badge/status indicator (`StatusBadge`)
 
-Gunakan penanda ringan berupa **dot atau ikon + teks**, bukan format pill dengan latar belakang tebal, guna mencegah kekacauan visual (*visual clutter*) pada tabel dan daftar administratif.
+Gunakan penanda bersih berupa **ikon resmi Lucide + teks semantik inline** tanpa background tonal dan tanpa border (`StatusBadge`), guna mengeliminasi kekacauan visual (*visual clutter*) dan mencegah teks statis tampak seperti tombol (*fake-button slop*).
 
 #### Prinsip Desain:
-- **Aksesibel & Dual-Coding:** Warna selalu ditemani teks atau bentuk ikon spesifik, sehingga status tetap terbaca dan mudah dipahami tanpa bergantung pada persepsi warna semata.
-- **Hierarki Bersih:** Maksimal satu badge status utama per baris data. Informasi netral (seperti nama paket bimbel, info rekening, atau kuantitas) tidak boleh dibungkus dalam pill badge berwarna.
+- **Zero Background / Zero Border:** Status murni berupa teks berwarna semantik dengan ikon Lucide pendamping tanpa bungkus kotak/pill.
+- **Aksesibel & Dual-Coding:** Warna selalu ditemani teks atau bentuk ikon spesifik (`Clock`, `AlertCircle`, `CheckCircle2`, `XCircle`), sehingga status tetap terbaca dan mudah dipahami tanpa bergantung pada persepsi warna semata. Dilarang keras memakai dot atau emote unicode kasar (`✓`, `✗`, `•`).
+- **Hierarki Bersih:** Maksimal satu indikator status utama per baris data. Informasi netral (seperti nama paket bimbel, info rekening, kode ID) tidak boleh dibungkus dalam badge berwarna.
 - **Label Singkat:** Gunakan label singkat dan jelas (misalnya "Lunas", "Ditolak", "Terverifikasi").
 
 #### Varian dan Perilaku:
 
-| Status | Tone | Penanda Visual | Warna Teks | Perilaku & Label Dinamis |
+| Status | Tone | Penanda Visual (Lucide) | Warna Teks | Perilaku & Label Dinamis |
 |---|---|---|---|---|
-| `menunggu` (normal) | `waiting` | Dot lingkaran 8px | `#292524` (*stone-800*) | Dot amber (`#B8780A`). Jika properti `since` diberikan, teks menampilkan durasi tunggu relatif (*"Baru masuk"*, *"Menunggu 15 menit"*, *"Menunggu 2 jam"*). |
-| `menunggu` (terlambat) | `late` | Dot lingkaran 8px | `#B3261E` (*red-700*) | Dot merah (`#B3261E`). Aktif otomatis bila durasi tunggu melampaui `lateAfterHours` (default 48 jam). |
-| `lunas` | `done` | Ikon centang (Check outline 16px) | `#1F6B45` (*green-700*, font-medium) | Centang hijau tanpa fill. Mendukung kustomisasi label (misal: *"Terverifikasi"*). |
-| `ditolak` | `rejected` | Ikon silang (Cross outline 16px) | `#B3261E` (*red-700*, font-medium) | Silang merah outline. Digunakan untuk pembayaran tidak valid atau berkas ditolak. |
+| `menunggu` (normal) | `waiting` | `Clock` (14px) | `#8C5806` (*amber-700*, font-medium) | Jam amber tanpa background. Jika properti `since` diberikan, teks menampilkan durasi tunggu relatif (*"Baru masuk"*, *"Menunggu 15 menit"*, *"Menunggu 2 jam"*). |
+| `menunggu` (terlambat) | `late` | `AlertCircle` (14px) | `#901B14` (*red-700*, font-medium) | Lingkaran seru merah tanpa background. Aktif otomatis bila durasi tunggu melampaui `lateAfterHours` (default 48 jam). |
+| `lunas` / `terverifikasi` | `done` | `CheckCircle2` (14px) | `#166534` (*green-700*, font-medium) | Lingkaran centang hijau resmi Lucide tanpa background. |
+| `ditolak` / `belum_dibayar` | `rejected` | `XCircle` (14px) | `#901B14` (*red-700*, font-medium) | Lingkaran silang merah resmi Lucide tanpa background. |
 
 #### Aturan Teks Netral Non-Badge di Tabel:
 - **Kategori Paket:** Cukup teks netral abu-abu (`text-stone-500`, 13px), contoh: `Intensif UTBK`, tanpa pill berlatar warna.
