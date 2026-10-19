@@ -115,8 +115,9 @@ export function DashboardShell({
   })
 
   return (
-    <div className="min-h-screen bg-[#EEEEEE] text-[#000000] flex flex-col lg:flex-row font-sans print:hidden">
-      {/* Mobile Drawer Backdrop */}
+    <div className="min-h-screen bg-[#E3E3E3] flex justify-center print:bg-transparent">
+      <div className="w-full max-w-[1920px] min-h-screen bg-[#EEEEEE] text-[#000000] flex flex-col lg:flex-row font-sans print:hidden border-x border-[#D2D2D2] shadow-xs relative">
+        {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/55 z-40 lg:hidden backdrop-blur-xs transition-opacity"
@@ -426,6 +427,7 @@ export function DashboardShell({
         <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full space-y-6">
           {children}
         </main>
+      </div>
       </div>
     </div>
   )
