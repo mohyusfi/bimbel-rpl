@@ -428,6 +428,7 @@ export function TutorMateriPage() {
                     }))}
                     placeholder="Pilih kelas..."
                     searchPlaceholder="Cari kelas..."
+                    required
                   />
                 </div>
 

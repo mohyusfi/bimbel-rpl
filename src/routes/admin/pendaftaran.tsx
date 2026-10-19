@@ -337,7 +337,7 @@ function AdminPendaftaranPage() {
       </div>
 
       {/* 4 Standardized Quick-Filter & Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         {statusCards.map((card) => {
           const isSelected = statusFilter === card.status
           return (
@@ -475,6 +475,7 @@ function AdminPendaftaranPage() {
                         }))}
                       placeholder="Pilih rombel / kelas..."
                       searchPlaceholder="Cari kelas atau tutor..."
+                      required
                     />
                     <p className="text-[11px] text-[#555555]">
                       Data siswa dan kontak orang tua otomatis dimasukkan ke direktori Siswa Aktif.

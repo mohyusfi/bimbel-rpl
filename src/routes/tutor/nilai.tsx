@@ -431,6 +431,7 @@ export function TutorNilaiPage() {
                     }))}
                     placeholder="Pilih kelas..."
                     searchPlaceholder="Cari kelas..."
+                    required
                   />
                 </div>
 
@@ -450,6 +451,7 @@ export function TutorNilaiPage() {
                       }))}
                       placeholder="Pilih siswa..."
                       searchPlaceholder="Cari nama atau NIS siswa..."
+                      required
                     />
                   ) : (
                     <p className="text-xs text-[#901B14] p-2 bg-[#901B14]/10 rounded-[6px]">

@@ -74,7 +74,7 @@ function AdminJadwalPage() {
   })
 
   // Add Class Modal
-  const [isAddClassModalOpen, setIsAddClassModalOpen] = React.useState(false)
+  const [isAddClassModalOpen, setIsAddClassModalOpen] = React.useState(true)
   const [classForm, setClassForm] = React.useState({
     name: '',
     courseCode: 'UTBK' as PackageCode,
@@ -175,7 +175,7 @@ function AdminJadwalPage() {
       courseCode: classForm.courseCode,
       courseName: pkgNames[classForm.courseCode],
       capacity: Number(classForm.capacity),
-      tutorName: classForm.tutorName || tutors[0]?.name || 'Tutor Pendamping',
+      tutorName: classForm.tutorName.trim() || 'Belum Ditentukan',
     })
     setIsAddClassModalOpen(false)
     setClassForm({
@@ -737,6 +737,7 @@ function AdminJadwalPage() {
                       }))}
                       placeholder="Pilih rombel / kelas..."
                       searchPlaceholder="Cari kelas..."
+                      required
                     />
                   </div>
 
@@ -780,6 +781,7 @@ function AdminJadwalPage() {
                       }))}
                       placeholder="Pilih tutor pengampu..."
                       searchPlaceholder="Cari nama tutor..."
+                      required
                     />
                   </div>
 
@@ -802,6 +804,7 @@ function AdminJadwalPage() {
                       }))}
                       placeholder="Pilih ruang belajar..."
                       searchPlaceholder="Cari ruangan..."
+                      required
                     />
                   </div>
                 </div>

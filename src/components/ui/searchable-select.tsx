@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Popover } from '@base-ui/react/popover'
-import { Check, ChevronDown, Search, X } from 'lucide-react'
+import { Check, ChevronDown, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 export interface SearchableSelectOption {
@@ -45,34 +45,54 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const searchInputRef = React.useRef<HTMLInputElement>(null)
+  const [isTyping, setIsTyping] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
 
   const selectedOption = options.find((opt) => opt.value === value)
 
   const filteredOptions = React.useMemo(() => {
-    if (!searchQuery.trim()) return options
+    if (!isTyping || !searchQuery.trim()) return options
     const query = searchQuery.toLowerCase().trim()
     return options.filter((opt) => {
       const matchLabel = opt.label.toLowerCase().includes(query)
       const matchSub = opt.sublabel?.toLowerCase().includes(query)
       return matchLabel || matchSub
     })
-  }, [options, searchQuery])
+  }, [options, searchQuery, isTyping])
 
-  React.useEffect(() => {
-    if (open) {
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) {
+      setIsTyping(false)
       setSearchQuery('')
-      // Delay focus slightly so the popup DOM element is mounted
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus()
-      }, 50)
-      return () => clearTimeout(timer)
     }
-  }, [open])
+  }
+
+  const handleSelect = (val: string) => {
+    onChange(val)
+    setIsTyping(false)
+    setSearchQuery('')
+    setOpen(false)
+  }
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onChange('')
+    setIsTyping(false)
+    setSearchQuery('')
+    setOpen(false)
+    inputRef.current?.focus()
+  }
+
+  const inputValue = isTyping
+    ? searchQuery
+    : selectedOption
+      ? selectedOption.label
+      : ''
 
   return (
     <div className={cn('relative w-full', className)}>
-      {/* Hidden input to support form validation if required */}
+      {/* Hidden input to support native form validation if required */}
       {name && (
         <input
           type="hidden"
@@ -82,43 +102,94 @@ export function SearchableSelect({
         />
       )}
 
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Root open={open} onOpenChange={handleOpenChange}>
         <Popover.Trigger
           render={
-            <button
-              id={id}
-              type="button"
-              disabled={disabled}
+            <div
               className={cn(
-                'w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] flex items-center justify-between gap-2 transition-colors cursor-pointer text-left',
-                !selectedOption && 'text-[#888888] font-normal',
-                disabled && 'opacity-50 cursor-not-allowed',
-                open && 'border-[#000000] ring-1 ring-[#000000]',
+                'w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus-within:border-[#000000] focus-within:ring-1 focus-within:ring-[#000000] focus-within:bg-[#FFFFFF] flex items-center justify-between gap-2 transition-all relative cursor-text',
+                disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+                open && 'border-[#000000] ring-1 ring-[#000000] bg-[#FFFFFF]',
                 triggerClassName
               )}
             />
           }
         >
-          <span className="truncate">
-            {selectedOption ? (
-              <>
-                <span className="font-medium text-[#000000]">{selectedOption.label}</span>
-                {selectedOption.sublabel && (
-                  <span className="ml-1.5 text-[#555555] font-normal">
-                    {selectedOption.sublabel}
-                  </span>
-                )}
-              </>
-            ) : (
-              placeholder
-            )}
-          </span>
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 text-[#555555] shrink-0 transition-transform duration-200',
-              open && 'rotate-180 text-[#000000]'
-            )}
+          {/* Main inline text input directly in the form field */}
+          <input
+            ref={inputRef}
+            id={id}
+            type="text"
+            disabled={disabled}
+            value={inputValue}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setIsTyping(true)
+              if (!open) setOpen(true)
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!open) {
+                setOpen(true)
+              }
+            }}
+            onFocus={() => {
+              setIsTyping(true)
+              setSearchQuery(selectedOption ? selectedOption.label : '')
+              setOpen(true)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setOpen(false)
+                setIsTyping(false)
+                setSearchQuery('')
+              } else if (e.key === 'Enter') {
+                e.preventDefault()
+                if (filteredOptions.length > 0) {
+                  handleSelect(filteredOptions[0].value)
+                }
+              }
+            }}
+            placeholder={placeholder}
+            className="w-full bg-transparent border-none outline-none text-xs font-medium text-[#000000] placeholder:text-[#888888] truncate"
           />
+
+          {/* Action icons: Clear button & Dropdown toggle */}
+          <div className="flex items-center gap-1 shrink-0">
+            {value && allowClear && (
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={handleClear}
+                className="text-[#888888] hover:text-[#000000] p-1 rounded cursor-pointer transition-colors"
+                aria-label="Kosongkan pilihan"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              tabIndex={-1}
+              disabled={disabled}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen((prev) => !prev)
+                if (!open) {
+                  inputRef.current?.focus()
+                }
+              }}
+              className="text-[#555555] hover:text-[#000000] p-1 rounded cursor-pointer transition-colors"
+              aria-label={open ? 'Tutup daftar pilihan' : 'Buka daftar pilihan'}
+            >
+              <ChevronDown
+                className={cn(
+                  'w-4 h-4 transition-transform duration-200',
+                  open && 'rotate-180 text-[#000000]'
+                )}
+              />
+            </button>
+          </div>
         </Popover.Trigger>
 
         <Popover.Portal>
@@ -128,43 +199,15 @@ export function SearchableSelect({
             align="start"
             className="z-[70]"
           >
-            <Popover.Popup className="w-[var(--anchor-width)] min-w-[220px] max-w-[90vw] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] shadow-xl overflow-hidden p-2 focus:outline-none">
-              {/* Search Field */}
-              <div className="relative mb-2">
-                <Search className="w-3.5 h-3.5 text-[#555555] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={searchPlaceholder}
-                  className="w-full h-8 pl-8 pr-7 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[6px] text-[#000000] placeholder:text-[#888888] focus:outline-none focus:border-[#000000]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setOpen(false)
-                    }
-                  }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#888888] hover:text-[#000000] p-0.5 rounded cursor-pointer"
-                    aria-label="Bersihkan pencarian"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Options List */}
-              <div className="max-h-48 overflow-y-auto space-y-0.5 text-xs pr-0.5 scrollbar-thin">
+            <Popover.Popup className="w-[var(--anchor-width)] min-w-[220px] max-w-[90vw] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] shadow-xl overflow-hidden p-1.5 focus:outline-none">
+              {/* Clean Options List — No duplicate search box inside dropdown */}
+              <div className="max-h-56 overflow-y-auto space-y-0.5 text-xs pr-0.5 scrollbar-thin">
                 {allowClear && (
                   <button
                     type="button"
-                    onClick={() => {
-                      onChange('')
-                      setOpen(false)
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      handleSelect('')
                     }}
                     className={cn(
                       'w-full text-left px-2.5 py-1.5 rounded-[6px] transition-colors flex items-center justify-between text-[#555555] hover:bg-[#F6F6F6] cursor-pointer italic text-xs',
@@ -188,9 +231,9 @@ export function SearchableSelect({
                         key={opt.value}
                         type="button"
                         disabled={opt.disabled}
-                        onClick={() => {
-                          onChange(opt.value)
-                          setOpen(false)
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          handleSelect(opt.value)
                         }}
                         className={cn(
                           'w-full text-left px-2.5 py-2 rounded-[6px] transition-colors flex items-center justify-between gap-2 cursor-pointer',

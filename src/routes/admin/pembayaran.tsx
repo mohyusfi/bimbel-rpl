@@ -330,7 +330,7 @@ function AdminPembayaranPage() {
       </div>
 
       {/* 4 Standardized Quick-Filter & Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         {summaryCards.map((card) => {
           const isSelected = statusFilter === card.key
           return (
@@ -583,6 +583,7 @@ function AdminPembayaranPage() {
                     }))}
                     placeholder="Pilih siswa..."
                     searchPlaceholder="Cari nama atau NIS siswa..."
+                    required
                   />
                 </div>
 
