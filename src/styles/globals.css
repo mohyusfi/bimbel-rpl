@@ -45,3 +45,60 @@
   margin: 0 8px;
   vertical-align: middle;
 }
+
+/* Full-bleed PPTX Slide Presentation Rules */
+.pptx-viewer-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pptx-viewer-container .rpv-root {
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border: none !important;
+  background: #18181b !important;
+}
+
+.pptx-viewer-container .rpv-workspace {
+  flex: 1 1 0% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.pptx-viewer-container .rpv-stage {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  background: #121212 !important;
+}
+
+.pptx-viewer-container .rpv-viewport {
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pptx-viewer-container .rpv-filmstrip {
+  height: 100% !important;
+  background: #18181b !important;
+  border-right: 1px solid #27272a !important;
+}
+
+.pptx-viewer-container .rpv-thumbnail__number {
+  color: #a1a1aa !important;
+}
+
+.pptx-viewer-container .rpv-thumbnail__canvas {
+  border-color: #3f3f46 !important;
+  background: #27272a !important;
+}
