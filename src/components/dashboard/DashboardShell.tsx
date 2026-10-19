@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   ChevronRight,
   ArrowRightLeft,
+  PanelLeft,
+  PanelLeftClose,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { SidebarBrand } from './SidebarBrand'
@@ -54,8 +56,32 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('tc_sidebar_collapsed') === 'true'
+      } catch {
+        return false
+      }
+    }
+    return false
+  })
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false)
   const [notifFilter, setNotifFilter] = React.useState<string>('ALL')
+
+  const toggleSidebar = React.useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('tc_sidebar_collapsed', String(next))
+        } catch {
+          // Ignore storage access restrictions
+        }
+      }
+      return next
+    })
+  }, [])
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { data: notifications = [] } = useAdminNotifications()
@@ -99,26 +125,31 @@ export function DashboardShell({
         />
       )}
 
-      {/* Sidebar Desktop 264px & Mobile Slide Drawer */}
+      {/* Sidebar Desktop 264px (Collapsible) & Mobile Slide Drawer */}
       <aside
+        aria-hidden={isSidebarCollapsed}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[264px] bg-[#FFFFFF] border-r border-[#D2D2D2] flex flex-col justify-between shrink-0 transition-transform duration-200 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
-          isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+          'fixed inset-y-0 left-0 z-50 bg-[#FFFFFF] border-r border-[#D2D2D2] flex flex-col justify-between shrink-0 transition-all duration-200 ease-in-out lg:sticky lg:top-0 lg:h-screen',
+          isMobileMenuOpen ? 'translate-x-0 w-[264px] shadow-2xl' : '-translate-x-full w-[264px] lg:translate-x-0',
+          isSidebarCollapsed
+            ? 'lg:w-0 lg:border-r-0 lg:overflow-hidden lg:opacity-0 pointer-events-none lg:pointer-events-none'
+            : 'lg:w-[264px] lg:opacity-100'
         )}
       >
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Header Brand */}
-          <div className="h-[60px] px-5 border-b border-[#D2D2D2] flex items-center justify-between shrink-0">
-            <SidebarBrand />
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="lg:hidden p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px]"
-              aria-label="Tutup menu navigasi"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="w-[264px] h-full flex flex-col justify-between shrink-0">
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Header Brand */}
+            <div className="h-[60px] px-5 border-b border-[#D2D2D2] flex items-center justify-between shrink-0">
+              <SidebarBrand role={role} portalName={portalName} />
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="lg:hidden p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px]"
+                aria-label="Tutup menu navigasi"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
           {/* Top Slot (e.g. Child Switcher on Parent Portal) */}
           {topSlot && (
@@ -217,21 +248,39 @@ export function DashboardShell({
             <span>Ganti Portal (Demo)</span>
           </Link>
         </div>
+        </div>
       </aside>
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Contextual Topbar (60px) */}
-        <header className="h-[60px] px-4 sm:px-6 lg:px-8 bg-[#FFFFFF] border-b border-[#D2D2D2] flex items-center justify-between gap-4 sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-[#292524] hover:text-[#000000] hover:bg-[#F6F6F6] border border-[#D2D2D2] rounded-[8px]"
-              aria-label="Buka menu navigasi"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
+        <header className="h-[60px] bg-[#FFFFFF] border-b border-[#D2D2D2] sticky top-0 z-30">
+          <div className="h-full px-4 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              {/* Mobile Drawer Button */}
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden p-2 text-[#292524] hover:text-[#000000] hover:bg-[#F6F6F6] border border-[#D2D2D2] rounded-[8px]"
+                aria-label="Buka menu navigasi"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+
+              {/* Desktop Collapsible Sidebar Toggle Button */}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="hidden lg:inline-flex items-center justify-center p-2 text-[#292524] hover:text-[#000000] hover:bg-[#F6F6F6] border border-[#D2D2D2] rounded-[8px] transition-colors cursor-pointer"
+                aria-label={isSidebarCollapsed ? 'Tampilkan sidebar navigasi' : 'Sembunyikan sidebar navigasi'}
+                title={isSidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+              >
+                {isSidebarCollapsed ? (
+                  <PanelLeft className="w-4 h-4" />
+                ) : (
+                  <PanelLeftClose className="w-4 h-4" />
+                )}
+              </button>
 
             <nav
               aria-label="Breadcrumb"
@@ -370,10 +419,11 @@ export function DashboardShell({
               <span className="hidden sm:inline">Halaman Publik</span>
             </Link>
           </div>
+          </div>
         </header>
 
         {/* Main Content Canvas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1360px] w-full mx-auto space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
           {children}
         </main>
       </div>
