@@ -545,17 +545,20 @@ function AdminJadwalPage() {
       {/* VIEW 3: Rombel & Kelas */}
       {activeView === 'classes' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-[#555555]">
               Daftar rombel aktif per jenjang untuk penempatan calon siswa baru.
             </p>
             <button
               type="button"
               onClick={() => setIsAddClassModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Rombel Baru</span>
+              <span>
+                <span className="sm:hidden">Rombel</span>
+                <span className="hidden sm:inline">Tambah Rombel Baru</span>
+              </span>
             </button>
           </div>
 
