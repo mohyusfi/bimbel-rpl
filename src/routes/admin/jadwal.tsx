@@ -14,6 +14,7 @@ import {
   UserCheck,
   RotateCcw,
   ChevronDown,
+  Clock,
 } from 'lucide-react'
 import {
   useAdminSchedules,
@@ -131,6 +132,24 @@ function AdminJadwalPage() {
   const handleApplySuggestedRoom = (suggestedRoomId: string) => {
     setScheduleForm((prev) => ({ ...prev, roomId: suggestedRoomId }))
   }
+
+  const calculatedDuration = React.useMemo(() => {
+    if (!scheduleForm.startTime || !scheduleForm.endTime) return null
+    const [sh, sm] = scheduleForm.startTime.split(':').map(Number)
+    const [eh, em] = scheduleForm.endTime.split(':').map(Number)
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return null
+    const diffMinutes = eh * 60 + em - (sh * 60 + sm)
+    if (diffMinutes <= 0) return null
+    const hours = Math.floor(diffMinutes / 60)
+    const mins = diffMinutes % 60
+    if (hours > 0 && mins > 0) {
+      return `${hours} jam ${mins} menit (${diffMinutes} menit)`
+    } else if (hours > 0) {
+      return `${hours} jam (${diffMinutes} menit)`
+    } else {
+      return `${diffMinutes} menit`
+    }
+  }, [scheduleForm.startTime, scheduleForm.endTime])
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -467,7 +486,7 @@ function AdminJadwalPage() {
 
       {/* VIEW 1: Matriks Mingguan (Senin–Sabtu Grid) */}
       {activeView === 'matrix' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {DAYS.filter(
             (day) => selectedDayFilter === 'ALL' || selectedDayFilter === day
           ).map((day) => {
@@ -563,7 +582,7 @@ function AdminJadwalPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {classes.map((cls) => {
               const occupancyPct = Math.round(
                 (cls.studentCount / cls.capacity) * 100
@@ -630,258 +649,332 @@ function AdminJadwalPage() {
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
+            <Dialog.Popup className="w-full max-w-2xl bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 sm:p-7 shadow-xl space-y-6 my-8 max-h-[90vh] overflow-y-auto">
+              {/* MODAL HEADER */}
+              <div className="flex items-start justify-between border-b border-[#E5E5E5] pb-4">
                 <div>
-                  <Dialog.Title className="font-display font-bold text-base text-[#000000]">
+                  <Dialog.Title className="font-display font-bold text-lg text-[#000000] tracking-tight">
                     Tetapkan Jadwal Bimbingan Baru
                   </Dialog.Title>
-                  <p className="text-[11px] text-[#555555] mt-0.5">
-                    Sistem otomatis mengevaluasi bentrok ruangan dan tutor secara real-time.
+                  <p className="text-xs text-[#555555] mt-1">
+                    Atur kelas, pengajar, ruangan, dan waktu sesi. Sistem otomatis mengevaluasi bentrok jadwal secara real-time.
                   </p>
                 </div>
                 <Dialog.Close
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[8px] transition-colors cursor-pointer"
+                      aria-label="Tutup dialog"
                     />
                   }
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </Dialog.Close>
               </div>
 
               {/* REAL-TIME CONFLICT ALERT CALLOUT (SCHED-02) */}
               {conflictResult.hasConflict && (
-                <div className="p-3.5 bg-[#F6E7E3] border border-[#A1301C] rounded-[10px] space-y-2 text-xs text-[#A1301C]">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-[#A1301C] shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="font-bold text-[#A1301C]">
-                        Peringatan Bentrok Jadwal Terdeteksi!
-                      </p>
-                      {conflictResult.timeError && (
-                        <p>{conflictResult.timeError}</p>
-                      )}
-                      {conflictResult.roomConflict && (
-                        <p>
-                          <strong>Bentrok Ruangan:</strong>{' '}
-                          {conflictResult.roomConflict.roomName} sudah digunakan
-                          oleh kelas{' '}
-                          <strong>
-                            {conflictResult.roomConflict.className}
-                          </strong>{' '}
-                          pada hari {conflictResult.roomConflict.dayOfWeek},{' '}
-                          {conflictResult.roomConflict.startTime}–
-                          {conflictResult.roomConflict.endTime} WITA.
-                        </p>
-                      )}
-                      {conflictResult.tutorConflict && (
-                        <p>
-                          <strong>Bentrok Tutor:</strong>{' '}
-                          {conflictResult.tutorConflict.tutorName} sudah
-                          mengajar kelas{' '}
-                          <strong>
-                            {conflictResult.tutorConflict.className}
-                          </strong>{' '}
-                          pada jam tersebut ({conflictResult.tutorConflict.startTime}–
-                          {conflictResult.tutorConflict.endTime} WITA).
-                        </p>
-                      )}
-                    </div>
+                <div className="p-4 sm:p-5 bg-[#FDF2F0] border border-[#E8B4AA] rounded-[12px] space-y-3.5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#A1301C] shrink-0" />
+                    <p className="font-display font-bold text-xs uppercase tracking-wider text-[#A1301C]">
+                      Peringatan Bentrok Jadwal Terdeteksi
+                    </p>
                   </div>
 
-                  {/* Automatic empty room suggestion button */}
-                  {conflictResult.suggestedRooms &&
-                    conflictResult.suggestedRooms.length > 0 && (
-                      <div className="pt-2 border-t border-[#A1301C]/30 flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-[11px] text-[#A1301C] font-semibold">
-                          Solusi Ruangan Kosong Tersedia:
-                        </span>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {conflictResult.suggestedRooms.map((sr) => (
-                            <button
-                              key={sr.id}
-                              type="button"
-                              onClick={() => handleApplySuggestedRoom(sr.id)}
-                              className="px-2.5 py-1 text-[11px] font-semibold text-[#FFFFFF] bg-[#000000] rounded-[6px] hover:bg-[#262626] transition-colors cursor-pointer"
-                            >
-                              Gunakan {sr.name}
-                            </button>
-                          ))}
+                  {conflictResult.timeError && (
+                    <div className="p-3 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[8px] text-xs font-medium text-[#A1301C]">
+                      {conflictResult.timeError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {conflictResult.roomConflict && (
+                      <div className="p-3.5 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[10px] space-y-2.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5 text-[#A1301C] font-semibold text-xs mb-1">
+                            <DoorClosed className="w-3.5 h-3.5 shrink-0" />
+                            <span>Bentrok Ruang: {conflictResult.roomConflict.roomName}</span>
+                          </div>
+                          <p className="text-xs text-[#555555] leading-relaxed">
+                            Sedang dipakai kelas{' '}
+                            <strong className="text-[#000000]">
+                              {conflictResult.roomConflict.className}
+                            </strong>{' '}
+                            hari {conflictResult.roomConflict.dayOfWeek},{' '}
+                            <span className="font-mono text-[11px] font-medium text-[#222222]">
+                              {conflictResult.roomConflict.startTime}–{conflictResult.roomConflict.endTime} WITA
+                            </span>.
+                          </p>
                         </div>
+
+                        {/* Automatic empty room suggestion button */}
+                        {conflictResult.suggestedRooms &&
+                          conflictResult.suggestedRooms.length > 0 && (
+                            <div className="pt-2 border-t border-[#F2D1CA]">
+                              <p className="text-[11px] font-semibold text-[#8C2411] mb-1.5">
+                                Rekomendasi Ruang Kosong:
+                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {conflictResult.suggestedRooms.map((sr) => (
+                                  <button
+                                    key={sr.id}
+                                    type="button"
+                                    onClick={() => handleApplySuggestedRoom(sr.id)}
+                                    className="px-2.5 py-1 text-xs font-semibold text-[#A1301C] bg-[#FBE9E5] hover:bg-[#A1301C] hover:text-[#FFFFFF] border border-[#E8B4AA] rounded-[6px] transition-colors cursor-pointer"
+                                  >
+                                    Gunakan {sr.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     )}
+
+                    {conflictResult.tutorConflict && (
+                      <div className="p-3.5 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[10px] space-y-2.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-1.5 text-[#A1301C] font-semibold text-xs mb-1">
+                            <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                            <span>Bentrok Pengajar: {conflictResult.tutorConflict.tutorName}</span>
+                          </div>
+                          <p className="text-xs text-[#555555] leading-relaxed">
+                            Sedang mengajar kelas{' '}
+                            <strong className="text-[#000000]">
+                              {conflictResult.tutorConflict.className}
+                            </strong>{' '}
+                            pada jam{' '}
+                            <span className="font-mono text-[11px] font-medium text-[#222222]">
+                              {conflictResult.tutorConflict.startTime}–{conflictResult.tutorConflict.endTime} WITA
+                            </span>.
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-[#777777] italic pt-2 border-t border-[#F2D1CA]">
+                          Pilih pengajar pengganti atau geser jam sesi bimbingan.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <form onSubmit={handleScheduleSubmit} className="space-y-3.5 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Rombel / Kelas *
-                    </label>
-                    <SearchableSelect
-                      value={scheduleForm.classId}
-                      onChange={(val) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          classId: val,
-                        })
-                      }
-                      options={classes.map((c) => ({
-                        value: c.id,
-                        label: c.name,
-                        sublabel: `(${c.courseName})`,
-                      }))}
-                      placeholder="Pilih rombel / kelas..."
-                      searchPlaceholder="Cari kelas..."
-                      required
-                    />
+              <form onSubmit={handleScheduleSubmit} className="space-y-5">
+                {/* SEKSI 1: INFORMASI PEMBELAJARAN */}
+                <div className="space-y-3">
+                  <div className="pb-1.5 border-b border-[#F0F0F0]">
+                    <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#777777]">
+                      1. Informasi Pembelajaran
+                    </span>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Rombel / Kelas <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <SearchableSelect
+                        size="md"
+                        value={scheduleForm.classId}
+                        onChange={(val) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            classId: val,
+                          })
+                        }
+                        options={classes.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          sublabel: `(${c.courseName})`,
+                        }))}
+                        placeholder="Pilih rombel / kelas..."
+                        searchPlaceholder="Cari kelas..."
+                        required
+                      />
+                    </div>
 
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Mata Pelajaran *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Fisika UTBK"
-                      value={scheduleForm.subjectName}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          subjectName: e.target.value,
-                        })
-                      }
-                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Tutor Pengampu *
-                    </label>
-                    <SearchableSelect
-                      value={scheduleForm.tutorId}
-                      onChange={(val) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          tutorId: val,
-                        })
-                      }
-                      options={tutors.map((t) => ({
-                        value: t.id,
-                        label: t.name,
-                        sublabel: t.education.split('—')[0].trim(),
-                      }))}
-                      placeholder="Pilih tutor pengampu..."
-                      searchPlaceholder="Cari nama tutor..."
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Ruang Belajar Fisik *
-                    </label>
-                    <SearchableSelect
-                      value={scheduleForm.roomId}
-                      onChange={(val) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          roomId: val,
-                        })
-                      }
-                      options={rooms.map((r) => ({
-                        value: r.id,
-                        label: r.name,
-                        sublabel: `(${r.capacity} kursi)`,
-                      }))}
-                      placeholder="Pilih ruang belajar..."
-                      searchPlaceholder="Cari ruangan..."
-                      required
-                    />
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Mata Pelajaran <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Contoh: Fisika UTBK"
+                        value={scheduleForm.subjectName}
+                        onChange={(e) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            subjectName: e.target.value,
+                          })
+                        }
+                        className="w-full h-11 px-3.5 text-sm font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] placeholder:text-[#888888] focus:bg-[#FFFFFF] focus:outline-none focus:border-[#000000] focus:ring-1 focus:ring-[#000000] transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">Hari *</label>
-                    <select
-                      value={scheduleForm.dayOfWeek}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          dayOfWeek: e.target.value as Schedule['dayOfWeek'],
-                        })
-                      }
-                      className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                {/* SEKSI 2: PENGAJAR & RUANG BELAJAR */}
+                <div className="space-y-3">
+                  <div className="pb-1.5 border-b border-[#F0F0F0]">
+                    <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#777777]">
+                      2. Pengajar & Ruang Belajar
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Tutor Pengampu <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <SearchableSelect
+                        size="md"
+                        value={scheduleForm.tutorId}
+                        onChange={(val) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            tutorId: val,
+                          })
+                        }
+                        options={tutors.map((t) => ({
+                          value: t.id,
+                          label: t.name,
+                          sublabel: t.education.split('—')[0].trim(),
+                        }))}
+                        placeholder="Pilih tutor pengampu..."
+                        searchPlaceholder="Cari nama tutor..."
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Ruang Belajar Fisik <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <SearchableSelect
+                        size="md"
+                        value={scheduleForm.roomId}
+                        onChange={(val) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            roomId: val,
+                          })
+                        }
+                        options={rooms.map((r) => ({
+                          value: r.id,
+                          label: r.name,
+                          sublabel: `(${r.capacity} kursi)`,
+                        }))}
+                        placeholder="Pilih ruang belajar..."
+                        searchPlaceholder="Cari ruangan..."
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEKSI 3: WAKTU PELAKSANAAN */}
+                <div className="space-y-3">
+                  <div className="pb-1.5 border-b border-[#F0F0F0] flex items-center justify-between gap-2 flex-wrap">
+                    <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#777777]">
+                      3. Waktu Pelaksanaan
+                    </span>
+                    {calculatedDuration && (
+                      <span className="text-xs font-medium text-[#555555] flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-[#555555]" />
+                        <span>Durasi Sesi:</span>
+                        <strong className="text-[#000000] font-semibold">{calculatedDuration}</strong>
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Hari <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <select
+                        value={scheduleForm.dayOfWeek}
+                        onChange={(e) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            dayOfWeek: e.target.value as Schedule['dayOfWeek'],
+                          })
+                        }
+                        className="w-full h-11 px-3.5 text-sm font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:bg-[#FFFFFF] focus:outline-none focus:border-[#000000] focus:ring-1 focus:ring-[#000000] transition-all cursor-pointer"
+                      >
+                        {DAYS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Jam Mulai <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={scheduleForm.startTime}
+                        onChange={(e) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            startTime: e.target.value,
+                          })
+                        }
+                        className="w-full h-11 px-3.5 text-sm font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:bg-[#FFFFFF] focus:outline-none focus:border-[#000000] focus:ring-1 focus:ring-[#000000] tabular-nums transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-[#111111]">
+                        Jam Selesai <span className="text-[#CB2957]">*</span>
+                      </label>
+                      <input
+                        type="time"
+                        value={scheduleForm.endTime}
+                        onChange={(e) =>
+                          setScheduleForm({
+                            ...scheduleForm,
+                            endTime: e.target.value,
+                          })
+                        }
+                        className="w-full h-11 px-3.5 text-sm font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:bg-[#FFFFFF] focus:outline-none focus:border-[#000000] focus:ring-1 focus:ring-[#000000] tabular-nums transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* MODAL FOOTER */}
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-[#E5E5E5]">
+                  <p className="text-xs text-[#666666]">
+                    {conflictResult.hasConflict ? (
+                      <span className="text-[#A1301C] font-medium flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        Harap selesaikan bentrok sebelum menyimpan jadwal.
+                      </span>
+                    ) : (
+                      'Pastikan seluruh detail bimbingan sudah benar.'
+                    )}
+                  </p>
+                  <div className="flex items-center justify-end gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsScheduleModalOpen(false)}
+                      className="px-4 py-2.5 text-sm font-semibold text-[#333333] hover:text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                     >
-                      {DAYS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={conflictResult.hasConflict}
+                      className="px-5 py-2.5 text-sm font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      Simpan Jadwal Bimbingan
+                    </button>
                   </div>
-
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Jam Mulai *
-                    </label>
-                    <input
-                      type="time"
-                      value={scheduleForm.startTime}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          startTime: e.target.value,
-                        })
-                      }
-                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] tabular-nums"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Jam Selesai *
-                    </label>
-                    <input
-                      type="time"
-                      value={scheduleForm.endTime}
-                      onChange={(e) =>
-                        setScheduleForm({
-                          ...scheduleForm,
-                          endTime: e.target.value,
-                        })
-                      }
-                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] tabular-nums"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={conflictResult.hasConflict}
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  >
-                    Simpan Jadwal Bimbingan
-                  </button>
                 </div>
               </form>
             </Dialog.Popup>

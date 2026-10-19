@@ -25,6 +25,7 @@ export interface SearchableSelectProps {
   clearText?: string
   className?: string
   triggerClassName?: string
+  size?: 'sm' | 'md'
 }
 
 export function SearchableSelect({
@@ -42,6 +43,7 @@ export function SearchableSelect({
   clearText = '— Kosongkan pilihan —',
   className,
   triggerClassName,
+  size = 'sm',
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -90,6 +92,8 @@ export function SearchableSelect({
       ? selectedOption.label
       : ''
 
+  const isMedium = size === 'md'
+
   return (
     <div className={cn('relative w-full', className)}>
       {/* Hidden input to support native form validation if required */}
@@ -107,7 +111,8 @@ export function SearchableSelect({
           render={
             <div
               className={cn(
-                'w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus-within:border-[#000000] focus-within:ring-1 focus-within:ring-[#000000] focus-within:bg-[#FFFFFF] flex items-center justify-between gap-2 transition-all relative cursor-text',
+                'w-full font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus-within:border-[#000000] focus-within:ring-1 focus-within:ring-[#000000] focus-within:bg-[#FFFFFF] flex items-center justify-between gap-2 transition-all relative cursor-text',
+                isMedium ? 'h-11 px-3.5 text-sm' : 'h-10 px-3 text-xs',
                 disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
                 open && 'border-[#000000] ring-1 ring-[#000000] bg-[#FFFFFF]',
                 triggerClassName
@@ -151,7 +156,10 @@ export function SearchableSelect({
               }
             }}
             placeholder={placeholder}
-            className="w-full bg-transparent border-none outline-none text-xs font-medium text-[#000000] placeholder:text-[#888888] truncate"
+            className={cn(
+              'w-full bg-transparent border-none outline-none font-medium text-[#000000] placeholder:text-[#888888] truncate',
+              isMedium ? 'text-sm' : 'text-xs'
+            )}
           />
 
           {/* Action icons: Clear button & Dropdown toggle */}
@@ -236,7 +244,8 @@ export function SearchableSelect({
                           handleSelect(opt.value)
                         }}
                         className={cn(
-                          'w-full text-left px-2.5 py-2 rounded-[6px] transition-colors flex items-center justify-between gap-2 cursor-pointer',
+                          'w-full text-left px-2.5 rounded-[6px] transition-colors flex items-center justify-between gap-2 cursor-pointer',
+                          isMedium ? 'py-2.5 text-sm' : 'py-2 text-xs',
                           isSelected
                             ? 'bg-[#000000] text-[#FFFFFF]'
                             : 'text-[#000000] hover:bg-[#F6F6F6]',
@@ -248,7 +257,8 @@ export function SearchableSelect({
                           {opt.sublabel && (
                             <span
                               className={cn(
-                                'ml-1.5 text-[11px]',
+                                'ml-1.5',
+                                isMedium ? 'text-xs' : 'text-[11px]',
                                 isSelected ? 'text-[#D2D2D2]' : 'text-[#555555]'
                               )}
                             >
