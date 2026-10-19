@@ -113,9 +113,9 @@ function AdminRuanganPage() {
 
       {/* SECTION 1: Ruang Belajar Fisik */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 pb-2 border-b border-[#D2D2D2]">
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-[#000000]" />
+            <Building2 className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
               Ruang Belajar Fisik Bimbel
             </h2>
@@ -125,7 +125,7 @@ function AdminRuanganPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
           {rooms.map((room) => {
             const roomSchedules = schedules.filter((s) => s.roomId === room.id)
             const capacityPct = Math.round((room.capacity / 12) * 100)
@@ -141,25 +141,27 @@ function AdminRuanganPage() {
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[11px] font-mono font-semibold text-[#555555] block">
                         {room.id}
                       </span>
-                      <h3 className="font-display font-bold text-lg text-[#000000] mt-0.5">
+                      <h3 className="font-display font-bold text-lg text-[#000000] mt-0.5 truncate">
                         {room.name}
                       </h3>
                     </div>
-                    <StatusBadge
-                      status={room.isActive ? 'aktif' : 'nonaktif'}
-                      label={room.isActive ? 'Tersedia' : 'Perbaikan'}
-                    />
+                    <div className="shrink-0">
+                      <StatusBadge
+                        status={room.isActive ? 'aktif' : 'nonaktif'}
+                        label={room.isActive ? 'Tersedia' : 'Perbaikan'}
+                      />
+                    </div>
                   </div>
 
                   {/* Progress Bar 1: Kapasitas Kursi */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-[#555555]">
-                      <span>Kapasitas Kursi</span>
-                      <span className="font-semibold text-[#000000] tabular-nums">
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#555555]">
+                      <span className="truncate">Kapasitas Kursi</span>
+                      <span className="font-semibold text-[#000000] tabular-nums shrink-0 whitespace-nowrap">
                         {room.capacity} / 12 kursi
                       </span>
                     </div>
@@ -176,9 +178,9 @@ function AdminRuanganPage() {
 
                   {/* Progress Bar 2: Sesi Terjadwal */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-[#555555]">
-                      <span>Sesi Terjadwal</span>
-                      <span className="font-semibold text-[#000000] tabular-nums">
+                    <div className="flex items-center justify-between gap-2 text-xs text-[#555555]">
+                      <span className="truncate">Sesi Terjadwal</span>
+                      <span className="font-semibold text-[#000000] tabular-nums shrink-0 whitespace-nowrap">
                         {roomSchedules.length} sesi mingguan
                       </span>
                     </div>
@@ -195,14 +197,14 @@ function AdminRuanganPage() {
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-[#D2D2D2] flex items-center justify-between">
-                  <span className="text-[11px] text-[#555555]">
+                <div className="pt-3 border-t border-[#D2D2D2] flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-[#555555] truncate">
                     Status Ruangan:
                   </span>
                   <button
                     type="button"
                     onClick={() => toggleRoomActive(room.id)}
-                    className="text-xs font-semibold text-[#000000] hover:text-[#A81E46] transition-colors cursor-pointer underline"
+                    className="text-xs font-semibold text-[#000000] hover:text-[#A81E46] transition-colors cursor-pointer underline shrink-0 whitespace-nowrap"
                   >
                     {room.isActive ? 'Tandai Perbaikan' : 'Aktifkan Kembali'}
                   </button>
@@ -215,9 +217,9 @@ function AdminRuanganPage() {
 
       {/* SECTION 2: Master Paket Program Bimbel */}
       <div className="space-y-4 pt-4">
-        <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 pb-2 border-b border-[#D2D2D2]">
           <div className="flex items-center gap-2">
-            <Package className="w-4 h-4 text-[#000000]" />
+            <Package className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
               Master Paket Program Bimbingan Belajar
             </h2>

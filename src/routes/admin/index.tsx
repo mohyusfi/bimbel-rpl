@@ -94,7 +94,7 @@ function AdminDashboardIndex() {
       </div>
 
       {/* 4 Standardized KPI Summary Cards (DESIGN.md Editorial Console) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         <SummaryMetricCard
           title="Pendaftaran Baru"
           value={pendingRegistrationsCount}
@@ -173,7 +173,7 @@ function AdminDashboardIndex() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Queue 1: Calon Siswa Menunggu Verifikasi */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between bg-[#F6F6F6]/70">
+          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between gap-3 bg-[#F6F6F6]/70">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-bold text-base text-[#000000]">
@@ -237,7 +237,7 @@ function AdminDashboardIndex() {
 
         {/* Queue 2: Bukti Pembayaran SPP Menunggu Verifikasi */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between bg-[#F6F6F6]/70">
+          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between gap-3 bg-[#F6F6F6]/70">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-display font-bold text-base text-[#000000]">
@@ -319,7 +319,7 @@ function AdminDashboardIndex() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's Sesi Agenda (2 Cols) */}
         <div className="lg:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
-          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between bg-[#F6F6F6]/70">
+          <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between gap-3 bg-[#F6F6F6]/70">
             <div>
               <h2 className="font-display font-bold text-base text-[#000000]">
                 Jadwal Bimbingan Hari Ini (WITA)
@@ -401,7 +401,7 @@ function AdminDashboardIndex() {
         {/* Announcements Widget (1 Col) */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col justify-between">
           <div>
-            <div className="px-5 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6]/70 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6]/70 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Megaphone className="w-4 h-4 text-[#000000]" />
                 <h2 className="font-display font-bold text-base text-[#000000]">

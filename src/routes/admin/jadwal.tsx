@@ -74,7 +74,7 @@ function AdminJadwalPage() {
   })
 
   // Add Class Modal
-  const [isAddClassModalOpen, setIsAddClassModalOpen] = React.useState(true)
+  const [isAddClassModalOpen, setIsAddClassModalOpen] = React.useState(false)
   const [classForm, setClassForm] = React.useState({
     name: '',
     courseCode: 'UTBK' as PackageCode,

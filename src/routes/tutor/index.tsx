@@ -66,7 +66,7 @@ function TutorDashboardIndex() {
       </div>
 
       {/* 4 Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         <SummaryMetricCard
           title="Sesi Minggu Ini"
           value={schedules.length}
@@ -196,7 +196,7 @@ function TutorDashboardIndex() {
         {/* Weekly Teaching Schedule Box */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#D2D2D2]">
               <div>
                 <h3 className="font-display font-bold text-base text-[#000000]">
                   Jadwal Mengajar Pekan Ini
@@ -207,7 +207,7 @@ function TutorDashboardIndex() {
               </div>
               <Link
                 to="/tutor/jadwal"
-                className="text-xs font-semibold text-[#CB2957] hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-[#CB2957] hover:underline inline-flex items-center gap-1 shrink-0 self-start sm:self-auto"
               >
                 <span>Lihat Semua</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -258,7 +258,7 @@ function TutorDashboardIndex() {
         {/* Recent Uploaded Materials & Evaluation Summary */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div className="space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#D2D2D2]">
               <div>
                 <h3 className="font-display font-bold text-base text-[#000000]">
                   Modul & Tugas Terbaru
@@ -269,7 +269,7 @@ function TutorDashboardIndex() {
               </div>
               <Link
                 to="/tutor/materi"
-                className="text-xs font-semibold text-[#CB2957] hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-[#CB2957] hover:underline inline-flex items-center gap-1 shrink-0 self-start sm:self-auto"
               >
                 <span>Kelola Modul</span>
                 <ChevronRight className="w-3.5 h-3.5" />
