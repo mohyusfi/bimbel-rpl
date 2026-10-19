@@ -77,6 +77,8 @@ export function DocumentPreviewViewer({ material }: DocumentPreviewViewerProps) 
     }
   }, [])
 
+  const [inputSlideValue, setInputSlideValue] = React.useState<string>('1')
+
   // Slide navigation
   const handleJumpToSlide = React.useCallback(
     (targetIndex: number) => {
@@ -87,6 +89,23 @@ export function DocumentPreviewViewer({ material }: DocumentPreviewViewerProps) 
     },
     [totalSlides]
   )
+
+  // Sync input value with current active slide
+  React.useEffect(() => {
+    setInputSlideValue(String(currentSlide + 1))
+  }, [currentSlide])
+
+  // Commit typed slide number
+  const handleInputCommit = () => {
+    const parsed = parseInt(inputSlideValue, 10)
+    if (isNaN(parsed) || parsed < 1) {
+      setInputSlideValue(String(currentSlide + 1))
+      return
+    }
+    const target = Math.max(1, Math.min(totalSlides, parsed))
+    handleJumpToSlide(target - 1)
+    setInputSlideValue(String(target))
+  }
 
   // Zoom handlers
   const handleZoomIn = () => {
@@ -194,18 +213,26 @@ export function DocumentPreviewViewer({ material }: DocumentPreviewViewerProps) 
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
-                  <select
-                    value={currentSlide}
-                    onChange={(e) => handleJumpToSlide(Number(e.target.value))}
-                    className="bg-transparent text-xs font-semibold text-[#000000] py-0.5 px-1 cursor-pointer focus:outline-none"
-                    title="Pilih Slide Langsung"
-                  >
-                    {Array.from({ length: totalSlides }, (_, i) => (
-                      <option key={i} value={i}>
-                        Slide {i + 1} / {totalSlides}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1 px-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={inputSlideValue}
+                      onChange={(e) => setInputSlideValue(e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur()
+                        }
+                      }}
+                      onBlur={handleInputCommit}
+                      className="w-8 h-6 text-center font-mono text-xs font-bold text-[#000000] bg-[#F6F6F6] border border-[#D2D2D2] rounded-[4px] focus:outline-none focus:border-[#000000] focus:bg-[#FFFFFF] transition-colors"
+                      title="Ketik nomor slide lalu tekan Enter"
+                    />
+                    <span className="text-xs font-semibold text-[#555555]">
+                      / {totalSlides}
+                    </span>
+                  </div>
 
                   <button
                     type="button"
@@ -373,19 +400,27 @@ export function DocumentPreviewViewer({ material }: DocumentPreviewViewerProps) 
                       <ChevronLeft className="w-4 h-4" />
                     </button>
 
-                    {/* Direct Jump Slide Selector */}
-                    <select
-                      value={currentSlide}
-                      onChange={(e) => handleJumpToSlide(Number(e.target.value))}
-                      className="bg-white/15 hover:bg-white/20 text-white font-semibold text-xs py-1 px-3 rounded-full border border-white/20 cursor-pointer focus:outline-none [color-scheme:dark]"
-                      title="Pilih Slide Langsung"
-                    >
-                      {Array.from({ length: totalSlides }, (_, i) => (
-                        <option key={i} value={i} className="bg-[#18181b] text-white">
-                          Slide {i + 1} / {totalSlides}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Compact Slide Numeric Input */}
+                    <div className="flex items-center gap-1.5 px-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={inputSlideValue}
+                        onChange={(e) => setInputSlideValue(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                        onBlur={handleInputCommit}
+                        className="w-9 h-7 text-center font-mono text-xs font-bold text-white bg-white/15 hover:bg-white/20 focus:bg-white/25 border border-white/25 rounded-[6px] focus:outline-none transition-colors"
+                        title="Ketik nomor slide lalu tekan Enter"
+                      />
+                      <span className="text-xs font-semibold text-white/80">
+                        / {totalSlides}
+                      </span>
+                    </div>
 
                     {/* Next slide */}
                     <button
