@@ -5,7 +5,6 @@ import {
   Menu,
   X,
   Bell,
-  Globe,
   Clock,
   CheckCheck,
   CheckCircle2,
@@ -411,14 +410,6 @@ export function DashboardShell({
                 </Dialog.Viewport>
               </Dialog.Portal>
             </Dialog.Root>
-
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors"
-            >
-              <Globe className="w-3.5 h-3.5 text-[#555555]" />
-              <span className="hidden sm:inline">Halaman Publik</span>
-            </Link>
           </div>
           </div>
         </header>
