@@ -10,6 +10,10 @@ import {
   X,
   Sparkles,
   Plus,
+  DoorClosed,
+  UserCheck,
+  RotateCcw,
+  ChevronDown,
 } from 'lucide-react'
 import {
   useAdminSchedules,
@@ -193,6 +197,18 @@ function AdminJadwalPage() {
     return matchDay && matchRoom && matchTutor
   })
 
+  // Filter state helpers
+  const isFilterActive =
+    selectedDayFilter !== 'ALL' ||
+    selectedRoomFilter !== 'ALL' ||
+    selectedTutorFilter !== 'ALL'
+
+  const handleResetFilters = () => {
+    setSelectedDayFilter('ALL')
+    setSelectedRoomFilter('ALL')
+    setSelectedTutorFilter('ALL')
+  }
+
   // TanStack Table columns for 'table' view
   const tableColumns: ColumnDef<Schedule>[] = [
     {
@@ -297,107 +313,153 @@ function AdminJadwalPage() {
         </div>
       </div>
 
-      {/* Control Bar Terpadu (View Switcher + Filter Controls) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#FFFFFF] p-3 rounded-[14px] border border-[#D2D2D2]">
-        {/* Segmented View Switcher */}
-        <div className="inline-flex p-1 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2]/60 self-start">
-          <button
-            type="button"
-            onClick={() => setActiveView('matrix')}
-            className={cn(
-              'px-3.5 py-2 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
-              activeView === 'matrix'
-                ? 'bg-[#000000] text-[#FFFFFF] shadow-xs'
-                : 'text-[#555555] hover:text-[#000000]'
+      {/* Control Bar Terpadu (Dual-Tier: View Switcher + Grid Filter) */}
+      <div className="bg-[#FFFFFF] rounded-[14px] border border-[#D2D2D2] shadow-none overflow-hidden">
+        {/* Tier 1: View Switcher & Status Counter */}
+        <div className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Segmented View Switcher */}
+          <div className="inline-flex p-1 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2]/60 self-start">
+            <button
+              type="button"
+              onClick={() => setActiveView('matrix')}
+              className={cn(
+                'px-3.5 py-1.5 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
+                activeView === 'matrix'
+                  ? 'bg-[#000000] text-[#FFFFFF]'
+                  : 'text-[#555555] hover:text-[#000000]'
+              )}
+            >
+              Matriks Mingguan
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('table')}
+              className={cn(
+                'px-3.5 py-1.5 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
+                activeView === 'table'
+                  ? 'bg-[#000000] text-[#FFFFFF]'
+                  : 'text-[#555555] hover:text-[#000000]'
+              )}
+            >
+              Tabel Sesi
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView('classes')}
+              className={cn(
+                'px-3.5 py-1.5 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
+                activeView === 'classes'
+                  ? 'bg-[#000000] text-[#FFFFFF]'
+                  : 'text-[#555555] hover:text-[#000000]'
+              )}
+            >
+              Rombel & Kelas (<span className="tabular-nums">{classes.length}</span>)
+            </button>
+          </div>
+
+          {/* Tier 1 Right: Active Sessions Counter */}
+          <div className="flex items-center gap-2 self-start sm:self-center text-xs text-[#555555]">
+            {activeView !== 'classes' ? (
+              <span>
+                Menampilkan{' '}
+                <strong className="font-semibold text-[#000000] tabular-nums">
+                  {filteredSchedules.length}
+                </strong>{' '}
+                sesi aktif
+                {filteredSchedules.length !== schedules.length && (
+                  <span className="text-[#888888]"> (dari total {schedules.length})</span>
+                )}
+              </span>
+            ) : (
+              <span>
+                Total{' '}
+                <strong className="font-semibold text-[#000000] tabular-nums">
+                  {classes.length}
+                </strong>{' '}
+                rombel bimbingan
+              </span>
             )}
-          >
-            Matriks Mingguan
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('table')}
-            className={cn(
-              'px-3.5 py-2 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
-              activeView === 'table'
-                ? 'bg-[#000000] text-[#FFFFFF] shadow-xs'
-                : 'text-[#555555] hover:text-[#000000]'
-            )}
-          >
-            Tabel Sesi
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('classes')}
-            className={cn(
-              'px-3.5 py-2 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
-              activeView === 'classes'
-                ? 'bg-[#000000] text-[#FFFFFF] shadow-xs'
-                : 'text-[#555555] hover:text-[#000000]'
-            )}
-          >
-            Rombel & Kelas (<span className="tabular-nums">{classes.length}</span>)
-          </button>
+          </div>
         </div>
 
-        {/* Global Toolbar Filters (when in matrix or table view) */}
+        {/* Tier 2: Filter Controls (Visible when not in 'classes' view) */}
         {activeView !== 'classes' && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs">
-              <label htmlFor="filter-jadwal-hari" className="font-medium text-[#555555]">
-                Hari:
-              </label>
-              <select
-                id="filter-jadwal-hari"
-                value={selectedDayFilter}
-                onChange={(e) => setSelectedDayFilter(e.target.value)}
-                className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                <option value="ALL">Semua Hari</option>
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+          <div className="border-t border-[#D2D2D2]/60 bg-[#FAFAFA] p-3 sm:p-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Filter 1: Hari */}
+              <div className="relative flex items-center">
+                <Calendar className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-jadwal-hari"
+                  value={selectedDayFilter}
+                  onChange={(e) => setSelectedDayFilter(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Hari (Senin–Sabtu)</option>
+                  {DAYS.map((d) => (
+                    <option key={d} value={d}>
+                      Hari {d}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
+
+              {/* Filter 2: Ruangan */}
+              <div className="relative flex items-center">
+                <DoorClosed className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-jadwal-ruangan"
+                  value={selectedRoomFilter}
+                  onChange={(e) => setSelectedRoomFilter(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Ruangan</option>
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
+
+              {/* Filter 3: Tutor */}
+              <div className="relative flex items-center">
+                <UserCheck className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-jadwal-tutor"
+                  value={selectedTutorFilter}
+                  onChange={(e) => setSelectedTutorFilter(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Tutor</option>
+                  {tutors.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs">
-              <label htmlFor="filter-jadwal-ruangan" className="font-medium text-[#555555]">
-                Ruangan:
-              </label>
-              <select
-                id="filter-jadwal-ruangan"
-                value={selectedRoomFilter}
-                onChange={(e) => setSelectedRoomFilter(e.target.value)}
-                className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                <option value="ALL">Semua Ruangan</option>
-                {rooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs">
-              <label htmlFor="filter-jadwal-tutor" className="font-medium text-[#555555]">
-                Tutor:
-              </label>
-              <select
-                id="filter-jadwal-tutor"
-                value={selectedTutorFilter}
-                onChange={(e) => setSelectedTutorFilter(e.target.value)}
-                className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                <option value="ALL">Semua Tutor</option>
-                {tutors.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Reset Filter Button if any filter active */}
+            {isFilterActive && (
+              <div className="mt-2.5 pt-2.5 border-t border-[#D2D2D2]/50 flex items-center justify-between">
+                <span className="text-[11px] text-[#555555]">
+                  Filter sedang aktif membatasi sesi yang ditampilkan.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81F45] transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Semua Filter</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
