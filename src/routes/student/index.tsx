@@ -1,19 +1,24 @@
 import * as React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import {
-  User,
   Clock,
   FileText,
   Download,
   Eye,
+  CheckCircle2,
+  Award,
+  BookOpen,
+  CreditCard,
+  ArrowRight,
+  Sparkles,
+  X,
 } from 'lucide-react'
-import {
-  STUDENT_PROFILE,
-  SCHEDULE_SESSIONS,
-  STUDY_MATERIALS,
-  type StudyMaterial,
-} from '~/lib/mock-student-data'
-import { MaterialPreviewModal } from '~/components/student/MaterialPreviewModal'
+import type { ColumnDef } from '@tanstack/react-table'
+import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import type { Schedule, LearningMaterial } from '~/lib/admin-store'
+import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
+import { DataTable } from '~/components/ui/data-table'
+import { StatusBadge } from '~/components/ui/status-badge'
 
 export const Route = createFileRoute('/student/')({
   ssr: false,
@@ -21,218 +26,321 @@ export const Route = createFileRoute('/student/')({
 })
 
 function StudentDashboardPage() {
-  const [selectedMaterial, setSelectedMaterial] = React.useState<StudyMaterial | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false)
+  const {
+    student,
+    classSchedules,
+    attendanceRate,
+    totalSessions,
+    attendedSessions,
+    avgGrade,
+    materials,
+    invoices,
+  } = useStudentDashboardData()
+
   const [downloadNotice, setDownloadNotice] = React.useState<string | null>(null)
 
-  // Ambil 3 jadwal sesi bimbingan les minggu ini sesuai prototipe
-  const weeklySessions = SCHEDULE_SESSIONS.slice(0, 3)
+  // Status SPP Terkini
+  const hasUnpaid = invoices.some((i) => i.status === 'belum_dibayar')
+  const hasPending = invoices.some((i) => i.status === 'menunggu')
+  const latestInvoice = invoices[0]
+  const sppStatusLabel = hasUnpaid
+    ? 'Belum Dibayar'
+    : hasPending
+      ? 'Menunggu'
+      : 'Lunas'
 
-  // Ambil modul digital untuk dashboard
-  const displayMaterials = STUDY_MATERIALS.slice(0, 3)
-
-  const handleOpenPreview = (material: StudyMaterial) => {
-    setSelectedMaterial(material)
-    setIsPreviewOpen(true)
-  }
-
-  const handleClosePreview = () => {
-    setIsPreviewOpen(false)
-    setSelectedMaterial(null)
-  }
-
-  const handleDownload = (material: StudyMaterial) => {
-    setDownloadNotice(`Mengunduh ${material.fileName}...`)
+  const handleDownload = (material: LearningMaterial) => {
+    setDownloadNotice(`Mengunduh berkas "${material.title}"...`)
     const link = document.createElement('a')
     link.href = '#'
-    link.setAttribute('download', material.fileName)
+    link.setAttribute('download', material.title)
     document.body.appendChild(link)
     setTimeout(() => {
       document.body.removeChild(link)
     }, 100)
-
     setTimeout(() => {
       setDownloadNotice(null)
-    }, 4000)
+    }, 3500)
   }
 
+  // DataTable columns for weekly schedules
+  const scheduleColumns: ColumnDef<Schedule>[] = [
+    {
+      accessorKey: 'dayOfWeek',
+      header: 'Hari & waktu',
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <span className="font-semibold text-sm text-[#000000] block">
+            {row.original.dayOfWeek}
+          </span>
+          <span className="tabular-nums text-xs text-[#555555]">
+            {row.original.startTime} – {row.original.endTime} WITA
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'subjectName',
+      header: 'Mata pelajaran',
+      cell: ({ row }) => (
+        <span className="font-medium text-sm text-[#000000]">
+          {row.original.subjectName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'tutorName',
+      header: 'Tutor pengajar',
+      cell: ({ row }) => (
+        <span className="text-sm text-[#292524]">
+          {row.original.tutorName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'roomName',
+      header: 'Ruang bimbingan',
+      cell: ({ row }) => (
+        <span className="text-xs text-[#555555] font-medium">
+          {row.original.roomName}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: () => (
+        <StatusBadge status="terjadwal" label="Terjadwal" />
+      ),
+    },
+  ]
+
+  // Modul terbaru (3 berkas teratas)
+  const recentMaterials = materials.slice(0, 3)
+
   return (
-    <>
-      {/* 1. Editorial Page Header */}
-      <div className="dash-page-header">
-        <div className="dash-title-group">
-          <h1>Portal Siswa — Ruang Belajar Mandiri</h1>
-          <p>
-            Akses jadwal belajar bimbingan, unduh materi modul digital, dan pantau nilai rapor.
+    <div className="space-y-6">
+      {/* 1. Clean Editorial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2D2D2]/60">
+        <div>
+          <span className="text-xs font-semibold tracking-wider text-[#555555] uppercase block mb-1">
+            Ruang Belajar Mandiri
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-[#000000]">
+            Selamat Datang, {student?.name || 'Muhammad Rafly'}
+          </h1>
+          <p className="text-xs sm:text-sm text-[#555555] mt-1 leading-relaxed">
+            Akses jadwal belajar bimbingan, unduh materi modul digital, dan pantau progres akademik secara terpadu.
           </p>
         </div>
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded bg-white text-black border border-[#D2D2D2]">
-            <User className="w-3.5 h-3.5 text-[#CB2957]" />
-            <span>Akun Siswa: {STUDENT_PROFILE.name} ({STUDENT_PROFILE.grade.replace(' SMA', '')})</span>
-          </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <span className="font-mono text-xs text-[#555555]">
+            NIS: {student?.nis || 'TC-2026-001'}
+          </span>
+          <span className="text-[#D2D2D2]">·</span>
+          <span className="text-xs font-medium text-[#292524]">
+            {student?.className || 'UTBK Intensif A'}
+          </span>
         </div>
       </div>
 
-      {/* Download notice feedback banner jika aktif */}
+      {/* Download Notice Banner */}
       {downloadNotice && (
-        <div className="mb-4 p-3 bg-white border-l-4 border-l-[#CB2957] border border-[#D2D2D2] rounded-md text-xs font-semibold text-black flex items-center justify-between shadow-xs">
+        <div className="p-3 bg-[#FFFFFF] border-l-4 border-l-[#CB2957] border border-[#D2D2D2] rounded-[10px] text-xs font-semibold text-[#000000] flex items-center justify-between shadow-none">
           <span>{downloadNotice}</span>
           <button
             type="button"
             onClick={() => setDownloadNotice(null)}
-            className="text-neutral-500 hover:text-black ml-4"
+            className="text-[#555555] hover:text-[#000000] ml-4 cursor-pointer"
+            aria-label="Tutup notifikasi"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* 2. Clean Editorial KPI Metrics (No Slop Badges) */}
-      <div className="metrics-grid">
-        <div className="metric-card">
-          <div className="metric-label">Tingkat Kehadiran</div>
-          <div className="metric-val num-tabular text-black">96%</div>
-          <div className="metric-sub">24 dari 25 sesi bimbingan dihadiri</div>
-        </div>
+      {/* 2. 4 Summary Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SummaryMetricCard
+          title="Tingkat Kehadiran"
+          value={`${attendanceRate}%`}
+          description={`${attendedSessions} dari ${totalSessions || 25} sesi bimbingan dihadiri`}
+          icon={CheckCircle2}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">Kehadiran aktif</span>
+              <span className="text-[11px] text-[#555555]">Target min. 85%</span>
+            </div>
+          }
+        />
 
-        <div className="metric-card">
-          <div className="metric-label">Rata-rata Skor Try Out</div>
-          <div className="metric-val num-tabular">
-            88 <span style={{ fontSize: '1.1rem', color: 'var(--muted-foreground)', fontWeight: 500 }}>/ 100</span>
-          </div>
-          <div className="metric-sub text-neutral-600">+12 poin dibandingkan bulan lalu</div>
-        </div>
+        <SummaryMetricCard
+          title="Rata-rata Skor Try Out"
+          value={avgGrade}
+          unit="/ 100"
+          description="Berdasarkan evaluasi & kuis berkala"
+          icon={Award}
+          to="/student/nilai"
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">+12 poin</span>
+              <span className="text-[11px] text-[#555555]">Bulan berjalan</span>
+            </div>
+          }
+        />
 
-        <div className="metric-card">
-          <div className="metric-label">Modul Digital Tersedia</div>
-          <div className="metric-val num-tabular">14 Modul</div>
-          <div className="metric-sub">Bisa diunduh bebas kapan saja</div>
-        </div>
+        <SummaryMetricCard
+          title="Modul Digital Tersedia"
+          value={`${materials.length} Modul`}
+          description="Modul teori, tugas, & bank soal"
+          icon={BookOpen}
+          to="/student/materi"
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">Akses penuh</span>
+              <span className="text-[11px] text-[#555555]">Dapat diunduh bebas</span>
+            </div>
+          }
+        />
 
-        <div className="metric-card">
-          <div className="metric-label">Status SPP Maret</div>
-          <div className="metric-val text-black" style={{ fontSize: '1.6rem' }}>
-            Terverifikasi
-          </div>
-          <div className="metric-sub">Kwitansi resmi tersedia</div>
-        </div>
+        <SummaryMetricCard
+          title="Status SPP Terkini"
+          value={sppStatusLabel}
+          description={
+            latestInvoice?.dueDate
+              ? `Jatuh tempo: ${latestInvoice.dueDate}`
+              : 'Tagihan SPP bulan berjalan'
+          }
+          icon={CreditCard}
+          to="/student/tagihan"
+          variant={hasUnpaid ? 'urgent' : 'default'}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">
+                {hasUnpaid ? 'Perlu diselesaikan' : 'Kwitansi resmi ada'}
+              </span>
+              <span className="text-[11px] text-[#555555]">BSI Resmi</span>
+            </div>
+          }
+        />
       </div>
 
-      {/* 3. Jadwal Sesi Bimbingan Les Minggu Ini */}
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <div className="dash-card-title">Jadwal Sesi Bimbingan Les Minggu Ini</div>
-          <span className="status-tag status-neutral">
-            <Clock className="lucide" /> Zona WITA
-          </span>
+      {/* 3. Sesi Bimbingan Minggu Ini using DataTable */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold font-display text-[#000000]">
+              Sesi Bimbingan Minggu Ini
+            </h2>
+            <p className="text-xs text-[#555555] mt-0.5">
+              Jadwal tatap muka bimbingan kelas {student?.className || 'UTBK Intensif A'} di unit Tadulako Cendekia.
+            </p>
+          </div>
+          <Link
+            to="/student/jadwal"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000000] hover:text-[#CB2957] transition-colors"
+          >
+            <span>Lihat jadwal lengkap</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Hari &amp; waktu</th>
-                <th>Mata pelajaran</th>
-                <th>Tutor pengajar</th>
-                <th>Ruang kelas</th>
-                <th>Status pertemuan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weeklySessions.map((session) => (
-                <tr key={session.id}>
-                  <td className="font-semibold">{session.day}, {session.time}</td>
-                  <td>{session.subject} ({session.topic.split('&')[0].trim()})</td>
-                  <td>{session.tutor}</td>
-                  <td>{session.room}</td>
-                  <td>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-black">
-                      <Clock className="w-3.5 h-3.5 text-black" />
-                      <span>{session.status}</span>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+        <DataTable
+          columns={scheduleColumns}
+          data={classSchedules}
+          searchPlaceholder="Cari mapel, tutor, atau hari..."
+          filterSlot={
+            <div className="inline-flex items-center gap-1.5 text-xs text-[#555555]">
+              <Clock className="w-3.5 h-3.5 text-[#555555]" />
+              <span>Zona WITA (UTC+8)</span>
+            </div>
+          }
+          renderMobileCard={(row) => (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-[#000000]">
+                  {row.dayOfWeek}, {row.startTime}–{row.endTime} WITA
+                </span>
+                <StatusBadge status="terjadwal" label="Terjadwal" />
+              </div>
+              <p className="font-medium text-sm text-[#292524]">{row.subjectName}</p>
+              <div className="flex items-center justify-between text-xs text-[#555555] pt-1">
+                <span>{row.tutorName}</span>
+                <span>{row.roomName}</span>
+              </div>
+            </div>
+          )}
+        />
       </div>
 
-      {/* 4. Modul Digital & Lembar Latihan Mandiri */}
-      <div className="dash-card">
-        <div className="dash-card-header">
-          <div className="dash-card-title">Modul Digital &amp; Lembar Latihan Mandiri</div>
-          <span className="status-tag status-neutral">Maks. 20 MB / Dokumen</span>
+      {/* 4. Modul Digital Terbaru List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold font-display text-[#000000]">
+              Modul Digital Terbaru
+            </h2>
+            <p className="text-xs text-[#555555] mt-0.5">
+              Bahan ajar dan lembar tugas terbaru yang telah diunggah oleh tutor bimbingan.
+            </p>
+          </div>
+          <Link
+            to="/student/materi"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000000] hover:text-[#CB2957] transition-colors"
+          >
+            <span>Semua modul ({materials.length})</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
-        <div className="dash-card-body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {displayMaterials.map((mat) => (
+
+        <div className="grid grid-cols-1 gap-3">
+          {recentMaterials.length > 0 ? (
+            recentMaterials.map((mat) => (
               <div
                 key={mat.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-xs)',
-                  background: 'var(--surface)',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
+                className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[12px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-[#000000] transition-colors"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      background: 'var(--destructive-bg)',
-                      color: 'var(--destructive)',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FileText className="icon-lg" />
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-[8px] bg-[#000000] text-[#FFFFFF] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                    <FileText className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="font-semibold text-sm text-black">{mat.fileName}</div>
-                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                      Diunggah oleh {mat.uploadedBy} <span className="meta-divider" /> Ukuran: {mat.size}
-                    </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm text-[#000000] truncate">
+                      {mat.title}
+                    </h3>
+                    <p className="text-xs text-[#555555] mt-0.5">
+                      {mat.subjectName} · Diunggah oleh {mat.tutorName} · {mat.fileSize}
+                    </p>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => handleOpenPreview(mat)}
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <Link
+                    to="/student/preview/$materialId"
+                    params={{ materialId: mat.id }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                   >
-                    <Eye className="lucide" /> Lihat Preview
-                  </button>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Pratinjau</span>
+                  </Link>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
                     onClick={() => handleDownload(mat)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
                   >
-                    <Download className="lucide" /> Unduh Modul
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh</span>
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            ))
+          ) : (
+            <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[12px] p-8 text-center text-xs text-[#555555]">
+              Belum ada modul yang dibagikan untuk kelas ini.
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Material Preview Modal */}
-      <MaterialPreviewModal
-        material={selectedMaterial}
-        isOpen={isPreviewOpen}
-        onClose={handleClosePreview}
-      />
-    </>
+    </div>
   )
 }

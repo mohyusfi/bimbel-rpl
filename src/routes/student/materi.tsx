@@ -1,263 +1,229 @@
 import * as React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   Search,
   BookOpen,
   Download,
   Eye,
-  User,
-  Calendar,
-  HardDrive,
-  Filter,
-  CheckCircle2,
   FileText,
+  Presentation,
+  X,
   Sparkles,
 } from 'lucide-react'
-import { STUDY_MATERIALS, type StudyMaterial } from '~/lib/mock-student-data'
-import { MaterialPreviewModal } from '~/components/student/MaterialPreviewModal'
+import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import type { LearningMaterial } from '~/lib/admin-store'
+import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/materi')({
   ssr: false,
   component: StudentMateriPage,
 })
 
-const CATEGORIES = ['Semua', 'Fisika', 'Matematika', 'Kimia', 'TPS UTBK'] as const
+const CATEGORIES = ['Semua', 'Modul Teori', 'Lembar Tugas', 'Bank Soal'] as const
 
 function StudentMateriPage() {
+  const { student, materials } = useStudentDashboardData()
+
   const [selectedCategory, setSelectedCategory] = React.useState<string>('Semua')
   const [searchQuery, setSearchQuery] = React.useState<string>('')
-  const [previewMaterial, setPreviewMaterial] = React.useState<StudyMaterial | null>(null)
-  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false)
   const [downloadNotification, setDownloadNotification] = React.useState<string | null>(null)
 
   // Filtered materials
-  const filteredMaterials = STUDY_MATERIALS.filter((mat) => {
+  const filteredMaterials = materials.filter((mat) => {
     const matchesCategory =
-      selectedCategory === 'Semua' ||
-      mat.subject.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-      (selectedCategory === 'Matematika' && mat.subject.toLowerCase().includes('matematika'))
+      selectedCategory === 'Semua' || mat.category === selectedCategory
 
+    const query = searchQuery.toLowerCase().trim()
     const matchesSearch =
-      mat.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mat.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mat.preview.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mat.uploadedBy.toLowerCase().includes(searchQuery.toLowerCase())
+      !query ||
+      mat.title.toLowerCase().includes(query) ||
+      mat.subjectName.toLowerCase().includes(query) ||
+      mat.description.toLowerCase().includes(query) ||
+      mat.tutorName.toLowerCase().includes(query)
 
     return matchesCategory && matchesSearch
   })
 
-  const handleOpenPreview = (material: StudyMaterial) => {
-    setPreviewMaterial(material)
-    setIsPreviewOpen(true)
-  }
-
-  const handleClosePreview = () => {
-    setIsPreviewOpen(false)
-    setPreviewMaterial(null)
-  }
-
-  const handleDownloadDirect = (material: StudyMaterial) => {
-    // Show download feedback
-    setDownloadNotification(
-      `Berkas "${material.fileName}" berhasil diproses untuk diunduh!`
-    )
+  const handleDownloadDirect = (material: LearningMaterial) => {
+    setDownloadNotification(`Berkas "${material.title}" sedang diunduh.`)
     const link = document.createElement('a')
-    link.href = '#'
-    link.setAttribute('download', material.fileName)
+    link.href = material.fileUrl
+    link.setAttribute('download', material.title)
     document.body.appendChild(link)
+    link.click()
     setTimeout(() => {
       document.body.removeChild(link)
     }, 100)
-
     setTimeout(() => {
       setDownloadNotification(null)
-    }, 4000)
+    }, 3500)
   }
 
   return (
-    <>
-      {/* 1. Editorial Page Header */}
-      <div className="dash-page-header">
-        <div className="dash-title-group">
-          <h1>Katalog Modul &amp; Lembar Latihan</h1>
-          <p>
-            Akses materi bimbingan belajar resmi, pembahasan instan soal HOTS SNBT, dan modul persiapan ujian yang disusun eksklusif oleh tim tutor Tadulako Cendekia.
+    <div className="space-y-6">
+      {/* 1. Page Editorial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#D2D2D2]/60">
+        <div>
+          <span className="text-xs font-semibold tracking-wider text-[#555555] uppercase block mb-1">
+            Pustaka Pembelajaran
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-[#000000]">
+            Modul & Lembar Tugas
+          </h1>
+          <p className="text-xs sm:text-sm text-[#555555] mt-1 leading-relaxed">
+            Unduh materi bimbingan, rangkuman teori, dan bank soal latihan kelas {student?.className || 'UTBK Intensif A'}.
           </p>
         </div>
-        <div>
-          <span className="status-tag status-neutral">
-            <BookOpen className="lucide" /> {STUDY_MATERIALS.length} Berkas PDF Tersedia
-          </span>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-xs">
+            <BookOpen className="w-3.5 h-3.5 text-[#CB2957]" />
+            <span className="font-semibold text-[#000000]">{materials.length} Dokumen Tersedia</span>
+          </div>
         </div>
       </div>
 
-      {/* Global Notification Banner */}
+      {/* Download Feedback Banner */}
       {downloadNotification && (
-        <div className="p-4 mb-6 rounded-xl bg-white border-l-4 border-l-[#CB2957] border border-[#D2D2D2] text-black flex items-center justify-between text-xs sm:text-sm shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#CB2957]" />
-            <span className="font-semibold">{downloadNotification}</span>
-          </div>
+        <div className="p-3 bg-[#FFFFFF] border-l-4 border-l-[#CB2957] border border-[#D2D2D2] rounded-[10px] text-xs font-semibold text-[#000000] flex items-center justify-between shadow-none">
+          <span>{downloadNotification}</span>
           <button
             type="button"
             onClick={() => setDownloadNotification(null)}
-            className="text-neutral-500 hover:text-black font-semibold text-xs ml-3"
+            className="text-[#555555] hover:text-[#000000] ml-4 cursor-pointer"
+            aria-label="Tutup notifikasi"
           >
-            Tutup
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* Main Container Card: Filter + Catalog Grid */}
-      <div className="dash-card">
-        <div className="dash-card-header flex flex-wrap items-center justify-between gap-4">
-          {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider flex items-center gap-1 mr-1 shrink-0">
-              <Filter className="w-3.5 h-3.5" /> Mapel:
-            </span>
-            {CATEGORIES.map((cat) => {
-              const isActive = selectedCategory === cat
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    isActive
-                      ? 'bg-black text-white shadow-xs'
-                      : 'bg-white text-neutral-700 hover:bg-neutral-100 border border-[#D2D2D2]'
-                  }`}
-                >
-                  {cat}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Search Box */}
-          <div className="relative min-w-[240px] max-w-sm">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari materi, topik, atau tutor..."
-              className="w-full pl-9 pr-8 py-1.5 text-xs bg-neutral-50 border border-[#D2D2D2] rounded-md text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-black"
-                aria-label="Hapus pencarian"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+      {/* 2. Search & Category Filter Toolbar */}
+      <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* Search input */}
+        <div className="relative flex-1 max-w-md">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555555] pointer-events-none"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari judul modul, mapel, atau tutor..."
+            className="w-full h-10 pl-10 pr-8 text-[13px] bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[10px] focus:outline-none focus:border-[#000000] transition-all placeholder:text-[#555555]"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#555555] hover:text-[#000000] rounded-[4px] cursor-pointer"
+              aria-label="Bersihkan pencarian"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Materials Body */}
-        <div className="dash-card-body">
-          {filteredMaterials.length === 0 ? (
-            <div className="p-12 text-center space-y-3">
-              <BookOpen className="w-10 h-10 text-neutral-400 mx-auto opacity-50" />
-              <h3 className="font-bold text-base text-black">
-                Tidak Ada Modul Ditemukan
-              </h3>
-              <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                Tidak ada modul pembelajaran yang sesuai dengan kata kunci &quot;{searchQuery}&quot; atau kategori yang dipilih.
-              </p>
+        {/* Category Chips */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat
+            return (
               <button
+                key={cat}
                 type="button"
-                onClick={() => {
-                  setSelectedCategory('Semua')
-                  setSearchQuery('')
-                }}
-                className="btn btn-primary btn-sm mt-2"
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded-[8px] transition-colors cursor-pointer',
+                  isActive
+                    ? 'bg-[#000000] text-[#FFFFFF] border border-[#000000]'
+                    : 'bg-[#FFFFFF] text-[#292524] border border-[#D2D2D2] hover:border-[#000000]'
+                )}
               >
-                Bersihkan Filter Pencarian
+                {cat}
               </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredMaterials.map((material) => (
-                <div
-                  key={material.id}
-                  className="bg-white border border-[#D2D2D2] rounded-xl p-5 shadow-xs hover:border-black transition-all flex flex-col justify-between"
-                >
-                  {/* Card Top */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="status-tag status-neutral">
-                        <BookOpen className="w-3.5 h-3.5 text-[#CB2957]" />
-                        {material.subject}
-                      </span>
-
-                      <div className="flex items-center gap-2 text-xs text-neutral-500 font-mono">
-                        <span className="flex items-center gap-1">
-                          <HardDrive className="w-3.5 h-3.5 text-neutral-400" />
-                          {material.size}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-sm sm:text-base text-black leading-snug">
-                        {material.title}
-                      </h3>
-                      <p className="text-xs text-neutral-600 mt-1.5 line-clamp-2 leading-relaxed">
-                        {material.preview.summary}
-                      </p>
-                    </div>
-
-                    {/* Tutor & Date Meta */}
-                    <div className="pt-2 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
-                      <div className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-[#CB2957]" />
-                        <span className="font-medium text-black">{material.uploadedBy}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>{material.uploadDate}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Actions */}
-                  <div className="pt-4 mt-4 border-t border-[#D2D2D2] flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenPreview(material)}
-                      className="btn btn-outline btn-sm"
-                    >
-                      <Eye className="lucide" />
-                      <span>Lihat Preview</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadDirect(material)}
-                      className="btn btn-primary btn-sm"
-                    >
-                      <Download className="lucide" />
-                      <span>Unduh Modul</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            )
+          })}
         </div>
       </div>
 
-      {/* Preview Modal */}
-      <MaterialPreviewModal
-        material={previewMaterial}
-        isOpen={isPreviewOpen}
-        onClose={handleClosePreview}
-      />
-    </>
+      {/* 3. Grid of Module Cards */}
+      {filteredMaterials.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredMaterials.map((mat) => (
+            <div
+              key={mat.id}
+              className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between hover:border-[#000000] transition-colors"
+            >
+              <div>
+                {/* Top: Category & Filetype */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-[#CB2957]">
+                    {mat.category}
+                  </span>
+                  <span className="font-mono text-[11px] text-[#555555]">
+                    {mat.fileType}
+                  </span>
+                </div>
+
+                {/* Title & Description */}
+                <h3 className="font-bold text-base text-[#000000] mt-2 line-clamp-2 leading-snug">
+                  {mat.title}
+                </h3>
+                <p className="text-xs text-[#555555] mt-1.5 line-clamp-2 leading-relaxed">
+                  {mat.description}
+                </p>
+              </div>
+
+              <div>
+                {/* Metadata */}
+                <div className="mt-4 pt-3 border-t border-[#D2D2D2]/60 text-xs text-[#555555] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span>Mata pelajaran:</span>
+                    <span className="font-medium text-[#292524]">{mat.subjectName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Tutor pengajar:</span>
+                    <span className="text-[#292524]">{mat.tutorName}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Ukuran berkas:</span>
+                    <span className="tabular-nums font-mono text-[#555555]">{mat.fileSize} · {mat.uploadedAt}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 mt-4 pt-2">
+                  <Link
+                    to="/student/preview/$materialId"
+                    params={{ materialId: mat.id }}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Pratinjau Modul</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadDirect(mat)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-12 text-center text-xs text-[#555555] space-y-2">
+          <BookOpen className="w-8 h-8 text-[#D2D2D2] mx-auto stroke-1" />
+          <p className="font-semibold text-sm text-[#000000]">Tidak ada materi yang cocok</p>
+          <p className="text-xs text-[#555555] max-w-sm mx-auto">
+            Coba ubah kata kunci pencarian atau pilih kategori materi lainnya.
+          </p>
+        </div>
+      )}
+    </div>
   )
 }

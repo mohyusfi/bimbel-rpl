@@ -109,12 +109,87 @@ export interface Invoice {
   transferReceiptFile?: string
   bankName?: string
   submittedAt?: string // ISO string
-  status: 'menunggu' | 'lunas' | 'belum_dibayar' | 'ditolak'
+  submittedByRole?: 'student' | 'parent'
+  submittedByName?: string
+  status: 'menunggu' | 'lunas' | 'belum_dibayar' | 'ditolak' | 'dibatalkan'
   rejectedReason?: string
   receiptNumber?: string
   paymentMethod?: string
   verifiedAt?: string
   verifiedBy?: string
+}
+
+export type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpa'
+
+export interface AttendanceEntry {
+  studentId: string
+  studentName: string
+  nis: string
+  status: AttendanceStatus
+  note?: string
+}
+
+export interface AttendanceSession {
+  id: string
+  scheduleId: string
+  classId: string
+  className: string
+  subjectName: string
+  tutorId: string
+  tutorName: string
+  roomId: string
+  roomName: string
+  sessionDate: string
+  dayOfWeek: string
+  startTime: string
+  endTime: string
+  topic: string
+  isCompleted: boolean
+  entries: AttendanceEntry[]
+}
+
+export interface LearningMaterial {
+  id: string
+  classId: string
+  className: string
+  subjectName: string
+  title: string
+  description: string
+  category: string
+  tutorId: string
+  tutorName: string
+  fileType: 'PDF' | 'PPTX'
+  fileSize: string
+  fileUrl: string
+  uploadedAt: string
+}
+
+export interface GradeRecord {
+  id: string
+  studentId: string
+  studentName: string
+  nis: string
+  classId: string
+  className: string
+  subjectName: string
+  assessmentTitle: string
+  category: 'Try Out' | 'Kuis' | 'Tugas'
+  score: number
+  classAverage: number
+  tutorId: string
+  tutorName: string
+  tutorFeedback: string
+  assessmentDate: string
+}
+
+export interface ParentProfile {
+  id: string
+  name: string
+  email: string
+  phone: string
+  job: string
+  address: string
+  studentIds: string[]
 }
 
 export interface Announcement {
@@ -339,17 +414,17 @@ const INITIAL_REGISTRATIONS: Registration[] = [
   },
   {
     id: 'reg-003',
-    studentName: 'Ahmad Al-Baqir',
-    studentEmail: 'ahmad.baqir@gmail.com',
+    studentName: 'Alya Ramadhani',
+    studentEmail: 'alya.ramadhani@gmail.com',
     studentPhone: '0821-9900-1122',
     studentSchool: 'SMPN 1 Palu',
     packageCode: 'SMP',
     packageName: 'SMP Prestasi',
-    parentName: 'H. Syamsuddin, S.E',
-    parentEmail: 'syamsuddin.se@gmail.com',
-    parentPhone: '0812-4488-3322',
-    parentJob: 'Wiraswasta',
-    parentAddress: 'Jl. Gajah Mada No. 88, Palu Barat',
+    parentName: 'Ir. H. Ahmad Dahlan',
+    parentEmail: 'ahmad.dahlan@wali.tadulakocendekia.sch.id',
+    parentPhone: '0821-4455-6677',
+    parentJob: 'Pegawai BNI Cabang Palu',
+    parentAddress: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
     createdAt: new Date(Date.now() - 4 * 86400 * 1000).toISOString(),
     status: 'terverifikasi',
     assignedClassId: 'cls-4',
@@ -377,7 +452,7 @@ const INITIAL_STUDENTS: Student[] = [
   {
     id: 'stu-1',
     nis: 'TC-2026-001',
-    name: 'Muhammad Rafly',
+    name: 'Fahri Ramadhan',
     email: 'rafly.palu@gmail.com',
     phone: '0821-9988-7711',
     school: 'SMAN 1 Palu',
@@ -431,18 +506,18 @@ const INITIAL_STUDENTS: Student[] = [
   {
     id: 'stu-4',
     nis: 'TC-2026-004',
-    name: 'Ahmad Al-Baqir',
-    email: 'ahmad.baqir@gmail.com',
+    name: 'Alya Ramadhani',
+    email: 'alya.ramadhani@gmail.com',
     phone: '0821-9900-1122',
     school: 'SMPN 1 Palu',
     packageCode: 'SMP',
     classId: 'cls-4',
     className: 'SMP Prestasi A',
-    parentName: 'H. Syamsuddin, S.E',
-    parentPhone: '0812-4488-3322',
-    parentEmail: 'syamsuddin.se@gmail.com',
-    parentJob: 'Wiraswasta',
-    parentAddress: 'Jl. Gajah Mada No. 88, Palu Barat',
+    parentName: 'Ir. H. Ahmad Dahlan',
+    parentPhone: '0821-4455-6677',
+    parentEmail: 'ahmad.dahlan@wali.tadulakocendekia.sch.id',
+    parentJob: 'Pegawai BNI Cabang Palu',
+    parentAddress: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
     joinDate: '01 Februari 2026',
     status: 'aktif',
   },
@@ -533,7 +608,7 @@ const INITIAL_INVOICES: Invoice[] = [
   {
     id: 'INV-2026-0301',
     studentId: 'stu-1',
-    studentName: 'Muhammad Rafly',
+    studentName: 'Fahri Ramadhan',
     nis: 'TC-2026-001',
     programName: 'Intensif UTBK-SNBT',
     amount: 450000,
@@ -578,7 +653,7 @@ const INITIAL_INVOICES: Invoice[] = [
   {
     id: 'INV-2026-0285',
     studentId: 'stu-4',
-    studentName: 'Ahmad Al-Baqir',
+    studentName: 'Alya Ramadhani',
     nis: 'TC-2026-004',
     programName: 'SMP Prestasi',
     amount: 350000,
@@ -593,7 +668,7 @@ const INITIAL_INVOICES: Invoice[] = [
   {
     id: 'INV-2026-0305',
     studentId: 'stu-1',
-    studentName: 'Muhammad Rafly',
+    studentName: 'Fahri Ramadhan',
     nis: 'TC-2026-001',
     programName: 'Intensif UTBK-SNBT',
     amount: 450000,
@@ -648,7 +723,7 @@ const INITIAL_NOTIFICATIONS: AdminNotification[] = [
   {
     id: 'notif-2',
     title: 'Bukti Pembayaran Diunggah',
-    message: 'Orang tua Muhammad Rafly mengunggah bukti transfer BSI Rp 450.000 untuk tagihan INV-2026-0301.',
+    message: 'Orang tua Fahri Ramadhan mengunggah bukti transfer BSI Rp 450.000 untuk tagihan INV-2026-0301.',
     timestamp: '40 menit lalu',
     isRead: false,
     type: 'payment',
@@ -671,6 +746,230 @@ const INITIAL_NOTIFICATIONS: AdminNotification[] = [
   },
 ]
 
+const INITIAL_PARENTS: ParentProfile[] = [
+  {
+    id: 'par-1',
+    name: 'Ir. H. Ahmad Dahlan',
+    email: 'ahmad.dahlan@wali.tadulakocendekia.sch.id',
+    phone: '0821-4455-6677',
+    job: 'Pegawai BNI Cabang Palu',
+    address: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
+    studentIds: ['stu-1', 'stu-4'],
+  },
+  {
+    id: 'par-2',
+    name: 'Dr. Hendra Gunawan, Sp.A',
+    email: 'dr.hendra@gmail.com',
+    phone: '0811-456-789',
+    job: 'Dokter RS Undata Palu',
+    address: 'Jl. Suprapto No. 12, Besusu',
+    studentIds: ['stu-2'],
+  },
+]
+
+const INITIAL_ATTENDANCE_SESSIONS: AttendanceSession[] = [
+  {
+    id: 'ses-1',
+    scheduleId: 'sch-1',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Penalaran Matematika & TPS',
+    tutorId: 'tut-2',
+    tutorName: 'Pak Hendra Wijaya, M.Pd',
+    roomId: 'rm-1',
+    roomName: 'Ruang Palu-1',
+    sessionDate: '2026-10-19',
+    dayOfWeek: 'Senin',
+    startTime: '15:30',
+    endTime: '17:00',
+    topic: 'Penalaran Aljabar & Analisis Grafik UTBK',
+    isCompleted: true,
+    entries: [
+      { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir', note: 'Sangat aktif dalam sesi tanya jawab' },
+      { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'hadir' },
+      { studentId: 'stu-3', studentName: 'Rizki Kurniawan', nis: 'TC-2026-003', status: 'izin', note: 'Izin kegiatan OSIS' },
+    ],
+  },
+  {
+    id: 'ses-2',
+    scheduleId: 'sch-2',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    roomId: 'rm-1',
+    roomName: 'Ruang Palu-1',
+    sessionDate: '2026-10-21',
+    dayOfWeek: 'Rabu',
+    startTime: '16:00',
+    endTime: '17:30',
+    topic: 'Mekanika Dinamika & Hukum Newton Lanjutan',
+    isCompleted: true,
+    entries: [
+      { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+      { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'hadir' },
+      { studentId: 'stu-3', studentName: 'Rizki Kurniawan', nis: 'TC-2026-003', status: 'sakit', note: 'Demam' },
+    ],
+  },
+  {
+    id: 'ses-3',
+    scheduleId: 'sch-2',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    roomId: 'rm-1',
+    roomName: 'Ruang Palu-1',
+    sessionDate: '2026-10-24',
+    dayOfWeek: 'Sabtu',
+    startTime: '09:00',
+    endTime: '11:00',
+    topic: 'Drilling Soal Try Out Fisika UTBK 2026',
+    isCompleted: false,
+    entries: [
+      { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+      { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'hadir' },
+      { studentId: 'stu-3', studentName: 'Rizki Kurniawan', nis: 'TC-2026-003', status: 'hadir' },
+    ],
+  },
+]
+
+const INITIAL_MATERIALS: LearningMaterial[] = [
+  {
+    id: 'mat-1',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    title: 'MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+    description: 'Ringkasan komprehensif rumus mekanika, dinamika rotasi, dan strategi pengerjaan soal tipe HOTS SNBT.',
+    category: 'Modul Teori',
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    fileType: 'PDF',
+    fileSize: '3.7 MB',
+    fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+    uploadedAt: '16 Okt 2026',
+  },
+  {
+    id: 'mat-2',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Informatika & Integrasi Sistem',
+    title: 'Arsitektur dan Integrasi REST API.pptx',
+    description: 'Slide materi presentasi visual mengenai arsitektur client-server, RESTful API contract, dan protokol integrasi sistem modern.',
+    category: 'Modul Teori',
+    tutorId: 'tut-2',
+    tutorName: 'Pak Hendra Wijaya, M.Pd',
+    fileType: 'PPTX',
+    fileSize: '160 KB',
+    fileUrl: '/Arsitektur dan Integrasi REST API.pptx',
+    uploadedAt: '15 Okt 2026',
+  },
+  {
+    id: 'mat-3',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    title: 'Bank Soal Try Out Fisika SNBT 2025-2026.pdf',
+    description: 'Kompilasi butir soal latihan evaluasi konsep dan pemecahan kasus gerak lurus dan termodinamika.',
+    category: 'Bank Soal',
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    fileType: 'PDF',
+    fileSize: '3.7 MB',
+    fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+    uploadedAt: '12 Okt 2026',
+  },
+  {
+    id: 'mat-4',
+    classId: 'cls-4',
+    className: 'SMP Prestasi A',
+    subjectName: 'IPA Terpadu SMP',
+    title: 'Slide Presentasi Prinsip Kerja Jaringan & Data.pptx',
+    description: 'Materi slide pengenalan dasar struktur pertukaran data dan komunikasi protokol digital.',
+    category: 'Modul Teori',
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    fileType: 'PPTX',
+    fileSize: '160 KB',
+    fileUrl: '/Arsitektur dan Integrasi REST API.pptx',
+    uploadedAt: '10 Okt 2026',
+  },
+]
+
+const INITIAL_GRADES: GradeRecord[] = [
+  {
+    id: 'grd-1',
+    studentId: 'stu-1',
+    studentName: 'Fahri Ramadhan',
+    nis: 'TC-2026-001',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    assessmentTitle: 'Try Out 1 UTBK Fisika',
+    category: 'Try Out',
+    score: 88,
+    classAverage: 76,
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    tutorFeedback: 'Rafly sangat cepat memahami hukum Newton & usaha energi. Perbanyak latihan soal dinamika rotasi.',
+    assessmentDate: '15 Okt 2026',
+  },
+  {
+    id: 'grd-2',
+    studentId: 'stu-1',
+    studentName: 'Fahri Ramadhan',
+    nis: 'TC-2026-001',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Penalaran Matematika & TPS',
+    assessmentTitle: 'Simulasi Logika Deret & Aritmetika',
+    category: 'Kuis',
+    score: 85,
+    classAverage: 72,
+    tutorId: 'tut-2',
+    tutorName: 'Pak Hendra Wijaya, M.Pd',
+    tutorFeedback: 'Pemahaman logika aljabar sangat kokoh. Tingkatkan kecepatan pengerjaan per butir soal.',
+    assessmentDate: '12 Okt 2026',
+  },
+  {
+    id: 'grd-3',
+    studentId: 'stu-1',
+    studentName: 'Fahri Ramadhan',
+    nis: 'TC-2026-001',
+    classId: 'cls-1',
+    className: 'UTBK Intensif A',
+    subjectName: 'Fisika UTBK',
+    assessmentTitle: 'Kuis Singkat Vektor & Kinematika',
+    category: 'Kuis',
+    score: 92,
+    classAverage: 80,
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    tutorFeedback: 'Perhitungan analitis sangat teliti tanpa ada kesalahan desimal. Pertahankan!',
+    assessmentDate: '08 Okt 2026',
+  },
+  {
+    id: 'grd-4',
+    studentId: 'stu-4',
+    studentName: 'Alya Ramadhani',
+    nis: 'TC-2026-004',
+    classId: 'cls-4',
+    className: 'SMP Prestasi A',
+    subjectName: 'IPA Terpadu SMP',
+    assessmentTitle: 'Uji Modul Ekosistem & Klasifikasi',
+    category: 'Tugas',
+    score: 90,
+    classAverage: 78,
+    tutorId: 'tut-1',
+    tutorName: 'Kak Dian Pratiwi, S.Si',
+    tutorFeedback: 'Pemahaman konsep rantai makanan dan ekologi sangat baik. Catatan rapi.',
+    assessmentDate: '14 Okt 2026',
+  },
+]
+
 // State Container & LocalStorage Sync
 interface AdminState {
   registrations: Registration[]
@@ -684,6 +983,14 @@ interface AdminState {
   invoices: Invoice[]
   announcements: Announcement[]
   notifications: AdminNotification[]
+  attendanceSessions: AttendanceSession[]
+  learningMaterials: LearningMaterial[]
+  gradeRecords: GradeRecord[]
+  parents: ParentProfile[]
+  selectedChildId: string
+  activeTutorId: string
+  activeStudentId: string
+  activeParentId: string
 }
 
 const STORAGE_KEY = 'tc_bimbel_admin_state_v1'
@@ -693,7 +1000,29 @@ function loadInitialState(): AdminState {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(saved)
+        const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
+        const learningMaterials = rawMaterials.map((m) => {
+          if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
+            return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
+          }
+          if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
+            return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
+          }
+          return m
+        })
+
+        return {
+          ...parsed,
+          attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
+          learningMaterials,
+          gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
+          parents: parsed.parents || INITIAL_PARENTS,
+          selectedChildId: parsed.selectedChildId || 'stu-1',
+          activeTutorId: parsed.activeTutorId || 'tut-1',
+          activeStudentId: parsed.activeStudentId || 'stu-1',
+          activeParentId: parsed.activeParentId || 'par-1',
+        }
       }
     } catch (e) {
       console.warn('Gagal memuat admin state dari localStorage:', e)
@@ -712,6 +1041,14 @@ function loadInitialState(): AdminState {
     invoices: INITIAL_INVOICES,
     announcements: INITIAL_ANNOUNCEMENTS,
     notifications: INITIAL_NOTIFICATIONS,
+    attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
+    learningMaterials: INITIAL_MATERIALS,
+    gradeRecords: INITIAL_GRADES,
+    parents: INITIAL_PARENTS,
+    selectedChildId: 'stu-1',
+    activeTutorId: 'tut-1',
+    activeStudentId: 'stu-1',
+    activeParentId: 'par-1',
   }
 }
 
@@ -754,6 +1091,14 @@ export const adminStore = {
       invoices: INITIAL_INVOICES,
       announcements: INITIAL_ANNOUNCEMENTS,
       notifications: INITIAL_NOTIFICATIONS,
+      attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
+      learningMaterials: INITIAL_MATERIALS,
+      gradeRecords: INITIAL_GRADES,
+      parents: INITIAL_PARENTS,
+      selectedChildId: 'stu-1',
+      activeTutorId: 'tut-1',
+      activeStudentId: 'stu-1',
+      activeParentId: 'par-1',
     }
     saveAndNotify()
   },
@@ -1062,6 +1407,164 @@ export const adminStore = {
 
     saveAndNotify()
     return true
+  },
+
+  submitPaymentProof(input: {
+    invoiceId: string
+    fileName: string
+    bankName: string
+    paymentMethod: string
+    submittedByRole: 'student' | 'parent'
+    submittedByName: string
+  }) {
+    const inv = state.invoices.find((i) => i.id === input.invoiceId)
+    if (!inv) return false
+
+    inv.status = 'menunggu'
+    inv.transferReceiptFile = input.fileName
+    inv.bankName = input.bankName
+    inv.paymentMethod = input.paymentMethod
+    inv.submittedByRole = input.submittedByRole
+    inv.submittedByName = input.submittedByName
+    inv.submittedAt = new Date().toISOString()
+    inv.rejectedReason = undefined
+
+    state.notifications = [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'Bukti Pembayaran Diunggah',
+        message: `${input.submittedByName} mengunggah bukti transfer untuk tagihan ${inv.id} (${inv.studentName} - ${inv.programName}).`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'payment',
+      },
+      ...state.notifications,
+    ]
+
+    saveAndNotify()
+    return true
+  },
+
+  // SESSIONS & ATTENDANCE
+  saveSessionAttendance(
+    sessionId: string,
+    topic: string,
+    entries: AttendanceEntry[]
+  ) {
+    const session = state.attendanceSessions.find((s) => s.id === sessionId)
+    if (!session) return false
+
+    session.topic = topic
+    session.entries = entries
+    session.isCompleted = true
+
+    const alpaEntries = entries.filter((e) => e.status === 'alpa')
+    if (alpaEntries.length > 0) {
+      alpaEntries.forEach((alpa) => {
+        state.notifications = [
+          {
+            id: `notif-${Date.now()}-${alpa.studentId}`,
+            title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+            message: `Siswa ${alpa.studentName} tercatat Alpa pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+            timestamp: 'Baru saja',
+            isRead: false,
+            type: 'schedule',
+          },
+          ...state.notifications,
+        ]
+      })
+    }
+
+    saveAndNotify()
+    return true
+  },
+
+  // LEARNING MATERIALS
+  addLearningMaterial(input: Omit<LearningMaterial, 'id' | 'uploadedAt'>) {
+    const newMaterial: LearningMaterial = {
+      ...input,
+      id: `mat-${Date.now().toString().slice(-4)}`,
+      uploadedAt: new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date()),
+    }
+    state.learningMaterials = [newMaterial, ...state.learningMaterials]
+
+    state.notifications = [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'Modul Belajar Baru Diunggah',
+        message: `${newMaterial.tutorName} mengunggah materi "${newMaterial.title}" untuk kelas ${newMaterial.className}.`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'general',
+      },
+      ...state.notifications,
+    ]
+
+    saveAndNotify()
+    return newMaterial
+  },
+
+  deleteLearningMaterial(id: string) {
+    state.learningMaterials = state.learningMaterials.filter((m) => m.id !== id)
+    saveAndNotify()
+    return true
+  },
+
+  // GRADE RECORDS
+  addGradeRecord(input: Omit<GradeRecord, 'id' | 'assessmentDate'>) {
+    const newGrade: GradeRecord = {
+      ...input,
+      id: `grd-${Date.now().toString().slice(-4)}`,
+      assessmentDate: new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date()),
+    }
+    state.gradeRecords = [newGrade, ...state.gradeRecords]
+
+    state.notifications = [
+      {
+        id: `notif-${Date.now()}`,
+        title: 'Nilai Evaluasi Rapor Baru',
+        message: `Nilai ${newGrade.assessmentTitle} (${newGrade.score}/100) telah diinput untuk siswa ${newGrade.studentName}.`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'general',
+      },
+      ...state.notifications,
+    ]
+
+    saveAndNotify()
+    return newGrade
+  },
+
+  updateGradeRecord(id: string, updates: Partial<GradeRecord>) {
+    const index = state.gradeRecords.findIndex((g) => g.id === id)
+    if (index === -1) return null
+    state.gradeRecords[index] = { ...state.gradeRecords[index], ...updates }
+    saveAndNotify()
+    return state.gradeRecords[index]
+  },
+
+  // SESSIONS & PROFILES
+  setSelectedChildId(childId: string) {
+    state.selectedChildId = childId
+    saveAndNotify()
+  },
+
+  setActiveTutorId(tutorId: string) {
+    state.activeTutorId = tutorId
+    saveAndNotify()
+  },
+
+  setActiveStudentId(studentId: string) {
+    state.activeStudentId = studentId
+    saveAndNotify()
   },
 
   // ANNOUNCEMENTS
