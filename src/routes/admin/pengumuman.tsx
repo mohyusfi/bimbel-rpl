@@ -101,7 +101,7 @@ function AdminPengumumanPage() {
                 className={cn(
                   'px-3.5 py-1.5 text-xs font-semibold rounded-[8px] transition-all cursor-pointer',
                   audienceFilter === aud
-                    ? 'bg-[#000000] text-[#FFFFFF] shadow-xs'
+                    ? 'bg-[#000000] text-[#FFFFFF]'
                     : 'text-[#555555] hover:text-[#000000]'
                 )}
               >
@@ -182,8 +182,8 @@ function AdminPengumumanPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Terbitkan Pengumuman Resmi Bimbel
@@ -300,8 +300,8 @@ function AdminPengumumanPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Hapus pengumuman resmi?

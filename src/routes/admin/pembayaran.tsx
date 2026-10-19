@@ -24,6 +24,7 @@ import { StatusBadge } from '~/components/ui/status-badge'
 import { ReceiptModal } from '~/components/dashboard/ReceiptModal'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { cn, formatRupiah } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { Invoice } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/pembayaran')({
@@ -395,8 +396,8 @@ function AdminPembayaranPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4 my-8">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Pemeriksaan Bukti Transfer SPP
@@ -542,8 +543,8 @@ function AdminPembayaranPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Buat Tagihan SPP Baru
@@ -565,25 +566,24 @@ function AdminPembayaranPage() {
                   <label className="font-medium text-[#000000]">
                     Pilih Siswa *
                   </label>
-                  <select
+                  <SearchableSelect
                     value={invoiceForm.studentId}
-                    onChange={(e) => {
-                      const stu = students.find((s) => s.id === e.target.value)
+                    onChange={(val) => {
+                      const stu = students.find((s) => s.id === val)
                       setInvoiceForm({
                         ...invoiceForm,
-                        studentId: e.target.value,
+                        studentId: val,
                         programName: stu?.className || invoiceForm.programName,
                       })
                     }}
-                    className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                    required
-                  >
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.nis} · {s.className})
-                      </option>
-                    ))}
-                  </select>
+                    options={students.map((s) => ({
+                      value: s.id,
+                      label: s.name,
+                      sublabel: `(${s.nis} · ${s.className})`,
+                    }))}
+                    placeholder="Pilih siswa..."
+                    searchPlaceholder="Cari nama atau NIS siswa..."
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -604,7 +604,7 @@ function AdminPembayaranPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-medium text-[#000000]">
                       Nominal SPP (IDR) *

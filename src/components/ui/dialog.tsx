@@ -28,7 +28,7 @@ export function DialogContent({
   return (
     <Dialog.Portal>
       <DialogOverlay />
-      <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
         <Dialog.Popup
           className={cn(
             'relative w-full max-w-2xl bg-white border border-neutral-300 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150',
@@ -46,7 +46,7 @@ export function DialogContent({
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('flex items-start justify-between p-6 border-b border-neutral-200 bg-neutral-50/50', className)}
+      className={cn('flex items-start justify-between p-4 sm:p-6 border-b border-neutral-200 bg-neutral-50/50', className)}
       {...props}
     />
   )

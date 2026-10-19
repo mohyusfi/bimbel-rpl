@@ -21,6 +21,7 @@ import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { cn } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { Student, PackageCode } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/siswa')({
@@ -427,8 +428,8 @@ function AdminSiswaPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-5 my-8">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3.5">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
@@ -525,19 +526,19 @@ function AdminSiswaPage() {
                       <label className="font-semibold text-[#000000] block">
                         Penempatan Rombel <span className="text-[#A1301C]">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
                         value={newForm.classId}
-                        onChange={(e) =>
-                          setNewForm({ ...newForm, classId: e.target.value })
+                        onChange={(val) =>
+                          setNewForm({ ...newForm, classId: val })
                         }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                      >
-                        {classes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({c.studentCount}/{c.capacity} kursi)
-                          </option>
-                        ))}
-                      </select>
+                        options={classes.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          sublabel: `(${c.studentCount}/${c.capacity} kursi)`,
+                        }))}
+                        placeholder="Pilih rombel / kelas..."
+                        searchPlaceholder="Cari kelas..."
+                      />
                     </div>
                   </div>
                 </div>
@@ -624,8 +625,8 @@ function AdminSiswaPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-5 my-8">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3.5">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
@@ -698,19 +699,19 @@ function AdminSiswaPage() {
                       <label className="font-semibold text-[#000000] block">
                         Rombel / Kelas
                       </label>
-                      <select
+                      <SearchableSelect
                         value={editForm.classId}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, classId: e.target.value })
+                        onChange={(val) =>
+                          setEditForm({ ...editForm, classId: val })
                         }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                      >
-                        {classes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        options={classes.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                          sublabel: `(${c.studentCount}/${c.capacity} kursi)`,
+                        }))}
+                        placeholder="Pilih rombel / kelas..."
+                        searchPlaceholder="Cari kelas..."
+                      />
                     </div>
 
                     <div className="space-y-1.5">

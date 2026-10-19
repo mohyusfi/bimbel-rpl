@@ -31,6 +31,7 @@ import {
   type PackageCode,
 } from '~/lib/admin-store'
 import { cn } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 
 export const Route = createFileRoute('/admin/jadwal')({
   ssr: false,
@@ -628,8 +629,8 @@ function AdminJadwalPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4 my-8">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
@@ -721,23 +722,22 @@ function AdminJadwalPage() {
                     <label className="font-medium text-[#000000]">
                       Rombel / Kelas *
                     </label>
-                    <select
+                    <SearchableSelect
                       value={scheduleForm.classId}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setScheduleForm({
                           ...scheduleForm,
-                          classId: e.target.value,
+                          classId: val,
                         })
                       }
-                      className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                      required
-                    >
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.courseName})
-                        </option>
-                      ))}
-                    </select>
+                      options={classes.map((c) => ({
+                        value: c.id,
+                        label: c.name,
+                        sublabel: `(${c.courseName})`,
+                      }))}
+                      placeholder="Pilih rombel / kelas..."
+                      searchPlaceholder="Cari kelas..."
+                    />
                   </div>
 
                   <div className="space-y-1">
@@ -765,50 +765,48 @@ function AdminJadwalPage() {
                     <label className="font-medium text-[#000000]">
                       Tutor Pengampu *
                     </label>
-                    <select
+                    <SearchableSelect
                       value={scheduleForm.tutorId}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setScheduleForm({
                           ...scheduleForm,
-                          tutorId: e.target.value,
+                          tutorId: val,
                         })
                       }
-                      className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                      required
-                    >
-                      {tutors.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.education.split('—')[0].trim()})
-                        </option>
-                      ))}
-                    </select>
+                      options={tutors.map((t) => ({
+                        value: t.id,
+                        label: t.name,
+                        sublabel: t.education.split('—')[0].trim(),
+                      }))}
+                      placeholder="Pilih tutor pengampu..."
+                      searchPlaceholder="Cari nama tutor..."
+                    />
                   </div>
 
                   <div className="space-y-1">
                     <label className="font-medium text-[#000000]">
                       Ruang Belajar Fisik *
                     </label>
-                    <select
+                    <SearchableSelect
                       value={scheduleForm.roomId}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setScheduleForm({
                           ...scheduleForm,
-                          roomId: e.target.value,
+                          roomId: val,
                         })
                       }
-                      className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                      required
-                    >
-                      {rooms.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name} (Kapasitas: {r.capacity} kursi)
-                        </option>
-                      ))}
-                    </select>
+                      options={rooms.map((r) => ({
+                        value: r.id,
+                        label: r.name,
+                        sublabel: `(${r.capacity} kursi)`,
+                      }))}
+                      placeholder="Pilih ruang belajar..."
+                      searchPlaceholder="Cari ruangan..."
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <label className="font-medium text-[#000000]">Hari *</label>
                     <select
@@ -895,8 +893,8 @@ function AdminJadwalPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Tambah Rombel / Kelas Baru
@@ -930,7 +928,7 @@ function AdminJadwalPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-medium text-[#000000]">
                       Paket Program *
@@ -977,20 +975,21 @@ function AdminJadwalPage() {
                   <label className="font-medium text-[#000000]">
                     Tutor Wali Pendamping
                   </label>
-                  <select
+                  <SearchableSelect
                     value={classForm.tutorName}
-                    onChange={(e) =>
-                      setClassForm({ ...classForm, tutorName: e.target.value })
+                    onChange={(val) =>
+                      setClassForm({ ...classForm, tutorName: val })
                     }
-                    className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                  >
-                    <option value="">Pilih tutor...</option>
-                    {tutors.map((t) => (
-                      <option key={t.id} value={t.name}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={tutors.map((t) => ({
+                      value: t.name,
+                      label: t.name,
+                      sublabel: t.education.split('—')[0].trim(),
+                    }))}
+                    placeholder="Pilih tutor wali..."
+                    searchPlaceholder="Cari nama tutor..."
+                    allowClear
+                    clearText="— Belum ditentukan (kosongkan) —"
+                  />
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
@@ -1021,8 +1020,8 @@ function AdminJadwalPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Hapus jadwal bimbingan?

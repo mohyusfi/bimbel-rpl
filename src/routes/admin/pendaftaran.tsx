@@ -20,6 +20,7 @@ import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { cn } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { Registration, PackageCode } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/pendaftaran')({
@@ -419,8 +420,8 @@ function AdminPendaftaranPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Setujui & Plotting Kelas
@@ -460,22 +461,21 @@ function AdminPendaftaranPage() {
                     <label className="font-medium text-[#000000] block">
                       Pilih Rombel / Kelas Bimbingan
                     </label>
-                    <select
+                    <SearchableSelect
                       value={selectedClassId}
-                      onChange={(e) => setSelectedClassId(e.target.value)}
-                      className="w-full h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                    >
-                      {classes
+                      onChange={(val) => setSelectedClassId(val)}
+                      options={classes
                         .filter(
                           (c) => c.courseCode === approvalTarget.packageCode
                         )
-                        .map((cls) => (
-                          <option key={cls.id} value={cls.id}>
-                            {cls.name} (Terisi {cls.studentCount}/{cls.capacity}{' '}
-                            kursi · Tutor: {cls.tutorName})
-                          </option>
-                        ))}
-                    </select>
+                        .map((cls) => ({
+                          value: cls.id,
+                          label: cls.name,
+                          sublabel: `(Terisi ${cls.studentCount}/${cls.capacity} kursi · Tutor: ${cls.tutorName})`,
+                        }))}
+                      placeholder="Pilih rombel / kelas..."
+                      searchPlaceholder="Cari kelas atau tutor..."
+                    />
                     <p className="text-[11px] text-[#555555]">
                       Data siswa dan kontak orang tua otomatis dimasukkan ke direktori Siswa Aktif.
                     </p>
@@ -511,8 +511,8 @@ function AdminPendaftaranPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#B3261E] flex items-center gap-1.5">
                   <AlertTriangle className="w-4 h-4" />
@@ -585,8 +585,8 @@ function AdminPendaftaranPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 shadow-xl space-y-4 my-8">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Tambah Pendaftar Calon Siswa Manual

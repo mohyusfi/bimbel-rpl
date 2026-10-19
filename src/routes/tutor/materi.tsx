@@ -19,6 +19,7 @@ import {
 import { useTutorDashboardData, useAdminMutations } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { cn } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { LearningMaterial } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/tutor/materi')({
@@ -393,10 +394,10 @@ export function TutorMateriPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/55 z-50 backdrop-blur-xs transition-opacity duration-200" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden focus:outline-none font-sans">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                     Unggah Modul / Tugas Baru
@@ -411,24 +412,23 @@ export function TutorMateriPage() {
               </div>
 
               {/* Form Body */}
-              <form onSubmit={handleUploadSubmit} className="p-6 space-y-4 overflow-y-auto text-xs">
+              <form onSubmit={handleUploadSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto text-xs">
                 {/* Target Class */}
                 <div className="space-y-1.5">
                   <label className="font-semibold text-[#000000] block">
                     Target Kelas / Rombel <span className="text-[#CB2957]">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={form.classId}
-                    onChange={(e) => setForm({ ...form, classId: e.target.value })}
-                    className="w-full h-10 px-3 border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                    required
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.studentCount} siswa)
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setForm({ ...form, classId: val })}
+                    options={classes.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                      sublabel: `(${c.studentCount} siswa)`,
+                    }))}
+                    placeholder="Pilih kelas..."
+                    searchPlaceholder="Cari kelas..."
+                  />
                 </div>
 
                 {/* Subject Name */}
@@ -581,8 +581,8 @@ export function TutorMateriPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/55 z-50 backdrop-blur-xs transition-opacity duration-200" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xl p-6 space-y-4 focus:outline-none font-sans">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xl p-4 sm:p-6 space-y-4 focus:outline-none font-sans">
               <div className="space-y-1">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                   Hapus Modul Pembelajaran?

@@ -28,7 +28,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs transition-opacity print:hidden" />
-        <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto print:p-0 print:static">
+        <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto print:p-0 print:static">
           <Dialog.Popup className="relative w-full max-w-xl bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-xl overflow-hidden print:border-none print:shadow-none print:max-w-none print:w-full">
             {/* Modal Action Bar (Hidden on print) */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] print:hidden">

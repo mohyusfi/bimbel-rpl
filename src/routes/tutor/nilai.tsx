@@ -17,6 +17,7 @@ import {
 import { useTutorDashboardData, useAdminMutations } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { cn } from '~/lib/utils'
+import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { GradeRecord } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/tutor/nilai')({
@@ -399,9 +400,9 @@ export function TutorNilaiPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/55 z-50 backdrop-blur-xs transition-opacity duration-200" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden focus:outline-none font-sans">
-              <div className="px-6 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                     Input Nilai & Evaluasi Siswa
@@ -415,24 +416,22 @@ export function TutorNilaiPage() {
                 </Dialog.Close>
               </div>
 
-              <form onSubmit={handleAddSubmit} className="p-6 space-y-4 overflow-y-auto text-xs">
+              <form onSubmit={handleAddSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto text-xs">
                 {/* Select Class */}
                 <div className="space-y-1.5">
                   <label className="font-semibold text-[#000000] block">
                     Pilih Kelas / Rombel <span className="text-[#CB2957]">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formClassId}
-                    onChange={(e) => setFormClassId(e.target.value)}
-                    className="w-full h-10 px-3 border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                    required
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormClassId(val)}
+                    options={classes.map((c) => ({
+                      value: c.id,
+                      label: c.name,
+                    }))}
+                    placeholder="Pilih kelas..."
+                    searchPlaceholder="Cari kelas..."
+                  />
                 </div>
 
                 {/* Select Student */}
@@ -441,18 +440,17 @@ export function TutorNilaiPage() {
                     Pilih Siswa <span className="text-[#CB2957]">*</span>
                   </label>
                   {classStudents.length > 0 ? (
-                    <select
+                    <SearchableSelect
                       value={formStudentId}
-                      onChange={(e) => setFormStudentId(e.target.value)}
-                      className="w-full h-10 px-3 border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                      required
-                    >
-                      {classStudents.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.nis})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setFormStudentId(val)}
+                      options={classStudents.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                        sublabel: `(${s.nis})`,
+                      }))}
+                      placeholder="Pilih siswa..."
+                      searchPlaceholder="Cari nama atau NIS siswa..."
+                    />
                   ) : (
                     <p className="text-xs text-[#901B14] p-2 bg-[#901B14]/10 rounded-[6px]">
                       Tidak ada siswa terdaftar pada kelas ini.
@@ -589,9 +587,9 @@ export function TutorNilaiPage() {
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/55 z-50 backdrop-blur-xs transition-opacity duration-200" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden focus:outline-none font-sans">
-              <div className="px-6 py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
+              <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#D2D2D2] bg-[#F6F6F6] flex items-center justify-between">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000]">
                     Perbarui Nilai & Catatan Evaluasi
@@ -605,7 +603,7 @@ export function TutorNilaiPage() {
                 </Dialog.Close>
               </div>
 
-              <form onSubmit={handleEditSubmit} className="p-6 space-y-4 overflow-y-auto text-xs">
+              <form onSubmit={handleEditSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto text-xs">
                 {/* Score & Class Average */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
