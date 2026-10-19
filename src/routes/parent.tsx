@@ -129,7 +129,7 @@ function ParentLayout() {
     >
       {/* Top persistent child switcher bar across content */}
       <div className="w-full bg-[#FFFFFF] border-b border-[#D2D2D2]">
-        <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-[#555555] font-medium">Memantau Data:</span>
             <span className="font-bold text-[#000000] font-display">{selectedChild?.name}</span>

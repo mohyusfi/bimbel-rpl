@@ -255,7 +255,7 @@ export function DashboardShell({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Contextual Topbar (60px) */}
         <header className="h-[60px] bg-[#FFFFFF] border-b border-[#D2D2D2] sticky top-0 z-30">
-          <div className="h-full px-4 sm:px-6 lg:px-8 max-w-[1600px] w-full mx-auto flex items-center justify-between gap-4">
+          <div className="h-full px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               {/* Mobile Drawer Button */}
               <button
@@ -423,7 +423,7 @@ export function DashboardShell({
         </header>
 
         {/* Main Content Canvas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full space-y-6">
           {children}
         </main>
       </div>
