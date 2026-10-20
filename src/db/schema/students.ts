@@ -5,6 +5,7 @@ import { parents } from './parents'
 import { classMembers } from './class_members'
 import { attendances } from './attendances'
 import { grades } from './grades'
+import { invoices } from './invoices'
 
 export const gradeLevelEnum = pgEnum('grade_level', ['SD', 'SMP', 'SMA', 'ALUMNI'])
 export const packageCodeEnum = pgEnum('package_code', ['UTBK', 'SMA', 'SMP', 'SD'])
@@ -50,4 +51,5 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   classMembers: many(classMembers),
   attendances: many(attendances),
   grades: many(grades),
+  invoices: many(invoices),
 }))

@@ -3,6 +3,8 @@ import { relations } from 'drizzle-orm'
 import { students } from './students'
 import { parents } from './parents'
 import { tutors } from './tutors'
+import { payments } from './payments'
+import { notifications } from './notifications'
 
 export const userRoleEnum = pgEnum('user_role', ['admin', 'tutor', 'student', 'parent'])
 
@@ -26,7 +28,7 @@ export const profiles = pgTable(
   ]
 )
 
-export const profilesRelations = relations(profiles, ({ one }) => ({
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
   student: one(students, {
     fields: [profiles.id],
     references: [students.profileId],
@@ -39,4 +41,6 @@ export const profilesRelations = relations(profiles, ({ one }) => ({
     fields: [profiles.id],
     references: [tutors.profileId],
   }),
+  verifiedPayments: many(payments),
+  notifications: many(notifications),
 }))

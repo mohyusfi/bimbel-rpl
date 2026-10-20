@@ -12,6 +12,9 @@ export * from './sessions'
 export * from './attendances'
 export * from './materials'
 export * from './grades'
+export * from './invoices'
+export * from './payments'
+export * from './notifications'
 
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 import type { profiles } from './profiles'
@@ -28,6 +31,9 @@ import type { sessions } from './sessions'
 import type { attendances } from './attendances'
 import type { materials } from './materials'
 import type { grades } from './grades'
+import type { invoices } from './invoices'
+import type { payments } from './payments'
+import type { notifications } from './notifications'
 
 // Inferred TypeScript types for database queries and mutations
 export type Profile = InferSelectModel<typeof profiles>
@@ -71,3 +77,12 @@ export type NewMaterial = InferInsertModel<typeof materials>
 
 export type Grade = InferSelectModel<typeof grades>
 export type NewGrade = InferInsertModel<typeof grades>
+
+export type Invoice = InferSelectModel<typeof invoices>
+export type NewInvoice = InferInsertModel<typeof invoices>
+
+export type Payment = InferSelectModel<typeof payments>
+export type NewPayment = InferInsertModel<typeof payments>
+
+export type Notification = InferSelectModel<typeof notifications>
+export type NewNotification = InferInsertModel<typeof notifications>

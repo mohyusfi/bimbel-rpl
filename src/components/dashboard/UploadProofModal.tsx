@@ -13,6 +13,7 @@ import {
 import { Dialog } from '@base-ui/react/dialog'
 import { useAdminMutations } from '~/hooks/use-admin-data'
 import { formatRupiah } from '~/lib/utils'
+import { validateReceiptFile } from '~/lib/receipt-validator'
 import type { Invoice } from '~/lib/admin-store'
 
 interface UploadProofModalProps {
@@ -60,13 +61,14 @@ export function UploadProofModal({
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-      setErrorMsg('Format file harus berupa gambar (JPG, PNG) atau PDF.')
-      return
-    }
+    const validation = validateReceiptFile({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    })
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg('Ukuran file maksimal 5 MB.')
+    if (!validation.valid) {
+      setErrorMsg(validation.error || 'Format berkas atau ukuran tidak valid.')
       return
     }
 
@@ -91,9 +93,10 @@ export function UploadProofModal({
       setIsSubmitting(true)
       await submitPaymentProof({
         invoiceId: invoice.id,
+        file: selectedFile,
         fileName: selectedFile.name,
         bankName: selectedBank,
-        paymentMethod: 'Transfer Bank Mandiri/BSI',
+        paymentMethod: `Transfer ${selectedBank}`,
         submittedByRole,
         submittedByName,
       })
@@ -222,18 +225,30 @@ export function UploadProofModal({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
                     onChange={handleFileChange}
                     className="hidden"
                   />
 
                   {selectedFile ? (
-                    <div className="space-y-1">
-                      <FileCheck2 className="w-8 h-8 text-[#166534] mx-auto" />
-                      <p className="text-xs font-bold text-[#000000]">{selectedFile.name}</p>
-                      <p className="text-[11px] text-[#555555]">
-                        {(selectedFile.size / 1024).toFixed(1)} KB — Klik untuk mengganti berkas
-                      </p>
+                    <div className="space-y-2">
+                      {previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt="Pratinjau Struk"
+                          className="max-h-36 mx-auto object-contain rounded-[6px] border border-[#D2D2D2]"
+                        />
+                      ) : (
+                        <FileCheck2 className="w-8 h-8 text-[#166534] mx-auto" />
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-[#000000] truncate max-w-xs mx-auto">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-[11px] text-[#555555]">
+                          {(selectedFile.size / 1024).toFixed(1)} KB — Klik untuk mengganti berkas
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-1">

@@ -14,6 +14,7 @@ import {
   type Invoice,
   type Announcement,
   type AdminNotification,
+  type NotificationType,
   type ScheduleCandidate,
   type AttendanceSession,
   type AttendanceEntry,
@@ -37,6 +38,7 @@ export type {
   Invoice,
   Announcement,
   AdminNotification,
+  NotificationType,
   ScheduleCandidate,
   AttendanceSession,
   AttendanceEntry,
@@ -61,8 +63,10 @@ export const ADMIN_KEYS = {
   announcements: ['admin', 'announcements'] as const,
   notifications: ['admin', 'notifications'] as const,
   attendance: ['admin', 'attendance'] as const,
+  attendanceSessions: ['admin', 'attendance'] as const,
   materials: ['admin', 'materials'] as const,
   grades: ['admin', 'grades'] as const,
+  gradeRecords: ['admin', 'grades'] as const,
   parents: ['admin', 'parents'] as const,
   session: ['admin', 'session'] as const,
 }
@@ -188,12 +192,41 @@ export function useAdminSchedules() {
   })
 }
 
-export function useAdminInvoices() {
+export function useInvoices(studentId?: string) {
   useAdminDataSync()
   return useQuery({
-    queryKey: ADMIN_KEYS.invoices,
-    queryFn: () => adminStore.getState().invoices,
+    queryKey: studentId
+      ? ([...ADMIN_KEYS.invoices, 'student', studentId] as const)
+      : ADMIN_KEYS.invoices,
+    queryFn: () => {
+      const all = adminStore.getState().invoices
+      return studentId ? all.filter((inv) => inv.studentId === studentId) : all
+    },
+    initialData: () => {
+      const all = adminStore.getState().invoices
+      return studentId ? all.filter((inv) => inv.studentId === studentId) : all
+    },
   })
+}
+
+export function useInvoiceDetails(invoiceId?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.invoices, 'detail', invoiceId] as const,
+    queryFn: () => {
+      if (!invoiceId) return null
+      return adminStore.getState().invoices.find((inv) => inv.id === invoiceId) || null
+    },
+    initialData: () => {
+      if (!invoiceId) return null
+      return adminStore.getState().invoices.find((inv) => inv.id === invoiceId) || null
+    },
+    enabled: Boolean(invoiceId),
+  })
+}
+
+export function useAdminInvoices(studentId?: string) {
+  return useInvoices(studentId)
 }
 
 export function useAdminAnnouncements() {
@@ -312,6 +345,90 @@ export async function removeAndDeleteLearningMaterial(idOrPayload: string | { id
   }
 
   return adminStore.deleteLearningMaterial(id)
+}
+
+export interface SubmitPaymentProofInput {
+  invoiceId: string
+  file?: File | Blob | null
+  fileName?: string
+  bankName: string
+  paymentMethod: string
+  submittedByRole: 'student' | 'parent'
+  submittedByName: string
+}
+
+export async function uploadAndSubmitPaymentProof(input: SubmitPaymentProofInput) {
+  let storage_path: string | undefined
+  let receiptUrl: string | undefined
+
+  if (input.file) {
+    const fileObj = input.file
+    const originalName =
+      fileObj instanceof File
+        ? fileObj.name
+        : input.fileName || 'bukti_transfer.jpg'
+    const sanitizedName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const targetPath = `${input.invoiceId}/${Date.now()}-${sanitizedName}`
+    const contentType = fileObj.type || 'image/jpeg'
+    storage_path = targetPath
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(targetPath, fileObj, {
+          contentType,
+          upsert: true,
+        })
+
+      if (uploadError) {
+        console.warn('Supabase storage receipts upload notice:', uploadError.message)
+      } else {
+        const { data: signedData } = await supabase.storage
+          .from('receipts')
+          .createSignedUrl(targetPath, 60 * 60 * 24 * 7)
+
+        if (signedData?.signedUrl) {
+          receiptUrl = signedData.signedUrl
+        } else {
+          const { data: publicData } = supabase.storage
+            .from('receipts')
+            .getPublicUrl(targetPath)
+          receiptUrl = publicData?.publicUrl
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal mengunggah ke Supabase storage receipts:', err)
+    }
+
+    // Fallback: Read file to data URL / object URL so image is visible locally
+    if (!receiptUrl) {
+      if (typeof FileReader !== 'undefined' && fileObj instanceof Blob) {
+        receiptUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = () => resolve(URL.createObjectURL(fileObj))
+          reader.readAsDataURL(fileObj)
+        })
+      } else if (typeof window !== 'undefined' && fileObj instanceof Blob) {
+        receiptUrl = URL.createObjectURL(fileObj)
+      }
+    }
+  }
+
+  const fileName =
+    input.fileName ||
+    (input.file instanceof File ? input.file.name : 'bukti_transfer.jpg')
+
+  return adminStore.submitPaymentProof({
+    invoiceId: input.invoiceId,
+    fileName,
+    bankName: input.bankName,
+    paymentMethod: input.paymentMethod,
+    submittedByRole: input.submittedByRole,
+    submittedByName: input.submittedByName,
+    storage_path,
+    receiptUrl,
+  })
 }
 
 // Mutations
@@ -490,7 +607,15 @@ export function useAdminMutations() {
   })
 
   const createInvoiceMutation = useMutation({
-    mutationFn: async (input: Omit<Invoice, 'id' | 'status'>) => {
+    mutationFn: async (input: {
+      studentId: string
+      studentName: string
+      nis: string
+      programName: string
+      amount: number
+      dueDate: string
+      description?: string
+    }) => {
       return adminStore.createInvoice(input)
     },
     onSuccess: () => {
@@ -499,8 +624,8 @@ export function useAdminMutations() {
   })
 
   const verifyInvoiceMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return adminStore.verifyInvoice(id)
+    mutationFn: async (invoiceId: string) => {
+      return adminStore.verifyInvoice(invoiceId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -508,8 +633,13 @@ export function useAdminMutations() {
   })
 
   const rejectInvoiceMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      return adminStore.rejectInvoice(id, reason)
+    mutationFn: async (
+      payload:
+        | { id: string; reason: string }
+        | { invoiceId: string; reason: string }
+    ) => {
+      const id = 'id' in payload ? payload.id : payload.invoiceId
+      return adminStore.rejectInvoice(id, payload.reason)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -553,15 +683,8 @@ export function useAdminMutations() {
   })
 
   const submitPaymentProofMutation = useMutation({
-    mutationFn: async (input: {
-      invoiceId: string
-      fileName: string
-      bankName: string
-      paymentMethod: string
-      submittedByRole: 'student' | 'parent'
-      submittedByName: string
-    }) => {
-      return adminStore.submitPaymentProof(input)
+    mutationFn: async (input: SubmitPaymentProofInput) => {
+      return uploadAndSubmitPaymentProof(input)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -685,7 +808,18 @@ export function useAdminMutations() {
     deleteSchedule: deleteScheduleMutation.mutateAsync,
     createInvoice: createInvoiceMutation.mutateAsync,
     verifyInvoice: verifyInvoiceMutation.mutateAsync,
-    rejectInvoice: rejectInvoiceMutation.mutateAsync,
+    rejectInvoice: async (
+      idOrPayload:
+        | string
+        | { id: string; reason: string }
+        | { invoiceId: string; reason: string },
+      maybeReason?: string
+    ) => {
+      if (typeof idOrPayload === 'string') {
+        return rejectInvoiceMutation.mutateAsync({ id: idOrPayload, reason: maybeReason || '' })
+      }
+      return rejectInvoiceMutation.mutateAsync(idOrPayload)
+    },
     submitPaymentProof: submitPaymentProofMutation.mutateAsync,
     saveSessionAttendance: saveSessionAttendanceMutation.mutateAsync,
     createSessionFromSchedule: createSessionFromScheduleMutation.mutateAsync,
@@ -699,6 +833,8 @@ export function useAdminMutations() {
     deleteAnnouncement: deleteAnnouncementMutation.mutateAsync,
     markAllNotificationsRead: markAllNotificationsReadMutation.mutateAsync,
     markNotificationRead: markNotificationReadMutation.mutateAsync,
+    addNotification: adminStore.addNotification.bind(adminStore),
+    broadcastAnnouncement: adminStore.broadcastAnnouncement.bind(adminStore),
   }
 }
 
@@ -824,6 +960,67 @@ export function useDeleteLearningMaterialMutation() {
   return useMutation({
     mutationFn: async (idOrPayload: string | { id: string; storage_path?: string }) => {
       return removeAndDeleteLearningMaterial(idOrPayload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useCreateInvoiceMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      studentId: string
+      studentName: string
+      nis: string
+      programName: string
+      amount: number
+      dueDate: string
+      description?: string
+    }) => {
+      return adminStore.createInvoice(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useVerifyInvoiceMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return adminStore.verifyInvoice(invoiceId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useRejectInvoiceMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      payload:
+        | { id: string; reason: string }
+        | { invoiceId: string; reason: string }
+    ) => {
+      const id = 'id' in payload ? payload.id : payload.invoiceId
+      return adminStore.rejectInvoice(id, payload.reason)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useSubmitPaymentProofMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: SubmitPaymentProofInput) => {
+      return uploadAndSubmitPaymentProof(input)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1125,3 +1322,4 @@ export function useParentDashboardData(targetParentId?: string, targetChildId?: 
 }
 
 export const useBimbelMutations = useAdminMutations
+export { useRealtimeNotifications, type RealtimeNotificationsOptions } from './use-realtime-notifications'

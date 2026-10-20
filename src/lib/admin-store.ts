@@ -1,3 +1,5 @@
+import { supabase } from './supabase/client'
+
 export type PackageCode = 'UTBK' | 'SMA' | 'SMP' | 'SD'
 
 export interface Registration {
@@ -117,6 +119,9 @@ export interface Invoice {
   paymentMethod?: string
   verifiedAt?: string
   verifiedBy?: string
+  description?: string
+  storage_path?: string
+  receiptUrl?: string
 }
 
 export type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpa'
@@ -127,6 +132,7 @@ export interface AttendanceEntry {
   nis: string
   status: AttendanceStatus
   note?: string
+  notes?: string
 }
 
 export interface AttendanceSession {
@@ -204,13 +210,28 @@ export interface Announcement {
   isPinned: boolean
 }
 
+export type NotificationType =
+  | 'attendance'
+  | 'billing'
+  | 'academic'
+  | 'announcement'
+  | 'registration'
+  | 'general'
+  | 'payment'
+  | 'schedule'
+
 export interface AdminNotification {
   id: string
+  userId?: string
   title: string
   message: string
   timestamp: string
   isRead: boolean
-  type: 'registration' | 'payment' | 'schedule' | 'general'
+  type: NotificationType
+  linkUrl?: string
+  metadata?: Record<string, any>
+  data?: Record<string, any>
+  createdAt?: string
 }
 
 // Initial Data
@@ -1032,21 +1053,21 @@ function loadInitialState(): AdminState {
   }
 
   return {
-    registrations: INITIAL_REGISTRATIONS,
-    students: INITIAL_STUDENTS,
-    tutors: INITIAL_TUTORS,
-    subjects: INITIAL_SUBJECTS,
-    rooms: INITIAL_ROOMS,
-    courses: INITIAL_COURSES,
-    classes: INITIAL_CLASSES,
-    schedules: INITIAL_SCHEDULES,
-    invoices: INITIAL_INVOICES,
-    announcements: INITIAL_ANNOUNCEMENTS,
-    notifications: INITIAL_NOTIFICATIONS,
-    attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
-    learningMaterials: INITIAL_MATERIALS,
-    gradeRecords: INITIAL_GRADES,
-    parents: INITIAL_PARENTS,
+    registrations: INITIAL_REGISTRATIONS.map((r) => ({ ...r })),
+    students: INITIAL_STUDENTS.map((s) => ({ ...s })),
+    tutors: INITIAL_TUTORS.map((t) => ({ ...t })),
+    subjects: INITIAL_SUBJECTS.map((s) => ({ ...s })),
+    rooms: INITIAL_ROOMS.map((r) => ({ ...r })),
+    courses: INITIAL_COURSES.map((c) => ({ ...c })),
+    classes: INITIAL_CLASSES.map((c) => ({ ...c })),
+    schedules: INITIAL_SCHEDULES.map((s) => ({ ...s })),
+    invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
+    announcements: INITIAL_ANNOUNCEMENTS.map((a) => ({ ...a })),
+    notifications: INITIAL_NOTIFICATIONS.map((n) => ({ ...n })),
+    attendanceSessions: INITIAL_ATTENDANCE_SESSIONS.map((a) => ({ ...a })),
+    learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
+    gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
+    parents: INITIAL_PARENTS.map((p) => ({ ...p })),
     selectedChildId: 'stu-1',
     activeTutorId: 'tut-1',
     activeStudentId: 'stu-1',
@@ -1094,21 +1115,21 @@ export const adminStore = {
 
   resetToDefault() {
     state = {
-      registrations: INITIAL_REGISTRATIONS,
-      students: INITIAL_STUDENTS,
-      tutors: INITIAL_TUTORS,
-      subjects: INITIAL_SUBJECTS,
-      rooms: INITIAL_ROOMS,
-      courses: INITIAL_COURSES,
-      classes: INITIAL_CLASSES,
-      schedules: INITIAL_SCHEDULES,
-      invoices: INITIAL_INVOICES,
-      announcements: INITIAL_ANNOUNCEMENTS,
-      notifications: INITIAL_NOTIFICATIONS,
-      attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
-      learningMaterials: INITIAL_MATERIALS,
-      gradeRecords: INITIAL_GRADES,
-      parents: INITIAL_PARENTS,
+      registrations: INITIAL_REGISTRATIONS.map((r) => ({ ...r })),
+      students: INITIAL_STUDENTS.map((s) => ({ ...s })),
+      tutors: INITIAL_TUTORS.map((t) => ({ ...t })),
+      subjects: INITIAL_SUBJECTS.map((s) => ({ ...s })),
+      rooms: INITIAL_ROOMS.map((r) => ({ ...r })),
+      courses: INITIAL_COURSES.map((c) => ({ ...c })),
+      classes: INITIAL_CLASSES.map((c) => ({ ...c })),
+      schedules: INITIAL_SCHEDULES.map((s) => ({ ...s })),
+      invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
+      announcements: INITIAL_ANNOUNCEMENTS.map((a) => ({ ...a })),
+      notifications: INITIAL_NOTIFICATIONS.map((n) => ({ ...n })),
+      attendanceSessions: INITIAL_ATTENDANCE_SESSIONS.map((a) => ({ ...a })),
+      learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
+      gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
+      parents: INITIAL_PARENTS.map((p) => ({ ...p })),
       selectedChildId: 'stu-1',
       activeTutorId: 'tut-1',
       activeStudentId: 'stu-1',
@@ -1546,7 +1567,15 @@ export const adminStore = {
   },
 
   // INVOICES & VERIFICATION (BILL-01 s/d BILL-03)
-  createInvoice(input: Omit<Invoice, 'id' | 'status'>) {
+  createInvoice(input: {
+    studentId: string
+    studentName: string
+    nis: string
+    programName: string
+    amount: number
+    dueDate: string
+    description?: string
+  }) {
     const invId = `INV-2026-${(state.invoices.length + 306).toString().padStart(4, '0')}`
     const newInvoice: Invoice = {
       ...input,
@@ -1573,14 +1602,34 @@ export const adminStore = {
     }).format(new Date()) + ' WITA'
     inv.verifiedBy = 'Hj. Nuraini, S.Pd'
 
+    const student = state.students.find(
+      (s) => s.id === inv.studentId || s.name === inv.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
+
     state.notifications = [
       {
         id: `notif-${Date.now()}`,
-        title: 'Pembayaran SPP Diverifikasi',
-        message: `Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
+        userId: student?.id || inv.studentId,
+        title: 'Pembayaran SPP Terverifikasi Lunas',
+        message: `Pembayaran SPP ${inv.id} Terverifikasi Lunas. Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
         timestamp: 'Baru saja',
         isRead: false,
-        type: 'payment',
+        type: 'billing',
+        linkUrl: '/parent/tagihan',
+        metadata: {
+          invoiceId: inv.id,
+          receiptNumber: inv.receiptNumber,
+          studentId: inv.studentId,
+          studentName: inv.studentName,
+          parentId: parent?.id,
+          parentName: parent?.name,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
       },
       ...state.notifications,
     ]
@@ -1596,6 +1645,38 @@ export const adminStore = {
     inv.status = 'ditolak'
     inv.rejectedReason = reason
 
+    const student = state.students.find(
+      (s) => s.id === inv.studentId || s.name === inv.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
+
+    state.notifications = [
+      {
+        id: `notif-${Date.now()}`,
+        userId: student?.id || inv.studentId,
+        title: 'Bukti Pembayaran SPP Ditolak',
+        message: `Bukti Pembayaran SPP Ditolak untuk tagihan ${inv.id} (${inv.studentName} - ${inv.programName}). Alasan: ${reason}`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'billing',
+        linkUrl: '/parent/tagihan',
+        metadata: {
+          invoiceId: inv.id,
+          studentId: inv.studentId,
+          studentName: inv.studentName,
+          parentId: parent?.id,
+          parentName: parent?.name,
+          rejectedReason: reason,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
+      },
+      ...state.notifications,
+    ]
+
     saveAndNotify()
     return true
   },
@@ -1607,6 +1688,8 @@ export const adminStore = {
     paymentMethod: string
     submittedByRole: 'student' | 'parent'
     submittedByName: string
+    storage_path?: string
+    receiptUrl?: string
   }) {
     const inv = state.invoices.find((i) => i.id === input.invoiceId)
     if (!inv) return false
@@ -1619,6 +1702,8 @@ export const adminStore = {
     inv.submittedByName = input.submittedByName
     inv.submittedAt = new Date().toISOString()
     inv.rejectedReason = undefined
+    if (input.storage_path) inv.storage_path = input.storage_path
+    if (input.receiptUrl) inv.receiptUrl = input.receiptUrl
 
     state.notifications = [
       {
@@ -1714,14 +1799,34 @@ export const adminStore = {
     const alpaEntries = entries.filter((e) => e.status === 'alpa')
     if (alpaEntries.length > 0) {
       alpaEntries.forEach((alpa) => {
+        const student = state.students.find(
+          (s) => s.id === alpa.studentId || s.name === alpa.studentName
+        )
+        const parent = state.parents.find(
+          (p) =>
+            (student ? p.studentIds.includes(student.id) : false) ||
+            p.name === student?.parentName
+        )
+
         state.notifications = [
           {
             id: `notif-${Date.now()}-${alpa.studentId}`,
+            userId: student?.id || alpa.studentId,
             title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-            message: `Siswa ${alpa.studentName} tercatat Alpa pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+            message: `Ketidakhadiran (Alpa): Siswa ${alpa.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
             timestamp: 'Baru saja',
             isRead: false,
-            type: 'schedule',
+            type: 'attendance',
+            linkUrl: '/student/presensi',
+            metadata: {
+              studentId: alpa.studentId,
+              studentName: alpa.studentName,
+              parentId: parent?.id,
+              parentName: parent?.name || student?.parentName,
+              sessionId: session.id,
+              sessionName: session.subjectName,
+              targetRoles: ['student', 'parent', 'admin'],
+            },
           },
           ...state.notifications,
         ]
@@ -1747,14 +1852,34 @@ export const adminStore = {
     }
 
     if (entry.status === 'alpa') {
+      const student = state.students.find(
+        (s) => s.id === entry.studentId || s.name === entry.studentName
+      )
+      const parent = state.parents.find(
+        (p) =>
+          (student ? p.studentIds.includes(student.id) : false) ||
+          p.name === student?.parentName
+      )
+
       state.notifications = [
         {
           id: `notif-${Date.now()}-${entry.studentId}`,
+          userId: student?.id || entry.studentId,
           title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-          message: `Siswa ${entry.studentName} tercatat Alpa pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+          message: `Ketidakhadiran (Alpa): Siswa ${entry.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
           timestamp: 'Baru saja',
           isRead: false,
-          type: 'schedule',
+          type: 'attendance',
+          linkUrl: '/student/presensi',
+          metadata: {
+            studentId: entry.studentId,
+            studentName: entry.studentName,
+            parentId: parent?.id,
+            parentName: parent?.name || student?.parentName,
+            sessionId: session.id,
+            sessionName: session.subjectName,
+            targetRoles: ['student', 'parent', 'admin'],
+          },
         },
         ...state.notifications,
       ]
@@ -1803,16 +1928,23 @@ export const adminStore = {
   },
 
   // GRADE RECORDS
-  addGradeRecord(input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & { classAverage?: number }) {
+  addGradeRecord(
+    input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & {
+      classAverage?: number
+      assessmentDate?: string
+    }
+  ) {
     const newGrade: GradeRecord = {
       ...input,
       id: (input as any).id || `grd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       classAverage: input.classAverage ?? input.score,
-      assessmentDate: new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      }).format(new Date()),
+      assessmentDate:
+        input.assessmentDate ||
+        new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date()),
     }
     state.gradeRecords = [newGrade, ...state.gradeRecords]
 
@@ -1834,14 +1966,35 @@ export const adminStore = {
     })
     newGrade.classAverage = classAverage
 
+    const student = state.students.find(
+      (s) => s.id === newGrade.studentId || s.name === newGrade.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
+
     state.notifications = [
       {
         id: `notif-${Date.now()}`,
+        userId: newGrade.studentId,
         title: 'Nilai Evaluasi Rapor Baru',
         message: `Nilai ${newGrade.assessmentTitle} (${newGrade.score}/100) telah diinput untuk siswa ${newGrade.studentName}.`,
         timestamp: 'Baru saja',
         isRead: false,
-        type: 'general',
+        type: 'academic',
+        linkUrl: '/student/rapor',
+        metadata: {
+          gradeId: newGrade.id,
+          studentId: newGrade.studentId,
+          studentName: newGrade.studentName,
+          parentId: parent?.id,
+          classId: newGrade.classId,
+          score: newGrade.score,
+          assessmentTitle: newGrade.assessmentTitle,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
       },
       ...state.notifications,
     ]
@@ -1930,6 +2083,7 @@ export const adminStore = {
     }
     state.announcements = [newAnn, ...state.announcements]
     saveAndNotify()
+    this.broadcastAnnouncement(newAnn)
     return newAnn
   },
 
@@ -1940,8 +2094,155 @@ export const adminStore = {
   },
 
   // NOTIFICATIONS
-  markAllNotificationsRead() {
-    state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
+  addNotification(
+    input: Omit<AdminNotification, 'id' | 'timestamp' | 'isRead'> & {
+      id?: string
+      timestamp?: string
+      isRead?: boolean
+    }
+  ) {
+    const notifId =
+      input.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+    const existing = state.notifications.find((n) => n.id === notifId)
+    if (existing) return existing
+
+    const newNotif: AdminNotification = {
+      id: notifId,
+      title: input.title,
+      message: input.message,
+      timestamp: input.timestamp || 'Baru saja',
+      isRead: input.isRead ?? false,
+      type: input.type,
+      userId: input.userId,
+      linkUrl: input.linkUrl,
+      metadata: input.metadata || input.data,
+      data: input.data || input.metadata,
+    }
+    state.notifications = [newNotif, ...state.notifications]
+    saveAndNotify()
+    return newNotif
+  },
+
+  broadcastAnnouncement(ann: Announcement) {
+    const target = ann.targetAudience
+    const recipients: Array<{ userId: string; role: string }> = []
+
+    if (target === 'Semua' || target === 'Siswa') {
+      state.students
+        .filter((s) => s.status === 'aktif')
+        .forEach((s) => recipients.push({ userId: s.id, role: 'student' }))
+    }
+
+    if (target === 'Semua' || target === 'Orang Tua') {
+      state.parents.forEach((p) => recipients.push({ userId: p.id, role: 'parent' }))
+    }
+
+    if (target === 'Semua' || target === 'Tutor') {
+      state.tutors
+        .filter((t) => t.status === 'aktif')
+        .forEach((t) => recipients.push({ userId: t.id, role: 'tutor' }))
+    }
+
+    const newNotifs: AdminNotification[] = []
+
+    for (const r of recipients) {
+      newNotifs.push({
+        id: `notif-ann-${ann.id}-${r.userId}`,
+        userId: r.userId,
+        title: `Pengumuman Bimbel: ${ann.title}`,
+        message:
+          ann.content.length > 140
+            ? `${ann.content.substring(0, 137)}...`
+            : ann.content,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'announcement',
+        linkUrl: '/admin/pengumuman',
+        metadata: {
+          announcementId: ann.id,
+          targetAudience: ann.targetAudience,
+          recipientRole: r.role,
+        },
+        data: ann,
+      })
+    }
+
+    // Always push notification for general/admin broadcast
+    const generalNotif: AdminNotification = {
+      id: `notif-ann-${ann.id}`,
+      title: `Pengumuman: ${ann.title}`,
+      message:
+        ann.content.length > 140
+          ? `${ann.content.substring(0, 137)}...`
+          : ann.content,
+      type: 'announcement',
+      timestamp: 'Baru saja',
+      isRead: false,
+      linkUrl: '/admin/pengumuman',
+      metadata: {
+        announcementId: ann.id,
+        targetAudience: ann.targetAudience,
+      },
+      data: ann,
+    }
+    newNotifs.push(generalNotif)
+
+    state.notifications = [...newNotifs, ...state.notifications]
+    saveAndNotify()
+
+    try {
+      if (typeof supabase !== 'undefined' && supabase) {
+        const channel = supabase.channel('broadcast:announcements')
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel
+              .send({
+                type: 'broadcast',
+                event: 'announcement',
+                payload: {
+                  ...generalNotif,
+                  targetAudience: ann.targetAudience,
+                },
+              })
+              .then(() => {
+                setTimeout(() => {
+                  try {
+                    supabase.removeChannel(channel)
+                  } catch {
+                    // ignore cleanup error
+                  }
+                }, 1000)
+              })
+              .catch((err) => {
+                console.warn('Realtime broadcast error:', err)
+                try {
+                  supabase.removeChannel(channel)
+                } catch {
+                  // ignore
+                }
+              })
+          }
+        })
+      }
+    } catch (err) {
+      console.warn('Realtime channel error:', err)
+    }
+
+    return newNotifs
+  },
+
+  markAllNotificationsRead(userId?: string) {
+    if (userId) {
+      state.notifications = state.notifications.map((n) =>
+        n.userId === userId ||
+        n.metadata?.studentId === userId ||
+        n.metadata?.parentId === userId
+          ? { ...n, isRead: true }
+          : n
+      )
+    } else {
+      state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
+    }
     saveAndNotify()
   },
 
@@ -1949,6 +2250,77 @@ export const adminStore = {
     const notif = state.notifications.find((n) => n.id === id)
     if (notif) notif.isRead = true
     saveAndNotify()
+    return notif
+  },
+
+  getNotifications(userId?: string) {
+    if (!userId) return state.notifications
+    return state.notifications.filter(
+      (n) =>
+        n.userId === userId ||
+        n.metadata?.studentId === userId ||
+        n.metadata?.parentId === userId
+    )
+  },
+
+  approvePaymentProof(invoiceId: string) {
+    return this.verifyInvoice(invoiceId)
+  },
+
+  notifyAttendanceAlpa(sessionId: string, studentId: string) {
+    const session = state.attendanceSessions.find((s) => s.id === sessionId)
+    const student = state.students.find(
+      (s) => s.id === studentId || s.name === studentId
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.studentIds.includes(studentId) ||
+        p.name === student?.parentName
+    )
+
+    const createdNotifs: AdminNotification[] = []
+    const now = new Date().toISOString()
+    const subj = session?.subjectName || 'Bimbingan Belajar'
+
+    // Student notification
+    if (student) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: student.id,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Ketidakhadiran (Alpa): Anda tidak hadir pada sesi ${subj}.`,
+          type: 'attendance',
+          createdAt: now,
+          metadata: {
+            sessionId,
+            studentId: student.id,
+            targetRoles: ['student'],
+          },
+        })
+      )
+    }
+
+    // Parent notification
+    if (parent) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: parent.id,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Ketidakhadiran (Alpa): Putra/Putri Anda (${student?.name || 'Siswa'}) tidak hadir pada sesi ${subj}.`,
+          type: 'attendance',
+          createdAt: now,
+          metadata: {
+            sessionId,
+            studentId: student?.id,
+            parentId: parent.id,
+            targetRoles: ['parent'],
+          },
+        })
+      )
+    }
+
+    return createdNotifs
   },
 }
 

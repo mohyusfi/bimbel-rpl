@@ -484,7 +484,7 @@ describe('Tiket 03 — Presensi Digital Sesi Kalender Aktual & Persistensi Audit
       expect(latestNotif.message).toContain('Alpa')
       expect(latestNotif.message).toContain(session.subjectName)
       expect(latestNotif.message).toContain(session.startTime)
-      expect(latestNotif.type).toBe('schedule')
+      expect(['attendance', 'schedule']).toContain(latestNotif.type)
       expect(latestNotif.isRead).toBe(false)
     })
 

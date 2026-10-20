@@ -79,8 +79,8 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                 </div>
 
                 <div className="text-left sm:text-right shrink-0">
-                  <div className="receipt-status-badge">
-                    <CheckCircle2 className="w-4 h-4" />
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F0FDF4] text-[#166534] border border-[#166534]/30 rounded-[6px] text-xs font-semibold uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-[#166534]" />
                     <span>Kwitansi Resmi Lunas</span>
                   </div>
                   <p className="text-xs text-stone-600 mt-2 font-mono tabular-nums font-semibold">
@@ -170,13 +170,29 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                     Sistem Informasi Bimbel Tadulako Cendekia Kota Palu.
                   </p>
                 </div>
-                <div className="text-center w-48">
-                  <p className="text-[#555555] mb-12">
+                <div className="text-center w-48 relative">
+                  <p className="text-[#555555] mb-2">
                     Palu, {invoice.verifiedAt ? invoice.verifiedAt.split(',')[0] : '17 Oktober 2026'}
                     <br />
                     Petugas Tata Usaha,
                   </p>
-                  <p className="font-bold underline text-stone-900">
+
+                  {/* Stempel Resmi Bimbel Tadulako Cendekia */}
+                  <div className="my-1 flex justify-center">
+                    <div className="border-2 border-double border-[#166534] text-[#166534] px-2.5 py-1 rounded-[6px] -rotate-6 select-none bg-white/90 shadow-2xs">
+                      <p className="text-[8px] font-extrabold uppercase tracking-widest leading-none text-center">
+                        TADULAKO CENDEKIA
+                      </p>
+                      <p className="text-[12px] font-black tracking-widest leading-tight text-center my-0.5">
+                        ★ LUNAS ★
+                      </p>
+                      <p className="text-[7.5px] font-bold font-mono tracking-wider leading-none text-center">
+                        TATA USAHA RESMI
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="font-bold underline text-stone-900 mt-2">
                     {invoice.verifiedBy || 'Hj. Nuraini, S.Pd'}
                   </p>
                   <p className="text-[11px] text-[#555555]">NIP / ID: ADM-TC-001</p>

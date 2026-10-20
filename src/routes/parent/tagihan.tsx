@@ -52,7 +52,9 @@ function ParentBillingPage() {
     : allInvoices.filter((i) => i.studentId === student?.id)
 
   // Calculations for summary cards
-  const unpaidInvoices = relevantInvoices.filter((i) => i.status === 'belum_dibayar')
+  const unpaidInvoices = relevantInvoices.filter(
+    (i) => i.status === 'belum_dibayar' || i.status === 'ditolak'
+  )
   const totalUnpaidAmount = unpaidInvoices.reduce((sum, i) => sum + i.amount, 0)
 
   const pendingInvoices = relevantInvoices.filter((i) => i.status === 'menunggu')
@@ -138,7 +140,7 @@ function ParentBillingPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] hover:bg-[#F6F6F6] border border-[#D2D2D2] hover:border-[#000000] rounded-[8px] transition-colors cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-[#555555]" />
-                <span>Kwitansi Digital</span>
+                <span>Cetak Kwitansi</span>
               </button>
             </div>
           )
@@ -158,7 +160,7 @@ function ParentBillingPage() {
           )
         }
 
-        if (inv.status === 'belum_dibayar') {
+        if (inv.status === 'belum_dibayar' || inv.status === 'ditolak') {
           return (
             <div className="text-right">
               <button
@@ -167,7 +169,7 @@ function ParentBillingPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer shadow-none"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Unggah Bukti Transfer</span>
+                <span>{inv.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
               </button>
             </div>
           )
@@ -218,18 +220,18 @@ function ParentBillingPage() {
             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px]"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Lihat Kwitansi Digital</span>
+            <span>Cetak Kwitansi</span>
           </button>
         )}
 
-        {inv.status === 'belum_dibayar' && (
+        {(inv.status === 'belum_dibayar' || inv.status === 'ditolak') && (
           <button
             type="button"
             onClick={() => setSelectedInvoiceForProof(inv)}
             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px]"
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>Unggah Bukti Transfer</span>
+            <span>{inv.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
           </button>
         )}
 
