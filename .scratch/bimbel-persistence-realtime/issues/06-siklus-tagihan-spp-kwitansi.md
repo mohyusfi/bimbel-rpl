@@ -4,13 +4,13 @@
 
 **Blocked by:** 01 — Master Data & Plotting Rombel Terpadu
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Skema tabel `invoices` dan `payments` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
-- [ ] Bucket `receipts` dibuat di Supabase Storage dengan kebijakan RLS privat (hanya Admin dan pemilik tagihan yang dapat mengakses).
-- [ ] Admin di `/admin/pembayaran` dapat membuat tagihan baru (nominal, jatuh tempo, program bimbingan) dengan status awal `belum_dibayar`.
-- [ ] Modal unggah bukti di portal Siswa (`/student/tagihan`) dan Orang Tua (`/parent/tagihan`) mengunggah berkas fisik struk (JPG/PNG/PDF maksimal 5 MB) ke bucket `receipts` dan mengubah status menjadi `menunggu`.
-- [ ] Aksi verifikasi Admin:
+- [x] Skema tabel `invoices` dan `payments` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
+- [x] Bucket `receipts` dibuat di Supabase Storage dengan kebijakan RLS privat (hanya Admin dan pemilik tagihan yang dapat mengakses).
+- [x] Admin di `/admin/pembayaran` dapat membuat tagihan baru (nominal, jatuh tempo, program bimbingan) dengan status awal `belum_dibayar`.
+- [x] Modal unggah bukti di portal Siswa (`/student/tagihan`) dan Orang Tua (`/parent/tagihan`) mengunggah berkas fisik struk (JPG/PNG/PDF maksimal 5 MB) ke bucket `receipts` dan mengubah status menjadi `menunggu`.
+- [x] Aksi verifikasi Admin:
   - Disetujui: status menjadi `lunas`, mencatat waktu verifikasi, dan men-generate nomor Kwitansi resmi `KWT-YYYYMM-XXXX`.
   - Ditolak: status kembali menjadi `belum_dibayar` beserta alasan penolakan tertulis yang tampil di portal pembayar.
-- [ ] Dialog cetak kwitansi digital menampilkan cap tanda lunas resmi bimbel Tadulako Cendekia.
+- [x] Dialog cetak kwitansi digital menampilkan cap tanda lunas resmi bimbel Tadulako Cendekia.

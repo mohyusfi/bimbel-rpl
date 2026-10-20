@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 — Presensi Digital Sesi Kalender Aktual, 06 — Siklus Tagihan SPP, Bukti Bayar Storage, & Kwitansi Resmi
 
-**Status:** closed
+**Status:** completed
 
 - [x] Skema tabel `notifications` terdefinisi di Drizzle ORM dengan relasi ke `profiles` dan publication `supabase_realtime` diaktifkan.
 - [x] Hook klien `useRealtimeNotifications` berlangganan channel pribadi `user-notifications:${userId}` dengan mekanisme pelepasan koneksi `removeChannel` saat komponen unmount.

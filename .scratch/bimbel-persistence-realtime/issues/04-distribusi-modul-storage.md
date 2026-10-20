@@ -4,9 +4,9 @@
 
 **Blocked by:** 01 — Master Data & Plotting Rombel Terpadu
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Skema tabel `materials` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
-- [ ] Bucket `learning-materials` dibuat di Supabase Storage dengan kebijakan RLS (hanya tutor pengampu yang dapat mengunggah; siswa terdaftar dalam kelas yang dapat mengunduh).
-- [ ] Formulir di `/tutor/materi` mengunggah berkas fisik (PDF/PPTX maksimal 20 MB) ke Supabase Storage dan menyimpan URL metadata ke tabel `materials`.
-- [ ] Halaman `/student/materi` menampilkan modul yang sesuai dengan rombel siswa, mendukung pengunduhan langsung dan pratinjau dokumen di `/student/preview.$materialId`.
+- [x] Skema tabel `materials` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
+- [x] Bucket `learning-materials` dibuat di Supabase Storage dengan kebijakan RLS (hanya tutor pengampu yang dapat mengunggah; siswa terdaftar dalam kelas yang dapat mengunduh).
+- [x] Formulir di `/tutor/materi` mengunggah berkas fisik (PDF/PPTX maksimal 20 MB) ke Supabase Storage dan menyimpan URL metadata ke tabel `materials`.
+- [x] Halaman `/student/materi` menampilkan modul yang sesuai dengan rombel siswa, mendukung pengunduhan langsung dan pratinjau dokumen di `/student/preview.$materialId`.

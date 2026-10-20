@@ -139,3 +139,20 @@ Saat proses migrasi dari purwarupa statis ke React TanStack dilakukan, gunakan p
 8. **Standar Keseragaman Tipografi Footer Metrik KPI**:
    - Footer kartu metrik/KPI wajib menggunakan tipografi netral seragam (`font-medium text-[#292524]` dan `text-[11px] text-[#555555]`).
    - Dilarang menggunakan panah kasar `↗` atau kombinasi warna-warni yang bertabrakan pada footer metrik.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues tracked on GitHub via `gh` CLI in repository `mohyusfi/bimbel-rpl`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical five-label triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repository layout (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.
+

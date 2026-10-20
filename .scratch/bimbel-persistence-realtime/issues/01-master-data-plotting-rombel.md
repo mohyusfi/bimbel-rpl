@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Skema tabel `tutors`, `rooms`, `courses`, `classes`, dan `class_members` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
-- [ ] Relasi profil pengguna (`profiles`) dengan peran `tutor` tersambung ke tabel `tutors`.
-- [ ] Form kelola ruangan di `/admin/ruangan` dapat menambah, mengedit, dan mengubah status aktif ruangan secara permanen di database.
-- [ ] Rombel kelas memiliki batas kapasitas ketat maksimal 12 siswa (`capacity <= 12`) dan sistem mencegah plotting calon siswa jika rombel telah penuh.
-- [ ] Pengujian integrasi memverifikasi persistensi dan batas kapasitas rombel.
+- [x] Skema tabel `tutors`, `rooms`, `courses`, `classes`, dan `class_members` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
+- [x] Relasi profil pengguna (`profiles`) dengan peran `tutor` tersambung ke tabel `tutors`.
+- [x] Form kelola ruangan di `/admin/ruangan` dapat menambah, mengedit, dan mengubah status aktif ruangan secara permanen di database.
+- [x] Rombel kelas memiliki batas kapasitas ketat maksimal 12 siswa (`capacity <= 12`) dan sistem mencegah plotting calon siswa jika rombel telah penuh.
+- [x] Pengujian integrasi memverifikasi persistensi dan batas kapasitas rombel.

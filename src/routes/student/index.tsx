@@ -296,10 +296,7 @@ function StudentDashboardPage() {
           description={`${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`}
           icon={CheckCircle2}
           footer={
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-[#292524]">
-                {hadirCount} Hadir · {sakitCount} Sakit · {izinCount} Izin · {alpaCount} Alpa
-              </span>
+            <div className="flex items-center justify-end">
               <span className="text-[11px] text-[#555555]">Target min. 85%</span>
             </div>
           }

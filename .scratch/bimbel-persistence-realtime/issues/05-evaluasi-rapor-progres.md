@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Master Data & Plotting Rombel Terpadu
 
-**Status:** closed
+**Status:** completed
 
 - [x] Skema tabel `grades` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
 - [x] Formulir di `/tutor/nilai` dapat menginput nilai siswa per rombel, jenis evaluasi (Try Out, Kuis, Tugas), dan catatan umpan balik tutor.
