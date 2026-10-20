@@ -4,12 +4,12 @@
 
 **Blocked by:** 01 — Master Data & Plotting Rombel Terpadu
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Skema tabel `schedules` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
-- [ ] Mesin deteksi bentrok (*Conflict Detection Engine*) berjalan sebelum penyimpanan:
+- [x] Skema tabel `schedules` terdefinisi di Drizzle ORM dan diaplikasikan ke PostgreSQL Supabase.
+- [x] Mesin deteksi bentrok (*Conflict Detection Engine*) berjalan sebelum penyimpanan:
   - Mencegah bentrok ruangan: `(Ruangan_A == Ruangan_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)`.
   - Mencegah bentrok tutor: `(Tutor_A == Tutor_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)`.
-- [ ] Antarmuka `/admin/jadwal` menampilkan pesan peringatan merah yang jelas saat terjadi bentrok dan menonaktifkan tombol simpan.
-- [ ] Halaman `/tutor/jadwal` dan `/student/jadwal` memuat data jadwal bimbingan yang terdaftar resmi dari database.
-- [ ] Pengujian otomatis memvalidasi kasus bentrok ruangan, bentrok tutor, dan jadwal yang sah tanpa tabrakan.
+- [x] Antarmuka `/admin/jadwal` menampilkan pesan peringatan merah yang jelas saat terjadi bentrok dan menonaktifkan tombol simpan.
+- [x] Halaman `/tutor/jadwal` dan `/student/jadwal` memuat data jadwal bimbingan yang terdaftar resmi dari database.
+- [x] Pengujian otomatis memvalidasi kasus bentrok ruangan, bentrok tutor, dan jadwal yang sah tanpa tabrakan.

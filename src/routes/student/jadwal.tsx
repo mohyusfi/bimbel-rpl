@@ -4,7 +4,6 @@ import {
   Clock,
   MapPin,
   Calendar,
-  Sparkles,
   Info,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -108,11 +107,9 @@ function StudentJadwalPage() {
             Matriks slot jadwal bimbingan tatap muka mingguan kelas {student?.className || 'UTBK Intensif A'}.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-xs">
-            <Calendar className="w-3.5 h-3.5 text-[#CB2957]" />
-            <span className="font-semibold text-[#000000]">{classSchedules.length} Sesi / Pekan</span>
-          </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 text-xs text-[#555555]">
+          <Calendar className="w-4 h-4 text-[#CB2957]" />
+          <span className="font-semibold text-[#000000]">{classSchedules.length} Sesi / Pekan</span>
         </div>
       </div>
 
@@ -158,7 +155,7 @@ function StudentJadwalPage() {
                 <span className="font-bold text-sm text-[#000000]">
                   {row.dayOfWeek}
                 </span>
-                <span className="text-[#D2D2D2]">·</span>
+                <span className="text-[#A8A8A8] font-normal">/</span>
                 <span className="font-mono text-xs tabular-nums text-[#555555]">
                   {row.startTime}–{row.endTime} WITA
                 </span>

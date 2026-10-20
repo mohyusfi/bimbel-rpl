@@ -1,6 +1,13 @@
+import { describe, it } from 'vitest'
 import { authStore, DEMO_ACCOUNTS } from '../auth-store'
 import { supabase, isSupabaseConfigured } from '../supabase/client'
 import { adminStore } from '../admin-store'
+
+describe('Auth & Auto-Provisioning Test Suite', { timeout: 30000 }, () => {
+  it('provisions students, parents, and staff correctly', async () => {
+    await runTests()
+  })
+})
 
 async function runTests() {
   console.log('--- Starting Auth & Auto-Provisioning Test Suite ---')
@@ -127,8 +134,3 @@ async function runTests() {
   console.log('🎉 ALL TESTS PASSED SUCCESSFULLY! (100% OK)')
   console.log('=============================================')
 }
-
-runTests().catch((err) => {
-  console.error('❌ Test suite failed:', err)
-  process.exit(1)
-})

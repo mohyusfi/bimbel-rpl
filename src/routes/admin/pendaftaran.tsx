@@ -8,6 +8,7 @@ import {
   XCircle,
   X,
   AlertTriangle,
+  AlertCircle,
   Users,
   Clock,
   ChevronDown,
@@ -56,6 +57,7 @@ function AdminPendaftaranPage() {
   const [approvalTarget, setApprovalTarget] =
     React.useState<Registration | null>(null)
   const [selectedClassId, setSelectedClassId] = React.useState<string>('')
+  const [approvalError, setApprovalError] = React.useState<string | null>(null)
   const [rejectionTarget, setRejectionTarget] =
     React.useState<Registration | null>(null)
   const [rejectionReason, setRejectionReason] = React.useState<string>('')
@@ -109,59 +111,83 @@ function AdminPendaftaranPage() {
   // Open approval modal
   const handleOpenApproval = (reg: Registration) => {
     setApprovalTarget(reg)
+    setApprovalError(null)
     const matchingClasses = classes.filter(
       (c) => c.courseCode === reg.packageCode
     )
     if (matchingClasses.length > 0) {
-      setSelectedClassId(matchingClasses[0].id)
+      const availableClass = matchingClasses.find((c) => c.studentCount < 12)
+      setSelectedClassId(availableClass?.id || matchingClasses[0].id)
     } else {
       setSelectedClassId(classes[0]?.id || '')
     }
   }
 
-  const handleConfirmApproval = async () => {
+  // Plotting and approval handler (anti-overcapacity verification)
+  const handleApproveRegistration = async () => {
     if (!approvalTarget || !selectedClassId) return
     const reg = approvalTarget
     const targetClass = classes.find((c) => c.id === selectedClassId)
 
-    const result = await approveRegistration({
-      regId: reg.id,
-      classId: selectedClassId,
-    })
-
-    const creds = (result as any)?.credentials
-    if (creds) {
-      setCredentialsModalData({
-        studentName: creds.studentName,
-        studentNis: creds.studentNis,
-        studentEmail: creds.studentEmail,
-        studentPassword: creds.studentPassword,
-        className: creds.className,
-        packageName: reg.packageName,
-        parentName: creds.parentName,
-        parentEmail: creds.parentEmail,
-        parentPhone: creds.parentPhone,
-        parentPassword: creds.parentPassword,
-      })
-    } else {
-      setCredentialsModalData({
-        studentName: reg.studentName,
-        studentNis: 'TC-2026-004',
-        studentEmail: reg.studentEmail,
-        studentPassword: 'siswa2026',
-        className: targetClass?.name || 'Rombel Aktif',
-        packageName: reg.packageName,
-        parentName: reg.parentName,
-        parentEmail:
-          reg.parentEmail ||
-          `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
-        parentPhone: reg.parentPhone,
-        parentPassword: 'wali2026',
-      })
+    if (!targetClass) {
+      setApprovalError('Silakan pilih rombel bimbingan terlebih dahulu.')
+      return
     }
 
-    setApprovalTarget(null)
+    const maxCap = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCap || targetClass.studentCount >= 12) {
+      setApprovalError(
+        `Rombel "${targetClass.name}" telah penuh (${targetClass.studentCount}/${maxCap} siswa). Plotting pendaftaran dicegah. Silakan pilih rombel lain dengan kuota tersedia.`
+      )
+      return
+    }
+
+    setApprovalError(null)
+
+    try {
+      const result = await approveRegistration({
+        regId: reg.id,
+        classId: selectedClassId,
+      })
+
+      const creds = (result as any)?.credentials
+      if (creds) {
+        setCredentialsModalData({
+          studentName: creds.studentName,
+          studentNis: creds.studentNis,
+          studentEmail: creds.studentEmail,
+          studentPassword: creds.studentPassword,
+          className: creds.className,
+          packageName: reg.packageName,
+          parentName: creds.parentName,
+          parentEmail: creds.parentEmail,
+          parentPhone: creds.parentPhone,
+          parentPassword: creds.parentPassword,
+        })
+      } else {
+        setCredentialsModalData({
+          studentName: reg.studentName,
+          studentNis: 'TC-2026-004',
+          studentEmail: reg.studentEmail,
+          studentPassword: 'siswa2026',
+          className: targetClass?.name || 'Rombel Aktif',
+          packageName: reg.packageName,
+          parentName: reg.parentName,
+          parentEmail:
+            reg.parentEmail ||
+            `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+          parentPhone: reg.parentPhone,
+          parentPassword: 'wali2026',
+        })
+      }
+
+      setApprovalTarget(null)
+    } catch (err: any) {
+      setApprovalError(err?.message || 'Gagal memverifikasi pendaftaran.')
+    }
   }
+
+  const handleConfirmApproval = handleApproveRegistration
 
   // Open view credentials modal for verified students
   const handleViewCredentials = (reg: Registration) => {
@@ -606,16 +632,26 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                     </label>
                     <SearchableSelect
                       value={selectedClassId}
-                      onChange={(val) => setSelectedClassId(val)}
+                      onChange={(val) => {
+                        setSelectedClassId(val)
+                        setApprovalError(null)
+                      }}
                       options={classes
                         .filter(
                           (c) => c.courseCode === approvalTarget.packageCode
                         )
-                        .map((cls) => ({
-                          value: cls.id,
-                          label: cls.name,
-                          sublabel: `(Terisi ${cls.studentCount}/${cls.capacity} kursi · Tutor: ${cls.tutorName})`,
-                        }))}
+                        .map((cls) => {
+                          const isFull =
+                            cls.studentCount >= 12 ||
+                            cls.studentCount >= (cls.capacity || 12)
+                          return {
+                            value: cls.id,
+                            label: cls.name,
+                            sublabel: isFull
+                              ? `(PENUH ${cls.studentCount}/12 siswa · Tutor: ${cls.tutorName})`
+                              : `(Terisi ${cls.studentCount}/${cls.capacity || 12} kursi · Tutor: ${cls.tutorName})`,
+                          }
+                        })}
                       placeholder="Pilih rombel / kelas..."
                       searchPlaceholder="Cari kelas atau tutor..."
                       required
@@ -625,6 +661,39 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                     </p>
                   </div>
 
+                  {(() => {
+                    const selectedClass = classes.find((c) => c.id === selectedClassId)
+                    const isFull = selectedClass
+                      ? selectedClass.studentCount >= 12 ||
+                        selectedClass.studentCount >= (selectedClass.capacity || 12)
+                      : false
+
+                    if (isFull) {
+                      return (
+                        <div className="flex items-start gap-2.5 p-3 bg-[#FDF2F4] border border-[#F1AEBA] rounded-[10px] text-xs text-[#A81E46]">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#CB2957]" />
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-[#8C1535]">Rombel Telah Penuh</p>
+                            <p className="text-[11px] text-[#A81E46] leading-relaxed">
+                              Rombel {selectedClass?.name} telah terisi penuh ({selectedClass?.studentCount}/12 siswa). Plotting pendaftaran dicegah sesuai batas maksimal 12 siswa per rombel. Silakan pilih rombel lain.
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    if (approvalError) {
+                      return (
+                        <div className="flex items-start gap-2.5 p-3 bg-[#FDF2F4] border border-[#F1AEBA] rounded-[10px] text-xs text-[#A81E46]">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#CB2957]" />
+                          <p className="text-xs text-[#8C1535] leading-relaxed">{approvalError}</p>
+                        </div>
+                      )
+                    }
+
+                    return null
+                  })()}
+
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
@@ -633,13 +702,29 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                     >
                       Batal
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmApproval}
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
-                    >
-                      Konfirmasi Persetujuan
-                    </button>
+                    {(() => {
+                      const selectedClass = classes.find((c) => c.id === selectedClassId)
+                      const isFull = selectedClass
+                        ? selectedClass.studentCount >= 12 ||
+                          selectedClass.studentCount >= (selectedClass.capacity || 12)
+                        : false
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleApproveRegistration}
+                          disabled={isFull}
+                          className={cn(
+                            "px-4 py-2 text-xs font-semibold rounded-[8px] transition-colors cursor-pointer",
+                            isFull
+                              ? "bg-[#D2D2D2] text-[#777777] cursor-not-allowed"
+                              : "text-[#FFFFFF] bg-[#000000] hover:bg-[#262626]"
+                          )}
+                        >
+                          Konfirmasi Persetujuan
+                        </button>
+                      )
+                    })()}
                   </div>
                 </div>
               )}

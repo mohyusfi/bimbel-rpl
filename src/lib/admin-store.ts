@@ -9,7 +9,7 @@ export interface Registration {
   packageCode: PackageCode
   packageName: string
   parentName: string
-  parentEmail: string
+  parentEmail?: string
   parentPhone: string
   parentJob?: string
   parentAddress?: string
@@ -161,6 +161,8 @@ export interface LearningMaterial {
   fileType: 'PDF' | 'PPTX'
   fileSize: string
   fileUrl: string
+  storage_path?: string
+  storagePath?: string
   uploadedAt: string
 }
 
@@ -1055,6 +1057,18 @@ function loadInitialState(): AdminState {
 let state: AdminState = loadInitialState()
 const listeners = new Set<() => void>()
 
+let idCounter = 0
+function generateUniqueId(prefix: string): string {
+  idCounter += 1
+  return `${prefix}-${Date.now().toString().slice(-4)}-${idCounter}`
+}
+
+function clampCapacity(capacity: unknown, defaultCap = 12): number {
+  const num = Number(capacity)
+  if (isNaN(num)) return defaultCap
+  return Math.min(12, Math.max(1, num))
+}
+
 function saveAndNotify() {
   if (typeof window !== 'undefined') {
     try {
@@ -1107,7 +1121,7 @@ export const adminStore = {
   addRegistration(input: Omit<Registration, 'id' | 'createdAt' | 'status'>) {
     const newReg: Registration = {
       ...input,
-      id: `reg-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('reg'),
       createdAt: new Date().toISOString(),
       status: 'menunggu',
     }
@@ -1137,6 +1151,14 @@ export const adminStore = {
     const targetClass = state.classes.find((c) => c.id === classId)
     if (!targetClass) return null
 
+    // Validasi kapasitas kelas maksimal 12 siswa (CONTEXT.md)
+    const maxCapacity = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCapacity) {
+      throw new Error(
+        `Rombel ${targetClass.name} sudah penuh (${targetClass.studentCount}/${maxCapacity} siswa). Batas maksimal adalah 12 siswa.`
+      )
+    }
+
     // Update status pendaftaran
     reg.status = 'terverifikasi'
     reg.assignedClassId = classId
@@ -1146,7 +1168,7 @@ export const adminStore = {
     if (!studentRecord) {
       const nisNumber = (state.students.length + 1).toString().padStart(3, '0')
       studentRecord = {
-        id: `stu-${Date.now().toString().slice(-4)}`,
+        id: generateUniqueId('stu'),
         nis: `TC-2026-${nisNumber}`,
         name: reg.studentName,
         email: reg.studentEmail,
@@ -1186,7 +1208,7 @@ export const adminStore = {
       }
     } else {
       parentRecord = {
-        id: `par-${Date.now().toString().slice(-4)}`,
+        id: generateUniqueId('par'),
         name: reg.parentName,
         email: reg.parentEmail || `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
         phone: reg.parentPhone,
@@ -1243,10 +1265,18 @@ export const adminStore = {
 
   // STUDENTS
   addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) {
+    const cls = state.classes.find((c) => c.id === input.classId)
+    if (cls) {
+      const maxCap = Math.min(12, cls.capacity || 12)
+      if (cls.studentCount >= maxCap) {
+        throw new Error(`Rombel ${cls.name} sudah penuh (${cls.studentCount}/${maxCap} siswa).`)
+      }
+    }
+
     const nisNumber = (state.students.length + 1).toString().padStart(3, '0')
     const newStudent: Student = {
       ...input,
-      id: `stu-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('stu'),
       nis: `TC-2026-${nisNumber}`,
       joinDate: new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
@@ -1258,7 +1288,6 @@ export const adminStore = {
 
     state.students = [newStudent, ...state.students]
 
-    const cls = state.classes.find((c) => c.id === input.classId)
     if (cls) cls.studentCount += 1
 
     saveAndNotify()
@@ -1274,11 +1303,42 @@ export const adminStore = {
     return true
   },
 
+  assignStudentToClass(studentId: string, targetClassId: string) {
+    const student = state.students.find((s) => s.id === studentId)
+    if (!student) throw new Error('Siswa tidak ditemukan.')
+
+    const targetClass = state.classes.find((c) => c.id === targetClassId)
+    if (!targetClass) throw new Error('Rombel tujuan tidak ditemukan.')
+
+    if (student.classId === targetClassId) {
+      return student
+    }
+
+    const maxCap = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCap) {
+      throw new Error(
+        `Rombel ${targetClass.name} sudah penuh (${targetClass.studentCount}/${maxCap} siswa). Batas maksimal adalah 12 siswa.`
+      )
+    }
+
+    const oldClass = state.classes.find((c) => c.id === student.classId)
+    if (oldClass && oldClass.studentCount > 0) {
+      oldClass.studentCount -= 1
+    }
+
+    targetClass.studentCount += 1
+    student.classId = targetClass.id
+    student.className = targetClass.name
+
+    saveAndNotify()
+    return student
+  },
+
   // TUTORS
   addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) {
     const newTutor: Tutor = {
       ...input,
-      id: `tut-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('tut'),
       weeklySessionsCount: 0,
       status: 'aktif',
     }
@@ -1300,7 +1360,7 @@ export const adminStore = {
   addSubject(input: Omit<Subject, 'id' | 'tutorCount'>) {
     const newSubj: Subject = {
       ...input,
-      id: `sbj-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('sbj'),
       tutorCount: 1,
     }
     state.subjects = [...state.subjects, newSubj]
@@ -1310,14 +1370,30 @@ export const adminStore = {
 
   // ROOMS
   addRoom(input: Omit<Room, 'id' | 'isActive'>) {
+    const capacity = clampCapacity(input.capacity, 12)
     const newRoom: Room = {
       ...input,
-      id: `rm-${Date.now().toString().slice(-4)}`,
+      capacity,
+      id: generateUniqueId('rm'),
       isActive: true,
     }
     state.rooms = [...state.rooms, newRoom]
     saveAndNotify()
     return newRoom
+  },
+
+  updateRoom(id: string, updates: Partial<Omit<Room, 'id'>>) {
+    const index = state.rooms.findIndex((r) => r.id === id)
+    if (index === -1) return false
+
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.capacity !== undefined) {
+      sanitizedUpdates.capacity = clampCapacity(sanitizedUpdates.capacity, 12)
+    }
+
+    state.rooms[index] = { ...state.rooms[index], ...sanitizedUpdates }
+    saveAndNotify()
+    return state.rooms[index]
   },
 
   toggleRoomActive(id: string) {
@@ -1333,16 +1409,23 @@ export const adminStore = {
     const index = state.courses.findIndex((c) => c.id === id)
     if (index === -1) return false
 
-    state.courses[index] = { ...state.courses[index], ...updates }
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.maxStudents !== undefined) {
+      sanitizedUpdates.maxStudents = clampCapacity(sanitizedUpdates.maxStudents, 12)
+    }
+
+    state.courses[index] = { ...state.courses[index], ...sanitizedUpdates }
     saveAndNotify()
     return true
   },
 
   // CLASSES
   addClass(input: Omit<ClassGroup, 'id' | 'studentCount'>) {
+    const capacity = clampCapacity(input.capacity, 12)
     const newClass: ClassGroup = {
       ...input,
-      id: `cls-${Date.now().toString().slice(-4)}`,
+      capacity,
+      id: generateUniqueId('cls'),
       studentCount: 0,
     }
     state.classes = [...state.classes, newClass]
@@ -1354,12 +1437,27 @@ export const adminStore = {
     return newClass
   },
 
+  updateClass(id: string, updates: Partial<Omit<ClassGroup, 'id'>>) {
+    const index = state.classes.findIndex((c) => c.id === id)
+    if (index === -1) return false
+
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.capacity !== undefined) {
+      sanitizedUpdates.capacity = clampCapacity(sanitizedUpdates.capacity, 12)
+    }
+
+    state.classes[index] = { ...state.classes[index], ...sanitizedUpdates }
+    saveAndNotify()
+    return state.classes[index]
+  },
+
   // SCHEDULES & CONFLICT DETECTION (SCHED-02)
   addSchedule(input: Omit<Schedule, 'id'>) {
     const conflict = detectScheduleConflicts(input, state.schedules, state.rooms)
     if (conflict.hasConflict) {
       throw new Error(
-        conflict.timeError ||
+        conflict.errorMessage ||
+          conflict.timeError ||
           (conflict.roomConflict
             ? `Bentrok Ruangan: ${conflict.roomConflict.roomName} sudah digunakan oleh ${conflict.roomConflict.className} (${conflict.roomConflict.startTime}–${conflict.roomConflict.endTime})`
             : conflict.tutorConflict
@@ -1370,7 +1468,7 @@ export const adminStore = {
 
     const newSchedule: Schedule = {
       ...input,
-      id: `sch-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('sch'),
     }
 
     state.schedules = [...state.schedules, newSchedule]
@@ -1381,6 +1479,59 @@ export const adminStore = {
 
     saveAndNotify()
     return newSchedule
+  },
+
+  updateSchedule(id: string, input: Partial<Omit<Schedule, 'id'>>) {
+    const index = state.schedules.findIndex((s) => s.id === id)
+    if (index === -1) {
+      throw new Error(`Jadwal dengan ID "${id}" tidak ditemukan`)
+    }
+    const oldSchedule = state.schedules[index]
+
+    const mergedCandidate: ScheduleCandidate = {
+      id,
+      roomId: input.roomId ?? oldSchedule.roomId,
+      tutorId: input.tutorId ?? oldSchedule.tutorId,
+      dayOfWeek: input.dayOfWeek ?? oldSchedule.dayOfWeek,
+      startTime: input.startTime ?? oldSchedule.startTime,
+      endTime: input.endTime ?? oldSchedule.endTime,
+    }
+
+    const conflict = detectScheduleConflicts(mergedCandidate, state.schedules, state.rooms)
+    if (conflict.hasConflict) {
+      throw new Error(
+        conflict.errorMessage ||
+          conflict.timeError ||
+          (conflict.roomConflict
+            ? `Bentrok Ruangan: ${conflict.roomConflict.roomName} sudah digunakan oleh ${conflict.roomConflict.className} (${conflict.roomConflict.startTime}–${conflict.roomConflict.endTime})`
+            : conflict.tutorConflict
+              ? `Bentrok Tutor: ${conflict.tutorConflict.tutorName} sudah mengajar ${conflict.tutorConflict.className} (${conflict.tutorConflict.startTime}–${conflict.tutorConflict.endTime})`
+              : 'Jadwal bentrok dengan jadwal lain')
+      )
+    }
+
+    if (input.tutorId && oldSchedule.tutorId !== input.tutorId) {
+      const oldTutor = state.tutors.find((t) => t.id === oldSchedule.tutorId)
+      if (oldTutor && oldTutor.weeklySessionsCount > 0) oldTutor.weeklySessionsCount -= 1
+      const newTutor = state.tutors.find((t) => t.id === input.tutorId)
+      if (newTutor) newTutor.weeklySessionsCount += 1
+    }
+
+    const targetClass = input.classId ? state.classes.find((c) => c.id === input.classId) : undefined
+    const targetTutor = input.tutorId ? state.tutors.find((t) => t.id === input.tutorId) : undefined
+    const targetRoom = input.roomId ? state.rooms.find((r) => r.id === input.roomId) : undefined
+
+    const updated: Schedule = {
+      ...oldSchedule,
+      ...input,
+      id,
+      className: input.className ?? (targetClass ? targetClass.name : oldSchedule.className),
+      tutorName: input.tutorName ?? (targetTutor ? targetTutor.name : oldSchedule.tutorName),
+      roomName: input.roomName ?? (targetRoom ? targetRoom.name : oldSchedule.roomName),
+    }
+    state.schedules[index] = updated
+    saveAndNotify()
+    return updated
   },
 
   deleteSchedule(id: string) {
@@ -1486,6 +1637,57 @@ export const adminStore = {
   },
 
   // SESSIONS & ATTENDANCE
+  createSessionFromSchedule(
+    scheduleId: string,
+    sessionDate: string,
+    topic: string = ''
+  ): AttendanceSession {
+    const schedule = state.schedules.find((s) => s.id === scheduleId)
+    if (!schedule) {
+      throw new Error(`Jadwal bimbingan dengan ID "${scheduleId}" tidak ditemukan.`)
+    }
+
+    // Cek apakah sesi aktual untuk jadwal dan tanggal ini sudah pernah dibuat (pencegahan duplikasi sesi)
+    const existing = state.attendanceSessions.find(
+      (s) => s.scheduleId === scheduleId && s.sessionDate === sessionDate
+    )
+    if (existing) {
+      return existing
+    }
+
+    // Ambil siswa yang terdaftar pada kelas rombel bersangkutan
+    const enrolledStudents = state.students.filter((s) => s.classId === schedule.classId)
+    const initialEntries: AttendanceEntry[] = enrolledStudents.map((s) => ({
+      studentId: s.id,
+      studentName: s.name,
+      nis: s.nis,
+      status: 'hadir',
+    }))
+
+    const newSession: AttendanceSession = {
+      id: `ses-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      scheduleId: schedule.id,
+      classId: schedule.classId,
+      className: schedule.className,
+      subjectName: schedule.subjectName,
+      tutorId: schedule.tutorId,
+      tutorName: schedule.tutorName,
+      roomId: schedule.roomId,
+      roomName: schedule.roomName,
+      sessionDate,
+      dayOfWeek: schedule.dayOfWeek,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      topic,
+      isCompleted: false,
+      entries: initialEntries,
+    }
+
+    state.attendanceSessions = [newSession, ...state.attendanceSessions]
+    saveAndNotify()
+    return newSession
+  },
+
   saveSessionAttendance(
     sessionId: string,
     topic: string,
@@ -1493,6 +1695,17 @@ export const adminStore = {
   ) {
     const session = state.attendanceSessions.find((s) => s.id === sessionId)
     if (!session) return false
+
+    // Pencegahan duplikasi presensi siswa pada sesi yang sama
+    const seenStudentIds = new Set<string>()
+    for (const entry of entries) {
+      if (seenStudentIds.has(entry.studentId)) {
+        throw new Error(
+          `Pencegahan duplikasi presensi: Siswa "${entry.studentName || entry.studentId}" memiliki lebih dari satu entri presensi pada sesi yang sama.`
+        )
+      }
+      seenStudentIds.add(entry.studentId)
+    }
 
     session.topic = topic
     session.entries = entries
@@ -1519,10 +1732,45 @@ export const adminStore = {
     return true
   },
 
+  recordStudentAttendance(sessionId: string, entry: AttendanceEntry) {
+    const session = state.attendanceSessions.find((s) => s.id === sessionId)
+    if (!session) {
+      throw new Error(`Sesi dengan ID "${sessionId}" tidak ditemukan.`)
+    }
+
+    const existingIndex = session.entries.findIndex((e) => e.studentId === entry.studentId)
+    if (existingIndex >= 0) {
+      // Perbarui status presensi siswa yang sudah ada tanpa membuat entri ganda
+      session.entries[existingIndex] = { ...session.entries[existingIndex], ...entry }
+    } else {
+      session.entries.push(entry)
+    }
+
+    if (entry.status === 'alpa') {
+      state.notifications = [
+        {
+          id: `notif-${Date.now()}-${entry.studentId}`,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Siswa ${entry.studentName} tercatat Alpa pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+          timestamp: 'Baru saja',
+          isRead: false,
+          type: 'schedule',
+        },
+        ...state.notifications,
+      ]
+    }
+
+    saveAndNotify()
+    return session
+  },
+
   // LEARNING MATERIALS
   addLearningMaterial(input: Omit<LearningMaterial, 'id' | 'uploadedAt'>) {
+    const storagePath = input.storage_path || input.storagePath
     const newMaterial: LearningMaterial = {
       ...input,
+      storage_path: storagePath,
+      storagePath: storagePath,
       id: `mat-${Date.now().toString().slice(-4)}`,
       uploadedAt: new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
@@ -1555,10 +1803,11 @@ export const adminStore = {
   },
 
   // GRADE RECORDS
-  addGradeRecord(input: Omit<GradeRecord, 'id' | 'assessmentDate'>) {
+  addGradeRecord(input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & { classAverage?: number }) {
     const newGrade: GradeRecord = {
       ...input,
-      id: `grd-${Date.now().toString().slice(-4)}`,
+      id: (input as any).id || `grd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      classAverage: input.classAverage ?? input.score,
       assessmentDate: new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
         month: 'short',
@@ -1566,6 +1815,24 @@ export const adminStore = {
       }).format(new Date()),
     }
     state.gradeRecords = [newGrade, ...state.gradeRecords]
+
+    // Calculate classAverage for all records in the same class and assessment
+    const matchingRecords = state.gradeRecords.filter(
+      (g) => g.classId === newGrade.classId && g.assessmentTitle === newGrade.assessmentTitle
+    )
+    const totalScore = matchingRecords.reduce((sum, g) => sum + g.score, 0)
+    const classAverage = matchingRecords.length > 0
+      ? Math.round(totalScore / matchingRecords.length)
+      : newGrade.score
+
+    // Synchronize calculated classAverage across all records of that assessment in that class
+    state.gradeRecords = state.gradeRecords.map((g) => {
+      if (g.classId === newGrade.classId && g.assessmentTitle === newGrade.assessmentTitle) {
+        return { ...g, classAverage }
+      }
+      return g
+    })
+    newGrade.classAverage = classAverage
 
     state.notifications = [
       {
@@ -1586,9 +1853,36 @@ export const adminStore = {
   updateGradeRecord(id: string, updates: Partial<GradeRecord>) {
     const index = state.gradeRecords.findIndex((g) => g.id === id)
     if (index === -1) return null
-    state.gradeRecords[index] = { ...state.gradeRecords[index], ...updates }
+
+    const oldRecord = state.gradeRecords[index]
+    const updatedRecord: GradeRecord = { ...oldRecord, ...updates }
+    state.gradeRecords[index] = updatedRecord
+
+    const syncClassAverage = (classId: string, assessmentTitle: string) => {
+      const matching = state.gradeRecords.filter(
+        (g) => g.classId === classId && g.assessmentTitle === assessmentTitle
+      )
+      if (matching.length === 0) return
+      const totalScore = matching.reduce((sum, g) => sum + g.score, 0)
+      const classAverage = Math.round(totalScore / matching.length)
+      state.gradeRecords = state.gradeRecords.map((g) => {
+        if (g.classId === classId && g.assessmentTitle === assessmentTitle) {
+          return { ...g, classAverage }
+        }
+        return g
+      })
+    }
+
+    // Synchronize for target assessment and class
+    syncClassAverage(updatedRecord.classId, updatedRecord.assessmentTitle)
+
+    // If classId or assessmentTitle changed, also resync old group
+    if (oldRecord.classId !== updatedRecord.classId || oldRecord.assessmentTitle !== updatedRecord.assessmentTitle) {
+      syncClassAverage(oldRecord.classId, oldRecord.assessmentTitle)
+    }
+
     saveAndNotify()
-    return state.gradeRecords[index]
+    return state.gradeRecords.find((g) => g.id === id) ?? updatedRecord
   },
 
   // SESSIONS & PROFILES
@@ -1661,8 +1955,13 @@ export const adminStore = {
 // Conflict Detection Engine (SCHED-02 Pure Function)
 export interface ScheduleCandidate {
   id?: string
+  classId?: string
+  className?: string
+  subjectName?: string
   roomId: string
+  roomName?: string
   tutorId: string
+  tutorName?: string
   dayOfWeek: string
   startTime: string
   endTime: string
@@ -1673,6 +1972,7 @@ export interface ConflictCheckResult {
   timeError?: string
   roomConflict?: Schedule
   tutorConflict?: Schedule
+  errorMessage?: string
   suggestedRooms?: Room[]
 }
 
@@ -1681,19 +1981,23 @@ export function detectScheduleConflicts(
   schedules: Schedule[],
   allRooms: Room[]
 ): ConflictCheckResult {
-  // 1. Validasi urutan waktu
+  // 1. Validasi urutan waktu: endTime > startTime
   if (!candidate.startTime || !candidate.endTime) {
     return { hasConflict: false }
   }
 
   if (candidate.endTime <= candidate.startTime) {
+    const timeError = 'Jam selesai bimbingan harus lebih besar daripada jam mulai.'
     return {
       hasConflict: true,
-      timeError: 'Jam selesai bimbingan harus lebih besar daripada jam mulai.',
+      timeError,
+      errorMessage: timeError,
     }
   }
 
   // 2. Evaluasi bentrok ruangan & tutor
+  // Bentrok Ruangan: (Ruangan_A == Ruangan_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)
+  // Bentrok Tutor: (Tutor_A == Tutor_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)
   let roomConflict: Schedule | undefined
   let tutorConflict: Schedule | undefined
 
@@ -1709,16 +2013,28 @@ export function detectScheduleConflicts(
       candidate.startTime < existing.endTime && candidate.endTime > existing.startTime
 
     if (timeOverlap) {
-      if (existing.roomId === candidate.roomId) {
+      if (candidate.roomId && existing.roomId === candidate.roomId && !roomConflict) {
         roomConflict = existing
       }
-      if (existing.tutorId === candidate.tutorId) {
+      if (candidate.tutorId && existing.tutorId === candidate.tutorId && !tutorConflict) {
         tutorConflict = existing
       }
     }
   }
 
   const hasConflict = Boolean(roomConflict || tutorConflict)
+
+  // Pesan error deskriptif yang memuat nama ruangan/tutor, nama kelas, dan rentang jam bentrok
+  let errorMessage: string | undefined
+  if (roomConflict && tutorConflict) {
+    const rName = roomConflict.roomName || allRooms.find((r) => r.id === roomConflict?.roomId)?.name || 'Ruangan'
+    errorMessage = `Bentrok Ruangan & Tutor: Ruangan "${rName}" sudah digunakan oleh kelas "${roomConflict.className}" (${roomConflict.startTime}–${roomConflict.endTime}) dan Tutor "${tutorConflict.tutorName}" sudah mengajar kelas "${tutorConflict.className}" (${tutorConflict.startTime}–${tutorConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  } else if (roomConflict) {
+    const rName = roomConflict.roomName || allRooms.find((r) => r.id === roomConflict?.roomId)?.name || 'Ruangan'
+    errorMessage = `Bentrok Ruangan: Ruangan "${rName}" sudah digunakan oleh kelas "${roomConflict.className}" (${roomConflict.startTime}–${roomConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  } else if (tutorConflict) {
+    errorMessage = `Bentrok Tutor: Tutor "${tutorConflict.tutorName}" sudah mengajar kelas "${tutorConflict.className}" (${tutorConflict.startTime}–${tutorConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  }
 
   // 3. Jika bentrok ruangan, cari ruangan alternatif yang kosong di jam itu
   let suggestedRooms: Room[] | undefined
@@ -1743,8 +2059,65 @@ export function detectScheduleConflicts(
 
   return {
     hasConflict,
+    timeError: candidate.endTime <= candidate.startTime ? 'Jam selesai bimbingan harus lebih besar daripada jam mulai.' : undefined,
     roomConflict,
     tutorConflict,
+    errorMessage,
     suggestedRooms,
+  }
+}
+
+/**
+ * Formula kalkulasi persentase kehadiran: Math.round((hadirCount / totalCount) * 100)
+ */
+export function calculateAttendancePercentage(hadirCount: number, totalCount: number): number {
+  if (totalCount <= 0) return 0
+  return Math.round((hadirCount / totalCount) * 100)
+}
+
+export interface StudentAttendanceSummary {
+  studentId: string
+  hadirCount: number
+  sakitCount: number
+  izinCount: number
+  alpaCount: number
+  totalSessions: number
+  percentage: number
+}
+
+/**
+ * Rekapitulasi kehadiran seorang siswa dari kumpulan sesi bimbingan
+ */
+export function getStudentAttendanceSummary(
+  studentId: string,
+  sessions: AttendanceSession[]
+): StudentAttendanceSummary {
+  let hadirCount = 0
+  let sakitCount = 0
+  let izinCount = 0
+  let alpaCount = 0
+  let totalSessions = 0
+
+  for (const session of sessions) {
+    const entry = session.entries.find((e) => e.studentId === studentId)
+    if (entry) {
+      totalSessions++
+      if (entry.status === 'hadir') hadirCount++
+      else if (entry.status === 'sakit') sakitCount++
+      else if (entry.status === 'izin') izinCount++
+      else if (entry.status === 'alpa') alpaCount++
+    }
+  }
+
+  const percentage = calculateAttendancePercentage(hadirCount, totalSessions)
+
+  return {
+    studentId,
+    hadirCount,
+    sakitCount,
+    izinCount,
+    alpaCount,
+    totalSessions,
+    percentage,
   }
 }

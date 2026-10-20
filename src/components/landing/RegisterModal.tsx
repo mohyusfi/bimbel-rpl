@@ -47,7 +47,7 @@ export function RegisterModal({
     studentSchool: string
     parentName: string
     parentPhone: string
-    parentEmail: string
+    parentEmail?: string
   } | null>(null)
   const [isCopied, setIsCopied] = React.useState(false)
 

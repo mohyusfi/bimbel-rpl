@@ -1,8 +1,14 @@
-import { describe, it } from 'node:test'
+import { describe, it } from 'vitest'
 import assert from 'node:assert/strict'
 import { authStore, DEMO_ACCOUNTS } from '../auth-store'
 import { adminStore } from '../admin-store'
 import { createSupabaseClient, isSupabaseConfigured, supabase } from '../supabase/client'
+
+describe('QA & Security Edge Cases Verification', { timeout: 30000 }, () => {
+  it('passes all edge cases verification', async () => {
+    await runQATests()
+  })
+})
 
 async function runQATests() {
   console.log('=====================================================')
@@ -160,8 +166,3 @@ async function runQATests() {
   console.log('🎉 ALL 11 QA & SECURITY ASSERTIONS PASSED!')
   console.log('=====================================================')
 }
-
-runQATests().catch((err) => {
-  console.error('❌ QA Test failed:', err)
-  process.exit(1)
-})

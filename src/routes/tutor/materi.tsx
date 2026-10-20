@@ -15,12 +15,18 @@ import {
   UploadCloud,
   Presentation,
   AlertCircle,
+  Loader2,
 } from 'lucide-react'
-import { useTutorDashboardData, useAdminMutations } from '~/hooks/use-admin-data'
+import {
+  useTutorDashboardData,
+  useTutorMaterials,
+  useAdminMutations,
+} from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { cn } from '~/lib/utils'
 import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { LearningMaterial } from '~/lib/admin-store'
+import { validateMaterialFile } from '~/lib/materials-validator'
 
 export const Route = createFileRoute('/tutor/materi')({
   ssr: false,
@@ -37,7 +43,8 @@ const CATEGORIES = [
 ] as const
 
 export function TutorMateriPage() {
-  const { materials, classes, tutor } = useTutorDashboardData()
+  const { classes, tutor } = useTutorDashboardData()
+  const { data: materials = [] } = useTutorMaterials(tutor?.id)
   const { addLearningMaterial, deleteLearningMaterial } = useAdminMutations()
 
   // Filter state
@@ -47,6 +54,7 @@ export function TutorMateriPage() {
   // Modals state
   const [isUploadModalOpen, setIsUploadModalOpen] = React.useState<boolean>(false)
   const [materialToDelete, setMaterialToDelete] = React.useState<LearningMaterial | null>(null)
+  const [isDeleting, setIsDeleting] = React.useState<boolean>(false)
 
   // Upload Form State
   const [form, setForm] = React.useState({
@@ -59,6 +67,7 @@ export function TutorMateriPage() {
     fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
     description: '',
   })
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
   const [fileError, setFileError] = React.useState<string | null>(null)
 
   const [uploadSuccess, setUploadSuccess] = React.useState<boolean>(false)
@@ -78,6 +87,7 @@ export function TutorMateriPage() {
   // Open upload modal
   const handleOpenUpload = () => {
     setFileError(null)
+    setSelectedFile(null)
     setForm({
       classId: classes[0]?.id || '',
       subjectName: tutor?.subjects?.[0] || 'Fisika UTBK',
@@ -97,27 +107,26 @@ export function TutorMateriPage() {
     if (!file) return
     setFileError(null)
 
-    const isPdfFile =
-      file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
-    const isPptxFile =
-      file.name.toLowerCase().endsWith('.pptx') ||
-      file.type ===
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-
-    if (!isPdfFile && !isPptxFile) {
-      setFileError('Format berkas tidak didukung. Hanya berkas .pdf dan .pptx yang diizinkan.')
+    const validation = validateMaterialFile(file)
+    if (!validation.valid) {
+      setFileError(validation.error || 'Berkas tidak valid.')
+      setSelectedFile(null)
       return
     }
 
-    const detectedType: 'PDF' | 'PPTX' = isPptxFile ? 'PPTX' : 'PDF'
-    const sizeMb = (file.size / (1024 * 1024)).toFixed(1)
+    const detectedType = validation.fileType || 'PDF'
+    const sizeFormatted =
+      file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.round(file.size / 1024)} KB`
     const objectUrl = URL.createObjectURL(file)
 
+    setSelectedFile(file)
     setForm((prev) => ({
       ...prev,
       title: prev.title.trim() ? prev.title : file.name,
       fileType: detectedType,
-      fileSize: `${sizeMb} MB`,
+      fileSize: sizeFormatted,
       fileUrl: objectUrl,
     }))
   }
@@ -149,11 +158,16 @@ export function TutorMateriPage() {
         fileType: form.fileType,
         fileSize: form.fileSize || '3.7 MB',
         fileUrl: finalFileUrl,
+        file: selectedFile,
       })
 
       setIsUploadModalOpen(false)
+      setSelectedFile(null)
       setUploadSuccess(true)
       setTimeout(() => setUploadSuccess(false), 4000)
+    } catch (err: any) {
+      console.error('Gagal mengunggah materi:', err)
+      setFileError(err?.message || 'Terjadi kesalahan saat mengunggah berkas ke penyimpanan.')
     } finally {
       setIsSubmitting(false)
     }
@@ -162,8 +176,15 @@ export function TutorMateriPage() {
   // Handle delete
   const handleDeleteConfirm = async () => {
     if (!materialToDelete) return
-    await deleteLearningMaterial(materialToDelete.id)
-    setMaterialToDelete(null)
+    setIsDeleting(true)
+    try {
+      await deleteLearningMaterial(materialToDelete.id)
+      setMaterialToDelete(null)
+    } catch (err) {
+      console.error('Gagal menghapus modul:', err)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const columns: ColumnDef<LearningMaterial>[] = [
@@ -475,12 +496,17 @@ export function TutorMateriPage() {
                   />
                   {fileError ? (
                     <p className="text-[11px] text-[#901B14] font-medium flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{fileError}</span>
+                    </p>
+                  ) : selectedFile ? (
+                    <p className="text-[11px] text-[#166534] font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Berkas terpilih: {selectedFile.name} ({form.fileSize})</span>
                     </p>
                   ) : (
                     <p className="text-[11px] text-[#555555]">
-                      Mendukung format dokumen PDF (.pdf) atau slide presentasi (.pptx).
+                      Mendukung format dokumen PDF (.pdf) atau slide presentasi (.pptx) dengan ukuran maksimal 20 MB.
                     </p>
                   )}
                 </div>
@@ -556,17 +582,25 @@ export function TutorMateriPage() {
                 <div className="pt-4 border-t border-[#D2D2D2] flex items-center justify-end gap-2.5">
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => setIsUploadModalOpen(false)}
-                    className="px-4 py-2 border border-[#D2D2D2] rounded-[8px] text-[#555555] hover:bg-[#F6F6F6] font-semibold cursor-pointer"
+                    className="px-4 py-2 border border-[#D2D2D2] rounded-[8px] text-[#555555] hover:bg-[#F6F6F6] disabled:opacity-50 font-semibold cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-5 py-2 bg-[#000000] text-[#FFFFFF] hover:bg-[#222222] disabled:opacity-50 font-semibold rounded-[8px] cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2 bg-[#000000] text-[#FFFFFF] hover:bg-[#222222] disabled:opacity-50 font-semibold rounded-[8px] cursor-pointer"
                   >
-                    {isSubmitting ? 'Mengunggah...' : 'Simpan Modul'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Mengunggah Berkas...</span>
+                      </>
+                    ) : (
+                      <span>Simpan Modul</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -578,7 +612,11 @@ export function TutorMateriPage() {
       {/* Delete Confirmation Dialog */}
       <Dialog.Root
         open={!!materialToDelete}
-        onOpenChange={(open) => !open && setMaterialToDelete(null)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setMaterialToDelete(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/55 z-50 backdrop-blur-xs transition-opacity duration-200" />
@@ -593,24 +631,33 @@ export function TutorMateriPage() {
                   <span className="font-semibold text-[#000000]">
                     "{materialToDelete?.title}"
                   </span>
-                  ? Siswa kelas tidak akan lagi dapat mengunduh berkas ini.
+                  ? Berkas fisik pada penyimpanan dan akses materi untuk siswa akan dihapus secara permanen.
                 </Dialog.Description>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2 text-xs">
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={() => setMaterialToDelete(null)}
-                  className="px-3.5 py-2 border border-[#D2D2D2] rounded-[8px] font-semibold text-[#555555] hover:bg-[#F6F6F6] cursor-pointer"
+                  className="px-3.5 py-2 border border-[#D2D2D2] rounded-[8px] font-semibold text-[#555555] hover:bg-[#F6F6F6] disabled:opacity-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
+                  disabled={isDeleting}
                   onClick={handleDeleteConfirm}
-                  className="px-4 py-2 bg-[#901B14] hover:bg-[#721510] text-[#FFFFFF] font-semibold rounded-[8px] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#901B14] hover:bg-[#721510] disabled:opacity-50 text-[#FFFFFF] font-semibold rounded-[8px] cursor-pointer"
                 >
-                  Hapus Berkas
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <span>Hapus Berkas</span>
+                  )}
                 </button>
               </div>
             </Dialog.Popup>

@@ -7,8 +7,6 @@ import {
   MapPin,
   Users,
   ClipboardCheck,
-  Search,
-  BookOpen,
 } from 'lucide-react'
 import { useTutorDashboardData } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
@@ -205,9 +203,9 @@ function TutorJadwalPage() {
                   <span className="font-semibold text-sm text-[#000000] block">
                     {sch.subjectName}
                   </span>
-                  <div className="flex items-center gap-2 text-xs text-[#555555]">
+                  <div className="flex items-center gap-1.5 text-xs text-[#555555]">
                     <span className="font-medium text-[#292524]">{sch.className}</span>
-                    <span className="text-[#D2D2D2]">·</span>
+                    <span className="text-[#A8A8A8] font-normal">/</span>
                     <span>{sch.roomName}</span>
                   </div>
                 </div>

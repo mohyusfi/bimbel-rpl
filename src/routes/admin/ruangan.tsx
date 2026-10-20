@@ -27,14 +27,22 @@ function AdminRuanganPage() {
   const { data: courses = [] } = useAdminCourses()
   const { data: schedules = [] } = useAdminSchedules()
 
-  const { addRoom, toggleRoomActive, updateCourse } = useAdminMutations()
+  const { addRoom, updateRoom, toggleRoomActive, updateCourse } = useAdminMutations()
 
   // Modals state
   const [isAddRoomOpen, setIsAddRoomOpen] = React.useState(false)
+  const [editingRoom, setEditingRoom] = React.useState<Room | null>(null)
   const [editingCourse, setEditingCourse] = React.useState<Course | null>(null)
 
-  // Room Form State
+  // Room Form State (Add)
   const [roomForm, setRoomForm] = React.useState({
+    name: '',
+    capacity: 12,
+    facilities: '',
+  })
+
+  // Room Edit Form State
+  const [editRoomForm, setEditRoomForm] = React.useState({
     name: '',
     capacity: 12,
     facilities: '',
@@ -50,13 +58,41 @@ function AdminRuanganPage() {
   // Handle Add Room
   const handleAddRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cap = Math.min(12, Math.max(1, Number(roomForm.capacity) || 12))
     await addRoom({
-      name: roomForm.name,
-      capacity: Number(roomForm.capacity),
-      facilities: roomForm.facilities,
+      name: roomForm.name.trim(),
+      capacity: cap,
+      facilities: roomForm.facilities.trim(),
     })
     setIsAddRoomOpen(false)
     setRoomForm({ name: '', capacity: 12, facilities: '' })
+  }
+
+  // Handle Open Room Edit
+  const handleOpenRoomEdit = (room: Room) => {
+    setEditingRoom(room)
+    setEditRoomForm({
+      name: room.name,
+      capacity: Math.min(12, Math.max(1, room.capacity)),
+      facilities: room.facilities,
+    })
+  }
+
+  // Handle Save Room Edit
+  const handleEditRoomSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingRoom) return
+
+    const cap = Math.min(12, Math.max(1, Number(editRoomForm.capacity) || 12))
+    await updateRoom({
+      id: editingRoom.id,
+      updates: {
+        name: editRoomForm.name.trim(),
+        capacity: cap,
+        facilities: editRoomForm.facilities.trim(),
+      },
+    })
+    setEditingRoom(null)
   }
 
   // Handle Open Course Edit
@@ -64,7 +100,7 @@ function AdminRuanganPage() {
     setEditingCourse(course)
     setCourseForm({
       price: course.price,
-      maxStudents: course.maxStudents,
+      maxStudents: Math.min(12, Math.max(1, course.maxStudents)),
       description: course.description,
     })
   }
@@ -74,12 +110,13 @@ function AdminRuanganPage() {
     e.preventDefault()
     if (!editingCourse) return
 
+    const maxStudents = Math.min(12, Math.max(1, Number(courseForm.maxStudents) || 12))
     await updateCourse({
       id: editingCourse.id,
       updates: {
         price: Number(courseForm.price),
-        maxStudents: Number(courseForm.maxStudents),
-        description: courseForm.description,
+        maxStudents,
+        description: courseForm.description.trim(),
       },
     })
     setEditingCourse(null)
@@ -198,13 +235,18 @@ function AdminRuanganPage() {
                 </div>
 
                 <div className="pt-3 border-t border-[#D2D2D2] flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-[#555555] truncate">
-                    Status Ruangan:
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenRoomEdit(room)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000000] hover:text-[#CB2957] transition-colors cursor-pointer"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-[#555555]" />
+                    <span>Edit Ruangan</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => toggleRoomActive(room.id)}
-                    className="text-xs font-semibold text-[#000000] hover:text-[#A81E46] transition-colors cursor-pointer underline shrink-0 whitespace-nowrap"
+                    className="text-xs font-medium text-[#555555] hover:text-[#000000] transition-colors cursor-pointer underline shrink-0 whitespace-nowrap"
                   >
                     {room.isActive ? 'Tandai Perbaikan' : 'Aktifkan Kembali'}
                   </button>
@@ -329,22 +371,26 @@ function AdminRuanganPage() {
 
                 <div className="space-y-1">
                   <label className="font-medium text-[#000000]">
-                    Kapasitas Kursi (Standar 12 Kursi) *
+                    Kapasitas Kursi (Maksimal 12 Kursi) *
                   </label>
                   <input
                     type="number"
-                    min={6}
-                    max={16}
+                    min={1}
+                    max={12}
                     required
                     value={roomForm.capacity}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = Number(e.target.value)
                       setRoomForm({
                         ...roomForm,
-                        capacity: Number(e.target.value),
+                        capacity: val > 12 ? 12 : Math.max(1, val),
                       })
-                    }
+                    }}
                     className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] tabular-nums"
                   />
+                  <p className="text-[11px] text-[#555555]">
+                    Kapasitas ruangan dibatasi maksimal 12 kursi sesuai ketentuan rombel kecil bimbingan intensif.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -384,7 +430,110 @@ function AdminRuanganPage() {
         </Dialog.Portal>
       </Dialog.Root>
 
-      {/* DIALOG 2: Edit Tarif & Kuota Paket Program */}
+      {/* DIALOG 2: Edit Ruang Belajar Fisik */}
+      <Dialog.Root
+        open={Boolean(editingRoom)}
+        onOpenChange={(open) => !open && setEditingRoom(null)}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
+                <Dialog.Title className="font-display font-bold text-base text-[#000000]">
+                  Edit Ruang Belajar Fisik
+                </Dialog.Title>
+                <Dialog.Close
+                  render={
+                    <button
+                      type="button"
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                    />
+                  }
+                >
+                  <X className="w-4 h-4" />
+                </Dialog.Close>
+              </div>
+
+              {editingRoom && (
+                <form onSubmit={handleEditRoomSubmit} className="space-y-3.5 text-xs">
+                  <div className="space-y-1">
+                    <label className="font-medium text-[#000000]">
+                      Nama Ruangan *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editRoomForm.name}
+                      onChange={(e) =>
+                        setEditRoomForm({ ...editRoomForm, name: e.target.value })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-[#000000]">
+                      Kapasitas Kursi (Maksimal 12 Kursi) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      required
+                      value={editRoomForm.capacity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setEditRoomForm({
+                          ...editRoomForm,
+                          capacity: val > 12 ? 12 : Math.max(1, val),
+                        })
+                      }}
+                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] tabular-nums"
+                    />
+                    <p className="text-[11px] text-[#555555]">
+                      Maksimal 12 kursi per ruangan sesuai ketentuan kelas kecil Tadulako Cendekia.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-medium text-[#000000]">
+                      Fasilitas Ruangan *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editRoomForm.facilities}
+                      onChange={(e) =>
+                        setEditRoomForm({ ...editRoomForm, facilities: e.target.value })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
+                    <button
+                      type="button"
+                      onClick={() => setEditingRoom(null)}
+                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                    >
+                      Simpan Perubahan
+                    </button>
+                  </div>
+                </form>
+              )}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* DIALOG 3: Edit Tarif & Kuota Paket Program */}
       <Dialog.Root
         open={Boolean(editingCourse)}
         onOpenChange={(open) => !open && setEditingCourse(null)}
@@ -442,20 +591,21 @@ function AdminRuanganPage() {
 
                     <div className="space-y-1">
                       <label className="font-medium text-[#000000]">
-                        Maksimal Siswa / Kelas *
+                        Maksimal Siswa / Kelas (Maks. 12) *
                       </label>
                       <input
                         type="number"
-                        min={6}
-                        max={16}
+                        min={1}
+                        max={12}
                         required
                         value={courseForm.maxStudents}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = Number(e.target.value)
                           setCourseForm({
                             ...courseForm,
-                            maxStudents: Number(e.target.value),
+                            maxStudents: val > 12 ? 12 : Math.max(1, val),
                           })
-                        }
+                        }}
                         className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] tabular-nums"
                       />
                     </div>

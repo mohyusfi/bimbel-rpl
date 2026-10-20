@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '~/lib/supabase/client'
 import {
   adminStore,
   type Registration,
@@ -19,8 +20,32 @@ import {
   type LearningMaterial,
   type GradeRecord,
   type ParentProfile,
+  type PackageCode,
+  type AttendanceStatus,
   detectScheduleConflicts,
 } from '~/lib/admin-store'
+
+export type {
+  Registration,
+  Student,
+  Tutor,
+  Subject,
+  Room,
+  Course,
+  ClassGroup,
+  Schedule,
+  Invoice,
+  Announcement,
+  AdminNotification,
+  ScheduleCandidate,
+  AttendanceSession,
+  AttendanceEntry,
+  LearningMaterial,
+  GradeRecord,
+  ParentProfile,
+  PackageCode,
+  AttendanceStatus,
+}
 
 export const ADMIN_KEYS = {
   all: ['admin'] as const,
@@ -109,6 +134,52 @@ export function useAdminClasses() {
   })
 }
 
+export function useAdminRoom(id?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.rooms, id],
+    queryFn: () => (id ? adminStore.getState().rooms.find((r) => r.id === id) || null : null),
+    enabled: Boolean(id),
+  })
+}
+
+export function useAdminCourse(id?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.courses, id],
+    queryFn: () => (id ? adminStore.getState().courses.find((c) => c.id === id) || null : null),
+    enabled: Boolean(id),
+  })
+}
+
+export function useAdminClass(id?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.classes, id],
+    queryFn: () => (id ? adminStore.getState().classes.find((c) => c.id === id) || null : null),
+    enabled: Boolean(id),
+  })
+}
+
+export function useAdminTutor(id?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.tutors, id],
+    queryFn: () => (id ? adminStore.getState().tutors.find((t) => t.id === id) || null : null),
+    enabled: Boolean(id),
+  })
+}
+
+// Aliases for convenient and type-safe access
+export const useRooms = useAdminRooms
+export const useCourses = useAdminCourses
+export const useClasses = useAdminClasses
+export const useTutors = useAdminTutors
+export const useRoom = useAdminRoom
+export const useCourse = useAdminCourse
+export const useClass = useAdminClass
+export const useTutor = useAdminTutor
+
 export function useAdminSchedules() {
   useAdminDataSync()
   return useQuery({
@@ -169,6 +240,78 @@ export function useAdminSummary() {
     totalEnrolled,
     occupancyPercentage,
   }
+}
+
+export type AddLearningMaterialInput = Omit<LearningMaterial, 'id' | 'uploadedAt'> & {
+  file?: File | Blob | null
+}
+
+export async function uploadAndSaveLearningMaterial(input: AddLearningMaterialInput) {
+  let fileUrl = input.fileUrl
+  let storage_path = input.storage_path || input.storagePath
+
+  if (input.file) {
+    const fileObj = input.file
+    const originalName = fileObj instanceof File ? fileObj.name : `${input.title}.${input.fileType === 'PPTX' ? 'pptx' : 'pdf'}`
+    const sanitizedName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const targetPath = `${input.classId || 'general'}/${Date.now()}-${sanitizedName}`
+
+    const contentType =
+      fileObj.type ||
+      (input.fileType === 'PPTX'
+        ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        : 'application/pdf')
+
+    const { error: uploadError } = await supabase.storage
+      .from('learning-materials')
+      .upload(targetPath, fileObj, {
+        contentType,
+        upsert: true,
+      })
+
+    if (uploadError) {
+      console.error('Supabase storage upload failed:', uploadError)
+      throw uploadError
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('learning-materials')
+      .getPublicUrl(targetPath)
+
+    fileUrl = publicUrlData.publicUrl
+    storage_path = targetPath
+  }
+
+  const { file: _, ...materialPayload } = input
+  return adminStore.addLearningMaterial({
+    ...materialPayload,
+    fileUrl: fileUrl || materialPayload.fileUrl,
+    storage_path,
+    storagePath: storage_path,
+  })
+}
+
+export async function removeAndDeleteLearningMaterial(idOrPayload: string | { id: string; storage_path?: string }) {
+  const id = typeof idOrPayload === 'string' ? idOrPayload : idOrPayload.id
+  const explicitStoragePath = typeof idOrPayload === 'object' ? idOrPayload.storage_path : undefined
+
+  const target = adminStore.getState().learningMaterials.find((m) => m.id === id)
+  const storagePath = explicitStoragePath || target?.storage_path || target?.storagePath
+
+  if (storagePath) {
+    try {
+      const { error: removeError } = await supabase.storage
+        .from('learning-materials')
+        .remove([storagePath])
+      if (removeError) {
+        console.warn('Supabase storage remove warning:', removeError)
+      }
+    } catch (err) {
+      console.warn('Failed to remove file from Supabase storage:', err)
+    }
+  }
+
+  return adminStore.deleteLearningMaterial(id)
 }
 
 // Mutations
@@ -256,6 +399,15 @@ export function useAdminMutations() {
     },
   })
 
+  const updateRoomMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Room, 'id'>> }) => {
+      return adminStore.updateRoom(id, updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
   const toggleRoomActiveMutation = useMutation({
     mutationFn: async (id: string) => {
       return adminStore.toggleRoomActive(id)
@@ -283,9 +435,45 @@ export function useAdminMutations() {
     },
   })
 
+  const updateClassMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<ClassGroup, 'id'>> }) => {
+      return adminStore.updateClass(id, updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const plotRegistrationMutation = useMutation({
+    mutationFn: async ({ regId, classId }: { regId: string; classId: string }) => {
+      return adminStore.approveRegistration(regId, classId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const plotStudentMutation = useMutation({
+    mutationFn: async ({ studentId, classId }: { studentId: string; classId: string }) => {
+      return adminStore.assignStudentToClass(studentId, classId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
   const addScheduleMutation = useMutation({
     mutationFn: async (input: Omit<Schedule, 'id'>) => {
       return adminStore.addSchedule(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const updateScheduleMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
+      return adminStore.updateSchedule(id, updates)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -397,9 +585,38 @@ export function useAdminMutations() {
     },
   })
 
+  const createSessionFromScheduleMutation = useMutation({
+    mutationFn: async (input: {
+      scheduleId: string
+      sessionDate: string
+      topic?: string
+    }) => {
+      return adminStore.createSessionFromSchedule(
+        input.scheduleId,
+        input.sessionDate,
+        input.topic
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const recordStudentAttendanceMutation = useMutation({
+    mutationFn: async (input: {
+      sessionId: string
+      entry: AttendanceEntry
+    }) => {
+      return adminStore.recordStudentAttendance(input.sessionId, input.entry)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
   const addLearningMaterialMutation = useMutation({
-    mutationFn: async (input: Omit<LearningMaterial, 'id' | 'uploadedAt'>) => {
-      return adminStore.addLearningMaterial(input)
+    mutationFn: async (input: AddLearningMaterialInput) => {
+      return uploadAndSaveLearningMaterial(input)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -407,8 +624,8 @@ export function useAdminMutations() {
   })
 
   const deleteLearningMaterialMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return adminStore.deleteLearningMaterial(id)
+    mutationFn: async (idOrPayload: string | { id: string; storage_path?: string }) => {
+      return removeAndDeleteLearningMaterial(idOrPayload)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -416,7 +633,9 @@ export function useAdminMutations() {
   })
 
   const addGradeRecordMutation = useMutation({
-    mutationFn: async (input: Omit<GradeRecord, 'id' | 'assessmentDate'>) => {
+    mutationFn: async (
+      input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & { classAverage?: number }
+    ) => {
       return adminStore.addGradeRecord(input)
     },
     onSuccess: () => {
@@ -453,16 +672,24 @@ export function useAdminMutations() {
     updateTutor: updateTutorMutation.mutateAsync,
     addSubject: addSubjectMutation.mutateAsync,
     addRoom: addRoomMutation.mutateAsync,
+    updateRoom: updateRoomMutation.mutateAsync,
     toggleRoomActive: toggleRoomActiveMutation.mutateAsync,
     updateCourse: updateCourseMutation.mutateAsync,
     addClass: addClassMutation.mutateAsync,
+    updateClass: updateClassMutation.mutateAsync,
+    plotRegistration: plotRegistrationMutation.mutateAsync,
+    plotStudent: plotStudentMutation.mutateAsync,
+    assignStudentToClass: plotStudentMutation.mutateAsync,
     addSchedule: addScheduleMutation.mutateAsync,
+    updateSchedule: updateScheduleMutation.mutateAsync,
     deleteSchedule: deleteScheduleMutation.mutateAsync,
     createInvoice: createInvoiceMutation.mutateAsync,
     verifyInvoice: verifyInvoiceMutation.mutateAsync,
     rejectInvoice: rejectInvoiceMutation.mutateAsync,
     submitPaymentProof: submitPaymentProofMutation.mutateAsync,
     saveSessionAttendance: saveSessionAttendanceMutation.mutateAsync,
+    createSessionFromSchedule: createSessionFromScheduleMutation.mutateAsync,
+    recordStudentAttendance: recordStudentAttendanceMutation.mutateAsync,
     addLearningMaterial: addLearningMaterialMutation.mutateAsync,
     deleteLearningMaterial: deleteLearningMaterialMutation.mutateAsync,
     addGradeRecord: addGradeRecordMutation.mutateAsync,
@@ -475,16 +702,167 @@ export function useAdminMutations() {
   }
 }
 
+// Standalone Type-Safe Mutation Hooks
+export function useAddRoomMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: Omit<Room, 'id' | 'isActive'>) => {
+      return adminStore.addRoom(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useUpdateRoomMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Room, 'id'>> }) => {
+      return adminStore.updateRoom(id, updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useUpdateClassMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<ClassGroup, 'id'>> }) => {
+      return adminStore.updateClass(id, updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function usePlotRegistrationMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ regId, classId }: { regId: string; classId: string }) => {
+      return adminStore.approveRegistration(regId, classId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function usePlotStudentMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ studentId, classId }: { studentId: string; classId: string }) => {
+      return adminStore.assignStudentToClass(studentId, classId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useAddScheduleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: Omit<Schedule, 'id'>) => {
+      return adminStore.addSchedule(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useUpdateScheduleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
+      return adminStore.updateSchedule(id, updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useSaveSessionAttendanceMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      sessionId: string
+      topic: string
+      entries: AttendanceEntry[]
+    }) => {
+      return adminStore.saveSessionAttendance(
+        input.sessionId,
+        input.topic,
+        input.entries
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useAddLearningMaterialMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: AddLearningMaterialInput) => {
+      return uploadAndSaveLearningMaterial(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
+export function useDeleteLearningMaterialMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (idOrPayload: string | { id: string; storage_path?: string }) => {
+      return removeAndDeleteLearningMaterial(idOrPayload)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+}
+
 // -------------------------------------------------------------
 // Specialized Query Hooks for Tutor, Student, and Parent Portals
 // -------------------------------------------------------------
 
-export function useAttendanceSessions() {
+export function useAttendanceSessions(tutorId?: string) {
   useAdminDataSync()
   return useQuery({
-    queryKey: ADMIN_KEYS.attendance,
-    queryFn: () => adminStore.getState().attendanceSessions,
-    initialData: () => adminStore.getState().attendanceSessions,
+    queryKey: tutorId ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const) : ADMIN_KEYS.attendance,
+    queryFn: () => {
+      const all = adminStore.getState().attendanceSessions
+      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
+    },
+    initialData: () => {
+      const all = adminStore.getState().attendanceSessions
+      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
+    },
+  })
+}
+
+export function useSessionDetails(sessionId: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: [...ADMIN_KEYS.attendance, 'session', sessionId] as const,
+    queryFn: () => {
+      const all = adminStore.getState().attendanceSessions
+      return all.find((s) => s.id === sessionId) || null
+    },
+    initialData: () => {
+      const all = adminStore.getState().attendanceSessions
+      return all.find((s) => s.id === sessionId) || null
+    },
+    enabled: Boolean(sessionId),
   })
 }
 
@@ -494,6 +872,40 @@ export function useLearningMaterials() {
     queryKey: ADMIN_KEYS.materials,
     queryFn: () => adminStore.getState().learningMaterials,
     initialData: () => adminStore.getState().learningMaterials,
+  })
+}
+
+export function useClassMaterials(classId?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: classId ? ([...ADMIN_KEYS.materials, 'class', classId] as const) : ADMIN_KEYS.materials,
+    queryFn: () => {
+      const all = adminStore.getState().learningMaterials
+      if (!classId || classId === 'ALL') return all
+      return all.filter((m) => m.classId === classId || m.classId === 'ALL')
+    },
+    initialData: () => {
+      const all = adminStore.getState().learningMaterials
+      if (!classId || classId === 'ALL') return all
+      return all.filter((m) => m.classId === classId || m.classId === 'ALL')
+    },
+  })
+}
+
+export function useTutorMaterials(tutorId?: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: tutorId ? ([...ADMIN_KEYS.materials, 'tutor', tutorId] as const) : ADMIN_KEYS.materials,
+    queryFn: () => {
+      const all = adminStore.getState().learningMaterials
+      if (!tutorId || tutorId === 'ALL') return all
+      return all.filter((m) => m.tutorId === tutorId)
+    },
+    initialData: () => {
+      const all = adminStore.getState().learningMaterials
+      if (!tutorId || tutorId === 'ALL') return all
+      return all.filter((m) => m.tutorId === tutorId)
+    },
   })
 }
 
@@ -574,32 +986,53 @@ export function useStudentDashboardData(targetStudentId?: string) {
   // Filtered schedules for student's class
   const classSchedules = schedules.filter((s) => s.classId === currentStudent?.classId)
 
-  // Attendance statistics
-  const studentSessions = sessions.filter((s) =>
-    s.entries.some((e) => e.studentId === studentId)
+  // Attendance sessions for student (by class or student entry)
+  const studentSessions = sessions.filter(
+    (s) =>
+      s.classId === currentStudent?.classId ||
+      s.entries.some((e) => e.studentId === studentId)
   )
-  const totalAttended = studentSessions.filter((s) => {
+
+  const completedSessions = studentSessions.filter((s) => s.isCompleted)
+  const hadirCount = completedSessions.filter((s) => {
     const entry = s.entries.find((e) => e.studentId === studentId)
     return entry?.status === 'hadir'
   }).length
+  const sakitCount = completedSessions.filter((s) => {
+    const entry = s.entries.find((e) => e.studentId === studentId)
+    return entry?.status === 'sakit'
+  }).length
+  const izinCount = completedSessions.filter((s) => {
+    const entry = s.entries.find((e) => e.studentId === studentId)
+    return entry?.status === 'izin'
+  }).length
+  const alpaCount = completedSessions.filter((s) => {
+    const entry = s.entries.find((e) => e.studentId === studentId)
+    return entry?.status === 'alpa'
+  }).length
+
+  const totalCompleted = completedSessions.length
   const attendanceRate =
-    studentSessions.length > 0
-      ? Math.round((totalAttended / studentSessions.length) * 100)
-      : 96
+    totalCompleted > 0
+      ? Math.round((hadirCount / totalCompleted) * 100)
+      : 100
 
   // Grades for student
   const studentGrades = grades.filter((g) => g.studentId === studentId)
-  const avgGrade =
-    studentGrades.length > 0
+  const total = studentGrades.length
+  const avgScore =
+    total > 0
       ? Math.round(
-          studentGrades.reduce((sum, g) => sum + g.score, 0) /
-            studentGrades.length
+          studentGrades.reduce((sum, g) => sum + g.score, 0) / total
         )
-      : 88
+      : 0
+  const highestScore =
+    total > 0 ? Math.max(...studentGrades.map((g) => g.score)) : 0
+  const avgGrade = total > 0 ? avgScore : 88
 
   // Class materials
   const classMaterials = materials.filter(
-    (m) => m.classId === currentStudent?.classId
+    (m) => m.classId === currentStudent?.classId || m.classId === 'ALL'
   )
 
   // Invoices
@@ -611,9 +1044,18 @@ export function useStudentDashboardData(targetStudentId?: string) {
     sessions: studentSessions,
     attendanceRate,
     totalSessions: studentSessions.length,
-    attendedSessions: totalAttended,
+    totalCompleted,
+    attendedSessions: hadirCount,
+    hadirCount,
+    sakitCount,
+    izinCount,
+    alpaCount,
     grades: studentGrades,
     avgGrade,
+    avgScore,
+    highestScore,
+    total,
+    totalAssessments: total,
     materials: classMaterials,
     invoices: studentInvoices,
   }
@@ -625,7 +1067,7 @@ export function useTutorDashboardData(targetTutorId?: string) {
 
   const { data: tutors = [] } = useAdminTutors()
   const { data: schedules = [] } = useAdminSchedules()
-  const { data: sessions = [] } = useAttendanceSessions()
+  const { data: sessions = [] } = useAttendanceSessions(tutorId)
   const { data: materials = [] } = useLearningMaterials()
   const { data: grades = [] } = useGradeRecords()
   const { data: classes = [] } = useAdminClasses()
@@ -634,14 +1076,23 @@ export function useTutorDashboardData(targetTutorId?: string) {
   const currentTutor = tutors.find((t) => t.id === tutorId) || tutors[0]
 
   const tutorSchedules = schedules.filter((s) => s.tutorId === tutorId)
-  const tutorSessions = sessions.filter((s) => s.tutorId === tutorId)
   const tutorMaterials = materials.filter((m) => m.tutorId === tutorId)
-  const tutorGrades = grades.filter((g) => g.tutorId === tutorId)
+
+  // Identify classes associated with this tutor (by tutor assignment or schedules)
+  const tutorClassIds = new Set([
+    ...classes
+      .filter((c) => (c as any).tutorId === tutorId || (currentTutor && c.tutorName === currentTutor.name))
+      .map((c) => c.id),
+    ...schedules.filter((s) => s.tutorId === tutorId).map((s) => s.classId),
+  ])
+  const tutorGrades = grades.filter(
+    (g) => g.tutorId === tutorId || tutorClassIds.has(g.classId)
+  )
 
   return {
     tutor: currentTutor,
     schedules: tutorSchedules,
-    sessions: tutorSessions,
+    sessions,
     materials: tutorMaterials,
     grades: tutorGrades,
     classes,
