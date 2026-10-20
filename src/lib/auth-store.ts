@@ -344,6 +344,7 @@ async function autoProvisionUser(
     phone_number: rawUser.user_metadata?.phone || null,
     is_super_admin: isSuperAdmin,
     isSuperAdmin,
+    status: matchedStaff?.status || 'aktif',
     created_at: nowIso,
     updated_at: nowIso,
   }
@@ -363,6 +364,7 @@ async function autoProvisionUser(
         ...existingProfile,
         is_super_admin: isSuper,
         isSuperAdmin: isSuper,
+        status: existingProfile.status || matchedStaff?.status || 'aktif',
       } as ProfileRow
     } else {
       await sb.from('profiles').upsert([
@@ -373,10 +375,12 @@ async function autoProvisionUser(
           role,
           phone_number: rawUser.user_metadata?.phone || null,
           is_super_admin: isSuperAdmin,
+          status: matchedStaff?.status || 'aktif',
         },
       ])
       profile.is_super_admin = isSuperAdmin
       profile.isSuperAdmin = isSuperAdmin
+      profile.status = matchedStaff?.status || 'aktif'
     }
   } catch (err) {
     console.info('Auto-provisioning profile running with local fallback:', err)
@@ -560,6 +564,9 @@ export const authStore = {
 
     const adminState = adminStore.getState()
     const nowIso = new Date().toISOString()
+    const matchedStaff = state.adminStaff.find(
+      (s) => s.email.toLowerCase() === demoInfo.email.toLowerCase()
+    )
     const profile: ProfileRow = {
       id: syntheticUser.id,
       email: demoInfo.email,
@@ -568,6 +575,7 @@ export const authStore = {
       phone_number: demoInfo.phone,
       is_super_admin: isSuper,
       isSuperAdmin: isSuper,
+      status: matchedStaff?.status || 'aktif',
       created_at: nowIso,
       updated_at: nowIso,
     }
@@ -752,6 +760,43 @@ export const authStore = {
     const isSuperAdminEmail = isEmailSuperAdmin(cleanEmail)
     const targetRole = isSuperAdminEmail ? 'admin' : inferRoleFromEmail(cleanEmail, explicitRole)
 
+    // PENCEKALAN LOGIN (Login Guard):
+    // 1. Cek status di daftar staf lokal
+    const matchedStaff = state.adminStaff.find(
+      (s) => s.email.toLowerCase() === cleanEmail
+    )
+    if (matchedStaff && matchedStaff.status === 'nonaktif') {
+      state.isLoading = false
+      state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+      notify()
+      return {
+        success: false,
+        error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+      }
+    }
+
+    // 2. Cek status di tabel public.profiles Supabase
+    try {
+      const sb = supabase as any
+      const { data: dbProfile } = await sb
+        .from('profiles')
+        .select('status')
+        .eq('email', cleanEmail)
+        .maybeSingle()
+
+      if (dbProfile && dbProfile.status === 'nonaktif') {
+        state.isLoading = false
+        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+        notify()
+        return {
+          success: false,
+          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+        }
+      }
+    } catch (checkErr) {
+      console.info('Login status check note in profiles:', checkErr)
+    }
+
     // A. Coba Supabase Auth terlebih dahulu
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -761,6 +806,18 @@ export const authStore = {
 
       if (!error && data?.user) {
         const provisioned = await autoProvisionUser(data.user, targetRole)
+        if (provisioned.profile.status === 'nonaktif') {
+          await supabase.auth.signOut().catch(() => {})
+          state.isLoading = false
+          state.isAuthenticated = false
+          state.user = null
+          state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+          notify()
+          return {
+            success: false,
+            error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+          }
+        }
         const isSuper = Boolean(
           provisioned.isSuperAdmin ||
           provisioned.profile.is_super_admin ||
@@ -941,6 +998,18 @@ export const authStore = {
     }
 
     const provisioned = await autoProvisionUser(syntheticUser, matchedRole)
+    if (provisioned.profile.status === 'nonaktif') {
+      state.isLoading = false
+      state.isAuthenticated = false
+      state.user = null
+      state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+      notify()
+      return {
+        success: false,
+        error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+      }
+    }
+
     const finalIsSuper = Boolean(isSuperDemo || provisioned.isSuperAdmin)
 
     state = {
@@ -1113,6 +1182,255 @@ export const authStore = {
     }
 
     return { success: true, staff: newStaff }
+  },
+
+  async updateAdminStaff(
+    staffId: string,
+    data: {
+      fullName: string
+      phone: string
+      isSuperAdmin: boolean
+      newPassword?: string
+      password?: string
+    }
+  ): Promise<{ success: boolean; staff?: AdminStaffMember; error?: string }> {
+    // a. Validasi otorisasi: pastikan state.isSuperAdmin bernilai true
+    if (!state.isSuperAdmin) {
+      return {
+        success: false,
+        error: 'Hanya Super Admin (Pimpinan Lembaga) yang berwenang memperbarui data staf.',
+      }
+    }
+
+    const staffIndex = state.adminStaff.findIndex(
+      (s) => s.id === staffId || s.email.toLowerCase() === staffId.toLowerCase()
+    )
+    if (staffIndex === -1) {
+      return { success: false, error: 'Akun staf tidak ditemukan.' }
+    }
+
+    const existingStaff = state.adminStaff[staffIndex]
+
+    // b. Validasi anti-self-lockout: jika mengedit akun sendiri, cegah pencabutan status Super Admin jika dia adalah satu-satunya Super Admin aktif
+    const currentEmail = (state.user?.email || '').toLowerCase()
+    const currentId = state.user?.id
+    const isCurrentUser = Boolean(
+      (currentId && existingStaff.id === currentId) ||
+      (currentEmail && existingStaff.email.toLowerCase() === currentEmail)
+    )
+
+    if (
+      isCurrentUser &&
+      existingStaff.isSuperAdmin &&
+      !data.isSuperAdmin
+    ) {
+      const activeSuperAdmins = state.adminStaff.filter(
+        (s) => s.isSuperAdmin && s.status === 'aktif'
+      )
+      if (activeSuperAdmins.length <= 1) {
+        return {
+          success: false,
+          error: 'Tidak dapat mencabut hak akses Super Admin karena Anda adalah satu-satunya Super Admin aktif di sistem.',
+        }
+      }
+    }
+
+    const cleanName = data.fullName.trim()
+    const cleanPhone = data.phone.trim()
+    const isSuper = Boolean(data.isSuperAdmin)
+
+    if (!cleanName) {
+      return { success: false, error: 'Nama lengkap staf wajib diisi.' }
+    }
+
+    // c. Perbarui data staf di state.adminStaff dan simpan via persistAdminStaff
+    const updatedStaff: AdminStaffMember = {
+      ...existingStaff,
+      fullName: cleanName,
+      phone: cleanPhone,
+      isSuperAdmin: isSuper,
+      roleTitle: isSuper
+        ? 'Pimpinan Lembaga / Super Admin'
+        : existingStaff.roleTitle?.includes('Super Admin')
+        ? 'Staf Tata Usaha'
+        : existingStaff.roleTitle || 'Staf Tata Usaha',
+    }
+
+    const updated = [...state.adminStaff]
+    updated[staffIndex] = updatedStaff
+
+    // Jika mengupdate diri sendiri, sinkronkan user dan profile aktif
+    let updatedUser = state.user
+    let updatedProfile = state.profile
+    if (isCurrentUser) {
+      if (state.user) {
+        updatedUser = {
+          ...state.user,
+          fullName: cleanName,
+          phone: cleanPhone,
+          isSuperAdmin: isSuper,
+        }
+      }
+      if (state.profile) {
+        updatedProfile = {
+          ...state.profile,
+          full_name: cleanName,
+          phone_number: cleanPhone,
+          is_super_admin: isSuper,
+          isSuperAdmin: isSuper,
+        }
+      }
+    }
+
+    state = {
+      ...state,
+      user: updatedUser,
+      profile: updatedProfile,
+      isSuperAdmin: isCurrentUser ? isSuper : state.isSuperAdmin,
+      adminStaff: updated,
+    }
+    persistAdminStaff(updated)
+    notify()
+
+    // d. Sinkronkan full_name, phone_number, is_super_admin ke tabel public.profiles di Supabase
+    try {
+      const sb = supabase as any
+      await sb
+        .from('profiles')
+        .update({
+          full_name: cleanName,
+          phone_number: cleanPhone,
+          is_super_admin: isSuper,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email', existingStaff.email.toLowerCase())
+    } catch (err) {
+      console.info('Supabase admin staff profile update note:', err)
+    }
+
+    // e. Jika newPassword diisi, perbarui password melalui Supabase Auth isolated client
+    const targetPassword = (data.newPassword || data.password || '').trim()
+    if (targetPassword && targetPassword.length >= 6) {
+      try {
+        if (isCurrentUser) {
+          await supabase.auth.updateUser({ password: targetPassword })
+        } else {
+          // Gunakan isolated Supabase client agar tidak menimpa sesi login aktif di browser
+          const isolatedClient = createSupabaseClient(undefined, false)
+          const currentStaffPassword =
+            existingStaff.email.toLowerCase() === DEMO_ACCOUNTS.super_admin.email.toLowerCase()
+              ? DEMO_ACCOUNTS.super_admin.password
+              : existingStaff.email.toLowerCase() === DEMO_ACCOUNTS.admin.email.toLowerCase()
+              ? DEMO_ACCOUNTS.admin.password
+              : 'password123'
+
+          let signInData: any = null
+          let signInErr: any = null
+          const res1 = await isolatedClient.auth.signInWithPassword({
+            email: existingStaff.email.toLowerCase(),
+            password: currentStaffPassword,
+          })
+          signInData = res1.data
+          signInErr = res1.error
+
+          if (signInErr && currentStaffPassword !== 'password123') {
+            const res2 = await isolatedClient.auth.signInWithPassword({
+              email: existingStaff.email.toLowerCase(),
+              password: 'password123',
+            })
+            signInData = res2.data
+            signInErr = res2.error
+          }
+
+          if (!signInErr && signInData?.session) {
+            await isolatedClient.auth.updateUser({ password: targetPassword })
+            await isolatedClient.auth.signOut()
+          } else {
+            await isolatedClient.auth.updateUser({ password: targetPassword }).catch(() => {})
+          }
+        }
+
+        const targetEmail = existingStaff.email.toLowerCase()
+        if (targetEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) {
+          DEMO_ACCOUNTS.super_admin.password = targetPassword
+        } else if (targetEmail === DEMO_ACCOUNTS.admin.email.toLowerCase()) {
+          DEMO_ACCOUNTS.admin.password = targetPassword
+        }
+      } catch (err) {
+        console.warn('Supabase password update note for admin staff:', err)
+      }
+    }
+
+    return { success: true, staff: updatedStaff }
+  },
+
+  async toggleAdminStaffStatus(
+    staffId: string,
+    newStatus: 'aktif' | 'nonaktif'
+  ): Promise<{ success: boolean; staff?: AdminStaffMember; error?: string }> {
+    // a. Validasi otorisasi: pastikan state.isSuperAdmin bernilai true
+    if (!state.isSuperAdmin) {
+      return {
+        success: false,
+        error: 'Hanya Super Admin (Pimpinan Lembaga) yang berwenang mengubah status staf.',
+      }
+    }
+
+    const staffIndex = state.adminStaff.findIndex(
+      (s) => s.id === staffId || s.email.toLowerCase() === staffId.toLowerCase()
+    )
+    if (staffIndex === -1) {
+      return { success: false, error: 'Akun staf tidak ditemukan.' }
+    }
+
+    const existingStaff = state.adminStaff[staffIndex]
+
+    // b. Validasi anti-self-lockout: pastikan Super Admin yang sedang login (state.user?.id atau state.user?.email) TIDAK dapat menonaktifkan akunnya sendiri
+    const currentEmail = (state.user?.email || '').toLowerCase()
+    const currentId = state.user?.id
+    const isCurrentUser = Boolean(
+      (currentId && existingStaff.id === currentId) ||
+      (currentEmail && existingStaff.email.toLowerCase() === currentEmail)
+    )
+
+    if (isCurrentUser && newStatus === 'nonaktif') {
+      return {
+        success: false,
+        error: 'Anda tidak dapat menonaktifkan akun Anda sendiri demi mencegah penguncian sistem (anti-lockout).',
+      }
+    }
+
+    // c. Perbarui status staf di state.adminStaff dan simpan via persistAdminStaff
+    const updatedStaff: AdminStaffMember = {
+      ...existingStaff,
+      status: newStatus,
+    }
+
+    const updated = [...state.adminStaff]
+    updated[staffIndex] = updatedStaff
+
+    state = {
+      ...state,
+      adminStaff: updated,
+    }
+    persistAdminStaff(updated)
+    notify()
+
+    // d. Sinkronkan status ke tabel public.profiles di Supabase (UPDATE profiles SET status = ... WHERE email = ...)
+    try {
+      const sb = supabase as any
+      await sb
+        .from('profiles')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('email', existingStaff.email.toLowerCase())
+    } catch (err) {
+      console.info('Supabase sync toggleAdminStaffStatus note:', err)
+    }
+
+    return { success: true, staff: updatedStaff }
   },
 
   verifyRole(allowedRoles: UserRole | UserRole[]): boolean {

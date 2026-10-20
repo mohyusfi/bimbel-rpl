@@ -132,5 +132,7 @@ export function useAuth() {
     switchRole,
     switchChild,
     createAdminStaff: authStore.createAdminStaff.bind(authStore),
+    updateAdminStaff: authStore.updateAdminStaff.bind(authStore),
+    toggleAdminStaffStatus: authStore.toggleAdminStaffStatus.bind(authStore),
   }
 }

@@ -8,6 +8,7 @@ export interface ProfileRow {
   full_name: string
   role: UserRole
   is_super_admin?: boolean
+  status?: 'aktif' | 'nonaktif' | string
   phone_number?: string | null
   created_at: string
   updated_at: string

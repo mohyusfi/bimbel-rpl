@@ -13,6 +13,7 @@ export const profiles = pgTable(
     fullName: varchar('full_name', { length: 255 }).notNull(),
     role: userRoleEnum('role').notNull(),
     isSuperAdmin: boolean('is_super_admin').default(false).notNull(),
+    status: varchar('status', { length: 20 }).default('aktif').notNull(),
     phoneNumber: varchar('phone_number', { length: 50 }),
     avatarUrl: text('avatar_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

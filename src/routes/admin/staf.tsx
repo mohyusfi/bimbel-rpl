@@ -15,11 +15,15 @@ import {
   Phone,
   User,
   Check,
+  Pencil,
+  UserX,
+  UserCheck,
 } from 'lucide-react'
 import { useAuth } from '~/hooks/use-auth'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
+import { cn } from '~/lib/utils'
 import type { AdminStaffMember } from '~/lib/auth-store'
 
 export const Route = createFileRoute('/admin/staf')({
@@ -28,20 +32,246 @@ export const Route = createFileRoute('/admin/staf')({
 })
 
 function AdminStafPage() {
-  const { isSuperAdmin, adminStaff = [], createAdminStaff } = useAuth()
+  const {
+    isSuperAdmin,
+    adminStaff = [],
+    createAdminStaff,
+    updateAdminStaff,
+    toggleAdminStaffStatus,
+    user,
+  } = useAuth()
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [formData, setFormData] = React.useState({
+  // Modal Tambah Staf Baru
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
+  const [addFormData, setAddFormData] = React.useState({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     isSuperAdmin: false,
   })
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [formError, setFormError] = React.useState<string | null>(null)
-  const [formSuccess, setFormSuccess] = React.useState<string | null>(null)
+  const [isAddSubmitting, setIsAddSubmitting] = React.useState(false)
+  const [addFormError, setAddFormError] = React.useState<string | null>(null)
+  const [addFormSuccess, setAddFormSuccess] = React.useState<string | null>(null)
+
+  // Modal Ubah Data Staf
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [editingStaff, setEditingStaff] = React.useState<AdminStaffMember | null>(null)
+  const [editFormData, setEditFormData] = React.useState({
+    fullName: '',
+    phone: '',
+    password: '',
+    isSuperAdmin: false,
+  })
+  const [isEditSubmitting, setIsEditSubmitting] = React.useState(false)
+  const [editFormError, setEditFormError] = React.useState<string | null>(null)
+  const [editFormSuccess, setEditFormSuccess] = React.useState<string | null>(null)
+
+  // Dialog Konfirmasi Ubah Status
+  const [isStatusModalOpen, setIsStatusModalOpen] = React.useState(false)
+  const [statusStaff, setStatusStaff] = React.useState<AdminStaffMember | null>(null)
+  const [isStatusSubmitting, setIsStatusSubmitting] = React.useState(false)
+  const [statusError, setStatusError] = React.useState<string | null>(null)
+
+  // Perhitungan Metrik KPI & Hak Akses
+  const totalStaff = adminStaff.length
+  const superAdminCount = adminStaff.filter((s) => s.isSuperAdmin).length
+  const regularStaffCount = adminStaff.filter((s) => !s.isSuperAdmin).length
+  const activeStaffCount = adminStaff.filter((s) => s.status === 'aktif').length
+  const activeSuperAdminCount = adminStaff.filter(
+    (s) => s.isSuperAdmin && s.status === 'aktif'
+  ).length
+
+  // Handlers untuk Tambah Staf
+  const handleOpenAddModal = () => {
+    setAddFormData({
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+      isSuperAdmin: false,
+    })
+    setAddFormError(null)
+    setAddFormSuccess(null)
+    setIsAddModalOpen(true)
+  }
+
+  const handleCloseAddModal = () => {
+    if (isAddSubmitting) return
+    setIsAddModalOpen(false)
+    setAddFormError(null)
+    setAddFormSuccess(null)
+  }
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddFormError(null)
+    setAddFormSuccess(null)
+
+    // Validasi dasar
+    if (!addFormData.fullName.trim()) {
+      setAddFormError('Nama lengkap staf wajib diisi.')
+      return
+    }
+    if (!addFormData.email.trim() || !addFormData.email.includes('@')) {
+      setAddFormError('Alamat email staf tidak valid.')
+      return
+    }
+    const cleanPhone = addFormData.phone.replace(/[^0-9+]/g, '')
+    if (cleanPhone.length < 10) {
+      setAddFormError('Nomor telepon minimal 10 digit (contoh: 081245678901).')
+      return
+    }
+
+    setIsAddSubmitting(true)
+
+    try {
+      const result = await createAdminStaff({
+        fullName: addFormData.fullName,
+        email: addFormData.email,
+        phone: addFormData.phone,
+        password: addFormData.password || 'password123',
+        isSuperAdmin: addFormData.isSuperAdmin,
+      })
+
+      if (!result.success) {
+        setAddFormError(result.error || 'Gagal menambahkan staf admin.')
+        setIsAddSubmitting(false)
+        return
+      }
+
+      setAddFormSuccess(`Akun staf ${result.staff?.fullName} berhasil didaftarkan.`)
+      // Reset form
+      setAddFormData({
+        fullName: '',
+        email: '',
+        phone: '',
+        password: '',
+        isSuperAdmin: false,
+      })
+
+      // Tutup otomatis setelah feedback singkat
+      setTimeout(() => {
+        setIsAddModalOpen(false)
+        setAddFormSuccess(null)
+      }, 1500)
+    } catch {
+      setAddFormError('Terjadi kesalahan saat menyimpan data staf admin.')
+    } finally {
+      setIsAddSubmitting(false)
+    }
+  }
+
+  // Handlers untuk Ubah Data Staf
+  const handleOpenEditModal = (staff: AdminStaffMember) => {
+    setEditingStaff(staff)
+    setEditFormData({
+      fullName: staff.fullName,
+      phone: staff.phone,
+      password: '',
+      isSuperAdmin: staff.isSuperAdmin,
+    })
+    setEditFormError(null)
+    setEditFormSuccess(null)
+    setIsEditModalOpen(true)
+  }
+
+  const handleCloseEditModal = () => {
+    if (isEditSubmitting) return
+    setIsEditModalOpen(false)
+    setEditFormError(null)
+    setEditFormSuccess(null)
+    setEditingStaff(null)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingStaff) return
+    setEditFormError(null)
+    setEditFormSuccess(null)
+
+    if (!editFormData.fullName.trim()) {
+      setEditFormError('Nama lengkap staf wajib diisi.')
+      return
+    }
+    const cleanPhone = editFormData.phone.replace(/[^0-9+]/g, '')
+    if (cleanPhone.length < 10) {
+      setEditFormError('Nomor telepon minimal 10 digit (contoh: 081245678901).')
+      return
+    }
+    if (editFormData.password.trim() && editFormData.password.trim().length < 6) {
+      setEditFormError('Kata sandi baru minimal 6 karakter.')
+      return
+    }
+
+    setIsEditSubmitting(true)
+
+    try {
+      const result = await updateAdminStaff(editingStaff.id, {
+        fullName: editFormData.fullName,
+        phone: editFormData.phone,
+        isSuperAdmin: editFormData.isSuperAdmin,
+        password: editFormData.password.trim() || undefined,
+      })
+
+      if (!result.success) {
+        setEditFormError(result.error || 'Gagal memperbarui data staf.')
+        setIsEditSubmitting(false)
+        return
+      }
+
+      setEditFormSuccess(
+        `Data staf ${result.staff?.fullName || editingStaff.fullName} berhasil diperbarui.`
+      )
+      setTimeout(() => {
+        setIsEditModalOpen(false)
+        setEditFormSuccess(null)
+        setEditingStaff(null)
+      }, 1500)
+    } catch {
+      setEditFormError('Terjadi kesalahan saat menyimpan perubahan data staf.')
+    } finally {
+      setIsEditSubmitting(false)
+    }
+  }
+
+  // Handlers untuk Konfirmasi Status Staf
+  const handleOpenStatusModal = (staff: AdminStaffMember) => {
+    setStatusStaff(staff)
+    setStatusError(null)
+    setIsStatusModalOpen(true)
+  }
+
+  const handleCloseStatusModal = () => {
+    if (isStatusSubmitting) return
+    setIsStatusModalOpen(false)
+    setStatusError(null)
+    setStatusStaff(null)
+  }
+
+  const handleConfirmStatusToggle = async () => {
+    if (!statusStaff) return
+    setStatusError(null)
+    setIsStatusSubmitting(true)
+
+    const targetStatus = statusStaff.status === 'aktif' ? 'nonaktif' : 'aktif'
+
+    try {
+      const result = await toggleAdminStaffStatus(statusStaff.id, targetStatus)
+      if (!result.success) {
+        setStatusError(result.error || 'Gagal mengubah status staf.')
+        setIsStatusSubmitting(false)
+        return
+      }
+
+      setIsStatusModalOpen(false)
+      setStatusStaff(null)
+    } catch {
+      setStatusError('Terjadi kesalahan saat mengubah status staf.')
+    } finally {
+      setIsStatusSubmitting(false)
+    }
+  }
 
   // Guard: Jika bukan Super Admin, tolak akses dan tampilkan peringatan
   if (!isSuperAdmin) {
@@ -70,92 +300,11 @@ function AdminStafPage() {
     )
   }
 
-  // Perhitungan Metrik KPI
-  const totalStaff = adminStaff.length
-  const superAdminCount = adminStaff.filter((s) => s.isSuperAdmin).length
-  const regularStaffCount = adminStaff.filter((s) => !s.isSuperAdmin).length
-  const activeStaffCount = adminStaff.filter((s) => s.status === 'aktif').length
-
-  const handleOpenModal = () => {
-    setFormData({
-      fullName: '',
-      email: '',
-      phone: '',
-      password: '',
-      isSuperAdmin: false,
-    })
-    setFormError(null)
-    setFormSuccess(null)
-    setIsModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    if (isSubmitting) return
-    setIsModalOpen(false)
-    setFormError(null)
-    setFormSuccess(null)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError(null)
-    setFormSuccess(null)
-
-    // Validasi dasar
-    if (!formData.fullName.trim()) {
-      setFormError('Nama lengkap staf wajib diisi.')
-      return
-    }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      setFormError('Alamat email staf tidak valid.')
-      return
-    }
-    const cleanPhone = formData.phone.replace(/[^0-9+]/g, '')
-    if (cleanPhone.length < 10) {
-      setFormError('Nomor telepon minimal 10 digit (contoh: 081245678901).')
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const result = await createAdminStaff({
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password || 'password123',
-        isSuperAdmin: formData.isSuperAdmin,
-      })
-
-      if (!result.success) {
-        setFormError(result.error || 'Gagal menambahkan staf admin.')
-        setIsSubmitting(false)
-        return
-      }
-
-      setFormSuccess(
-        `Akun staf ${result.staff?.fullName} berhasil didaftarkan.`
-      )
-      // Reset form
-      setFormData({
-        fullName: '',
-        email: '',
-        phone: '',
-        password: '',
-        isSuperAdmin: false,
-      })
-
-      // Tutup otomatis setelah feedback singkat
-      setTimeout(() => {
-        setIsModalOpen(false)
-        setFormSuccess(null)
-      }, 1500)
-    } catch {
-      setFormError('Terjadi kesalahan saat menyimpan data staf admin.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  // Logika disable penonaktifan Super Admin pada form edit
+  const isEditingSelf = Boolean(
+    user?.email && editingStaff?.email.toLowerCase() === user.email.toLowerCase()
+  )
+  const isOnlySuperAdmin = isEditingSelf && editingStaff?.isSuperAdmin && activeSuperAdminCount <= 1
 
   // Kolom TanStack Table (Poster Kontras Tinggi, Zero Fake Buttons, Semantic Text)
   const columns: ColumnDef<AdminStaffMember>[] = [
@@ -222,6 +371,57 @@ function AdminStafPage() {
       header: 'Status',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
+    {
+      id: 'actions',
+      header: 'Aksi',
+      cell: ({ row }) => {
+        const staff = row.original
+        const isCurrentUser = Boolean(
+          user?.email && staff.email.toLowerCase() === user.email.toLowerCase()
+        )
+        const isAktif = staff.status === 'aktif'
+
+        return (
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => handleOpenEditModal(staff)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] hover:bg-[#F6F6F6] hover:border-[#000000] transition-colors cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5 text-[#555555]" />
+              <span>Edit</span>
+            </button>
+
+            {isAktif ? (
+              <button
+                type="button"
+                disabled={isCurrentUser}
+                title={isCurrentUser ? 'Akun Anda sedang aktif' : 'Nonaktifkan akun staf ini'}
+                onClick={() => !isCurrentUser && handleOpenStatusModal(staff)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-[6px] transition-colors',
+                  isCurrentUser
+                    ? 'text-[#A81E46]/40 border border-[#D2D2D2] cursor-not-allowed bg-transparent'
+                    : 'text-[#CB2957] border border-[#CB2957]/30 hover:bg-[#CB2957]/10 cursor-pointer'
+                )}
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Nonaktifkan</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenStatusModal(staff)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#166534] border border-[#166534]/30 hover:bg-[#166534]/10 rounded-[6px] transition-colors cursor-pointer"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Aktifkan</span>
+              </button>
+            )}
+          </div>
+        )
+      },
+    },
   ]
 
   return (
@@ -242,7 +442,7 @@ function AdminStafPage() {
 
         <button
           type="button"
-          onClick={handleOpenModal}
+          onClick={handleOpenAddModal}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#CB2957] hover:bg-[#A81E46] text-white text-xs font-semibold rounded-[8px] transition-colors cursor-pointer shrink-0"
         >
           <UserPlus className="w-4 h-4" />
@@ -323,8 +523,8 @@ function AdminStafPage() {
 
       {/* Modal Tambah Staf Admin Baru */}
       <Dialog.Root
-        open={isModalOpen}
-        onOpenChange={(open) => !open && handleCloseModal()}
+        open={isAddModalOpen}
+        onOpenChange={(open) => !open && handleCloseAddModal()}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="modal-overlay active" />
@@ -367,21 +567,21 @@ function AdminStafPage() {
               </div>
 
               <div className="modal-body">
-                {formError && (
+                {addFormError && (
                   <div className="mb-4 p-3 bg-[#CB2957]/10 border border-[#CB2957]/30 text-[#A81E46] text-xs rounded-[8px] flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{formError}</span>
+                    <span>{addFormError}</span>
                   </div>
                 )}
 
-                {formSuccess && (
+                {addFormSuccess && (
                   <div className="mb-4 p-3 bg-[#166534]/10 border border-[#166534]/30 text-[#166534] text-xs rounded-[8px] flex items-center gap-2">
                     <Check className="w-4 h-4 shrink-0" />
-                    <span>{formSuccess}</span>
+                    <span>{addFormSuccess}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+                <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
                   {/* Nama Lengkap */}
                   <div className="space-y-1">
                     <label
@@ -396,9 +596,9 @@ function AdminStafPage() {
                       type="text"
                       required
                       placeholder="Contoh: Muhammad Firdaus, S.Kom"
-                      value={formData.fullName}
+                      value={addFormData.fullName}
                       onChange={(e) =>
-                        setFormData((prev) => ({
+                        setAddFormData((prev) => ({
                           ...prev,
                           fullName: e.target.value,
                         }))
@@ -422,9 +622,9 @@ function AdminStafPage() {
                         type="email"
                         required
                         placeholder="firdaus.tu@tadulakocendekia.sch.id"
-                        value={formData.email}
+                        value={addFormData.email}
                         onChange={(e) =>
-                          setFormData((prev) => ({
+                          setAddFormData((prev) => ({
                             ...prev,
                             email: e.target.value,
                           }))
@@ -446,9 +646,9 @@ function AdminStafPage() {
                         type="tel"
                         required
                         placeholder="Contoh: 081244556677"
-                        value={formData.phone}
+                        value={addFormData.phone}
                         onChange={(e) =>
-                          setFormData((prev) => ({
+                          setAddFormData((prev) => ({
                             ...prev,
                             phone: e.target.value,
                           }))
@@ -471,9 +671,9 @@ function AdminStafPage() {
                       id="staffPassword"
                       type="text"
                       placeholder="Default: password123 (minimal 6 karakter)"
-                      value={formData.password}
+                      value={addFormData.password}
                       onChange={(e) =>
-                        setFormData((prev) => ({
+                        setAddFormData((prev) => ({
                           ...prev,
                           password: e.target.value,
                         }))
@@ -493,9 +693,9 @@ function AdminStafPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.isSuperAdmin}
+                        checked={addFormData.isSuperAdmin}
                         onChange={(e) =>
-                          setFormData((prev) => ({
+                          setAddFormData((prev) => ({
                             ...prev,
                             isSuperAdmin: e.target.checked,
                           }))
@@ -512,21 +712,342 @@ function AdminStafPage() {
                   <div className="modal-footer pt-3">
                     <button
                       type="button"
-                      onClick={handleCloseModal}
-                      disabled={isSubmitting}
+                      onClick={handleCloseAddModal}
+                      disabled={isAddSubmitting}
                       className="btn btn-secondary cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isAddSubmitting}
                       className="btn btn-primary bg-[#CB2957] hover:bg-[#A81E46] border-none text-white cursor-pointer"
                     >
-                      {isSubmitting ? 'Menyimpan...' : 'Simpan Akun Staf'}
+                      {isAddSubmitting ? 'Menyimpan...' : 'Simpan Akun Staf'}
                     </button>
                   </div>
                 </form>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Modal Ubah Data Staf Admin */}
+      <Dialog.Root
+        open={isEditModalOpen}
+        onOpenChange={(open) => !open && handleCloseEditModal()}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="modal-overlay active" />
+          <Dialog.Viewport className="modal-overlay active">
+            <Dialog.Popup
+              className="modal-dialog max-w-lg max-h-[90vh] overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="editStaffModalTitle"
+            >
+              <div className="modal-header">
+                <div>
+                  <Dialog.Title
+                    render={
+                      <h2
+                        id="editStaffModalTitle"
+                        className="font-display text-xl font-bold text-[#000000]"
+                      />
+                    }
+                  >
+                    Ubah Data Staf
+                  </Dialog.Title>
+                  <Dialog.Description
+                    render={<p className="text-xs text-[#555555] mt-0.5" />}
+                  >
+                    Perbarui informasi profil dan hak akses staf tata usaha.
+                  </Dialog.Description>
+                </div>
+                <Dialog.Close
+                  render={
+                    <button
+                      type="button"
+                      className="modal-close-btn cursor-pointer"
+                      aria-label="Tutup modal ubah data"
+                    />
+                  }
+                >
+                  <X className="w-5 h-5" />
+                </Dialog.Close>
+              </div>
+
+              <div className="modal-body">
+                {editFormError && (
+                  <div className="mb-4 p-3 bg-[#CB2957]/10 border border-[#CB2957]/30 text-[#A81E46] text-xs rounded-[8px] flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{editFormError}</span>
+                  </div>
+                )}
+
+                {editFormSuccess && (
+                  <div className="mb-4 p-3 bg-[#166534]/10 border border-[#166534]/30 text-[#166534] text-xs rounded-[8px] flex items-center gap-2">
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span>{editFormSuccess}</span>
+                  </div>
+                )}
+
+                {editingStaff && (
+                  <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+                    {/* Alamat Email (Read-only / Teks Statis) */}
+                    <div className="space-y-1">
+                      <label className="font-medium text-[#000000] flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-[#555555]" />
+                        <span>Alamat Email</span>
+                      </label>
+                      <div className="py-1">
+                        <span className="font-mono text-xs text-[#555555] select-all">
+                          {editingStaff.email}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#6B6B6B]">
+                        Alamat email terikat pada identitas Supabase Auth dan tidak dapat diubah langsung.
+                      </p>
+                    </div>
+
+                    {/* Nama Lengkap */}
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="editStaffName"
+                        className="font-medium text-[#000000] flex items-center gap-1.5"
+                      >
+                        <User className="w-3.5 h-3.5 text-[#555555]" />
+                        <span>Nama Lengkap Staf *</span>
+                      </label>
+                      <input
+                        id="editStaffName"
+                        type="text"
+                        required
+                        placeholder="Contoh: Muhammad Firdaus, S.Kom"
+                        value={editFormData.fullName}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            fullName: e.target.value,
+                          }))
+                        }
+                        className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      />
+                    </div>
+
+                    {/* Nomor Telepon / WhatsApp */}
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="editStaffPhone"
+                        className="font-medium text-[#000000] flex items-center gap-1.5"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-[#555555]" />
+                        <span>No. WhatsApp / Telepon *</span>
+                      </label>
+                      <input
+                        id="editStaffPhone"
+                        type="tel"
+                        required
+                        placeholder="Contoh: 081244556677"
+                        value={editFormData.phone}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
+                        className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      />
+                    </div>
+
+                    {/* Kata Sandi Baru (Opsional) */}
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="editStaffPassword"
+                        className="font-medium text-[#000000] flex items-center gap-1.5"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-[#555555]" />
+                        <span>Kata Sandi Baru (Opsional)</span>
+                      </label>
+                      <input
+                        id="editStaffPassword"
+                        type="password"
+                        placeholder="Biarkan kosong jika tidak ingin mengubah kata sandi"
+                        value={editFormData.password}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            password: e.target.value,
+                          }))
+                        }
+                        className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      />
+                      <p className="text-[11px] text-[#6B6B6B]">
+                        Biarkan kosong jika tidak ingin mengubah kata sandi. Minimal 6 karakter jika diisi.
+                      </p>
+                    </div>
+
+                    {/* Opsi Hak Akses */}
+                    <div className="p-3 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] space-y-2">
+                      <span className="font-semibold text-xs text-[#000000] block">
+                        Tingkat Hak Akses Sistem
+                      </span>
+                      <label
+                        className={cn(
+                          'flex items-center gap-2',
+                          isOnlySuperAdmin ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={isOnlySuperAdmin}
+                          checked={editFormData.isSuperAdmin}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              isSuperAdmin: e.target.checked,
+                            }))
+                          }
+                          className="rounded border-[#D2D2D2] text-[#CB2957] focus:ring-[#CB2957]"
+                        />
+                        <span className="text-xs text-[#292524]">
+                          Hak Akses <strong>Pimpinan Lembaga / Super Admin</strong> (dapat mengelola staf lain)
+                        </span>
+                      </label>
+                      {isOnlySuperAdmin && (
+                        <p className="text-[11px] text-[#CB2957] font-medium">
+                          Anda adalah satu-satunya Super Admin aktif, hak akses tidak dapat diturunkan.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Footer Modal Action Buttons */}
+                    <div className="modal-footer pt-3">
+                      <button
+                        type="button"
+                        onClick={handleCloseEditModal}
+                        disabled={isEditSubmitting}
+                        className="btn btn-secondary cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isEditSubmitting}
+                        className="btn btn-primary bg-[#CB2957] hover:bg-[#A81E46] border-none text-white cursor-pointer"
+                      >
+                        {isEditSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Dialog Konfirmasi Ubah Status */}
+      <Dialog.Root
+        open={isStatusModalOpen}
+        onOpenChange={(open) => !open && handleCloseStatusModal()}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="modal-overlay active" />
+          <Dialog.Viewport className="modal-overlay active">
+            <Dialog.Popup
+              className="modal-dialog max-w-md max-h-[90vh] overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="statusModalTitle"
+            >
+              <div className="modal-header">
+                <div>
+                  <Dialog.Title
+                    render={
+                      <h2
+                        id="statusModalTitle"
+                        className="font-display text-lg font-bold text-[#000000]"
+                      />
+                    }
+                  >
+                    Konfirmasi Ubah Status
+                  </Dialog.Title>
+                  <Dialog.Description
+                    render={<p className="text-xs text-[#555555] mt-0.5" />}
+                  >
+                    Perubahan status akses akun staf tata usaha.
+                  </Dialog.Description>
+                </div>
+                <Dialog.Close
+                  render={
+                    <button
+                      type="button"
+                      className="modal-close-btn cursor-pointer"
+                      aria-label="Tutup dialog konfirmasi"
+                    />
+                  }
+                >
+                  <X className="w-5 h-5" />
+                </Dialog.Close>
+              </div>
+
+              <div className="modal-body space-y-4">
+                {statusError && (
+                  <div className="p-3 bg-[#CB2957]/10 border border-[#CB2957]/30 text-[#A81E46] text-xs rounded-[8px] flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{statusError}</span>
+                  </div>
+                )}
+
+                {statusStaff && (
+                  <p className="text-sm text-[#292524] leading-relaxed">
+                    {statusStaff.status === 'aktif' ? (
+                      <>
+                        Apakah Anda yakin ingin menonaktifkan akun staf{' '}
+                        <strong className="text-[#000000]">{statusStaff.fullName}</strong> (
+                        <span className="font-mono text-xs text-[#555555]">{statusStaff.email}</span>)?
+                        Staf ini tidak akan dapat login ke portal Tata Usaha.
+                      </>
+                    ) : (
+                      <>
+                        Apakah Anda yakin ingin mengaktifkan kembali akun staf{' '}
+                        <strong className="text-[#000000]">{statusStaff.fullName}</strong> (
+                        <span className="font-mono text-xs text-[#555555]">{statusStaff.email}</span>)?
+                        Staf ini akan dapat kembali login ke portal Tata Usaha.
+                      </>
+                    )}
+                  </p>
+                )}
+
+                <div className="modal-footer pt-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseStatusModal}
+                    disabled={isStatusSubmitting}
+                    className="btn btn-secondary cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmStatusToggle}
+                    disabled={isStatusSubmitting}
+                    className={cn(
+                      'btn border-none text-white cursor-pointer',
+                      statusStaff?.status === 'aktif'
+                        ? 'bg-[#CB2957] hover:bg-[#A81E46]'
+                        : 'bg-[#166534] hover:bg-[#14532d]'
+                    )}
+                  >
+                    {isStatusSubmitting
+                      ? 'Memproses...'
+                      : statusStaff?.status === 'aktif'
+                      ? 'Ya, Nonaktifkan'
+                      : 'Ya, Aktifkan'}
+                  </button>
+                </div>
               </div>
             </Dialog.Popup>
           </Dialog.Viewport>
