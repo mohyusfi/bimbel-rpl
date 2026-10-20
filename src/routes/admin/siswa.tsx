@@ -14,10 +14,14 @@ import {
   ChevronDown,
   CheckCircle2,
   RotateCcw,
+  Plus,
+  Building2,
 } from 'lucide-react'
 import {
   useAdminStudents,
   useAdminClasses,
+  useAdminCourses,
+  useAdminTutors,
   useAdminMutations,
 } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
@@ -25,7 +29,7 @@ import { StatusBadge } from '~/components/ui/status-badge'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { cn } from '~/lib/utils'
 import { SearchableSelect } from '~/components/ui/searchable-select'
-import type { Student, PackageCode } from '~/lib/admin-store'
+import type { Student, PackageCode, ClassGroup } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/siswa')({
   ssr: false,
@@ -79,7 +83,12 @@ const PACKAGE_FILTERS: Array<{
 function AdminSiswaPage() {
   const { data: students = [] } = useAdminStudents()
   const { data: classes = [] } = useAdminClasses()
-  const { addStudent, updateStudent } = useAdminMutations()
+  const { data: courses = [] } = useAdminCourses()
+  const { data: tutors = [] } = useAdminTutors()
+  const { addStudent, updateStudent, addClass } = useAdminMutations()
+
+  // Tab State
+  const [activeTab, setActiveTab] = React.useState<'students' | 'classes'>('students')
 
   // Filters
   const [packageFilter, setPackageFilter] = React.useState<string>('ALL')
@@ -88,9 +97,18 @@ function AdminSiswaPage() {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
+  const [isAddClassOpen, setIsAddClassOpen] = React.useState(false)
   const [editingStudent, setEditingStudent] = React.useState<Student | null>(
     null
   )
+
+  // Class Form State
+  const [classForm, setClassForm] = React.useState({
+    name: '',
+    courseCode: 'UTBK' as PackageCode,
+    capacity: 12,
+    tutorName: '',
+  })
 
   // Add Form State
   const [newForm, setNewForm] = React.useState({
@@ -120,6 +138,25 @@ function AdminSiswaPage() {
     parentAddress: '',
     status: 'aktif' as 'aktif' | 'nonaktif',
   })
+
+  const handleAddClassSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const crs = courses.find((c) => c.code === classForm.courseCode)
+    await addClass({
+      name: classForm.name.trim(),
+      courseCode: classForm.courseCode,
+      courseName: crs?.name || 'Program Bimbel',
+      capacity: Math.min(12, Math.max(1, Number(classForm.capacity) || 12)),
+      tutorName: classForm.tutorName.trim() || tutors[0]?.name || 'Tutor Bimbel',
+    })
+    setIsAddClassOpen(false)
+    setClassForm({
+      name: '',
+      courseCode: 'UTBK',
+      capacity: 12,
+      tutorName: '',
+    })
+  }
 
   const handleOpenEdit = (student: Student) => {
     setEditingStudent(student)
@@ -304,147 +341,326 @@ function AdminSiswaPage() {
     },
   ]
 
+  // Class Columns (Clean Editorial Hierarchy)
+  const classColumns: ColumnDef<ClassGroup>[] = [
+    {
+      accessorKey: 'name',
+      header: 'Nama rombel',
+      cell: ({ row }) => (
+        <div className="min-w-[180px]">
+          <span className="font-semibold text-sm text-[#000000] block leading-snug">
+            {row.original.name}
+          </span>
+          <span className="font-mono text-xs text-[#6B6B6B] block mt-0.5">
+            {row.original.id}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'courseName',
+      header: 'Program paket',
+      cell: ({ row }) => (
+        <div className="min-w-[160px]">
+          <span className="font-normal text-sm text-[#292524] block leading-snug">
+            {row.original.courseName}
+          </span>
+          <span className="text-xs text-[#6B6B6B] block mt-0.5">
+            Jenjang {row.original.courseCode}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'tutorName',
+      header: 'Tutor pengampu',
+      cell: ({ row }) => (
+        <span className="text-sm font-normal text-[#292524] block">
+          {row.original.tutorName}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'capacity',
+      header: 'Kapasitas & keterisian',
+      cell: ({ row }) => {
+        const cls = row.original
+        const maxCap = Math.min(12, Math.max(1, cls.capacity))
+        const pct = Math.min(100, Math.round((cls.studentCount / maxCap) * 100))
+        return (
+          <div className="min-w-[180px] space-y-1">
+            <div className="flex items-center justify-between text-xs text-[#555555]">
+              <span className="tabular-nums font-medium text-[#000000]">
+                {cls.studentCount} / {maxCap} Siswa
+              </span>
+              <span className="tabular-nums">{pct}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-[#EEEEEE] rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  'h-full transition-all duration-300',
+                  cls.studentCount >= maxCap ? 'bg-[#A81E46]' : 'bg-[#000000]'
+                )}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status alokasi',
+      cell: ({ row }) => {
+        const maxCap = Math.min(12, Math.max(1, row.original.capacity))
+        const isFull = row.original.studentCount >= maxCap
+        return (
+          <StatusBadge
+            status={isFull ? 'nonaktif' : 'aktif'}
+            label={isFull ? 'Rombel Penuh' : `Tersedia (${maxCap - row.original.studentCount} Kursi)`}
+          />
+        )
+      },
+    },
+  ]
+
+  const totalCapacity = classes.reduce((acc, c) => acc + Math.min(12, Math.max(1, c.capacity)), 0)
+  const totalEnrolled = classes.reduce((acc, c) => acc + c.studentCount, 0)
+  const totalAvailableSeats = Math.max(0, totalCapacity - totalEnrolled)
+
   return (
     <div className="space-y-6">
       {/* Editorial Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-[#D2D2D2]">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#A81E46] block mb-1">
-            Data Induk Akademik
+            {activeTab === 'students' ? 'Data Induk Akademik' : 'Rombongan Belajar (Rombel)'}
           </span>
           <h1 className="font-display font-extrabold text-2xl sm:text-[28px] text-[#000000] tracking-tight leading-tight">
-            Direktori Siswa & Wali Murid
+            {activeTab === 'students' ? 'Direktori Siswa & Wali Murid' : 'Master Rombel Kelas & Kapasitas'}
           </h1>
           <p className="text-xs sm:text-sm text-[#555555] mt-1">
-            Data induk siswa aktif, penempatan rombel belajar, dan kontak darurat orang tua/wali.
+            {activeTab === 'students'
+              ? 'Data induk siswa aktif, penempatan rombel belajar, dan kontak darurat orang tua/wali.'
+              : 'Manajemen rombongan belajar aktif dengan batas kapasitas ketat maksimal 12 siswa per rombel.'}
           </p>
         </div>
 
+        {activeTab === 'students' ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (classes.length > 0) {
+                setNewForm((prev) => ({ ...prev, classId: classes[0].id }))
+              }
+              setIsAddModalOpen(true)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[10px] hover:bg-[#262626] transition-colors self-start sm:self-auto cursor-pointer shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Tambah Siswa & Wali Baru</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsAddClassOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[10px] hover:bg-[#262626] transition-colors self-start sm:self-auto cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Rombel Kelas</span>
+          </button>
+        )}
+      </div>
+
+      {/* 2 Primary Nav Tabs */}
+      <div className="flex items-center gap-2 border-b border-[#D2D2D2] pb-px">
         <button
           type="button"
-          onClick={() => {
-            if (classes.length > 0) {
-              setNewForm((prev) => ({ ...prev, classId: classes[0].id }))
-            }
-            setIsAddModalOpen(true)
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[10px] hover:bg-[#262626] transition-colors self-start sm:self-auto cursor-pointer shrink-0"
+          onClick={() => setActiveTab('students')}
+          className={cn(
+            'px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer border-b-2',
+            activeTab === 'students'
+              ? 'border-[#000000] text-[#000000]'
+              : 'border-transparent text-[#6B6B6B] hover:text-[#000000]'
+          )}
         >
-          <UserPlus className="w-4 h-4" />
-          <span>Tambah Siswa & Wali Baru</span>
+          Direktori Siswa ({students.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('classes')}
+          className={cn(
+            'px-4 py-2.5 text-xs font-bold transition-colors cursor-pointer border-b-2',
+            activeTab === 'classes'
+              ? 'border-[#000000] text-[#000000]'
+              : 'border-transparent text-[#6B6B6B] hover:text-[#000000]'
+          )}
+        >
+          Rombel Kelas ({classes.length})
         </button>
       </div>
 
-      {/* 5 Standardized Quick-Filter & Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-        {PACKAGE_FILTERS.map((pkg) => {
-          const isSelected = packageFilter === pkg.code
-          const count = getPackageCount(pkg.code)
+      {activeTab === 'students' ? (
+        <>
+          {/* 5 Standardized Quick-Filter & Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+            {PACKAGE_FILTERS.map((pkg) => {
+              const isSelected = packageFilter === pkg.code
+              const count = getPackageCount(pkg.code)
 
-          return (
-            <SummaryMetricCard
-              key={pkg.code}
-              title={pkg.label}
-              value={count}
-              unit="Siswa"
-              description={pkg.description}
-              icon={pkg.icon}
-              isSelected={isSelected}
-              onClick={() => setPackageFilter(pkg.code)}
-              className="rounded-[14px]"
-              footer={
-                <div className="text-xs">
-                  <span>{pkg.sub}</span>
-                </div>
-              }
-            />
-          )
-        })}
-      </div>
-
-      {/* Unified DataTable Card */}
-      <DataTable
-        columns={columns}
-        data={filteredStudents}
-        totalCount={students.length}
-        counterLabel="siswa"
-        searchPlaceholder="Cari NIS, nama siswa, sekolah, atau nama orang tua..."
-        filterSlot={
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Filter 1: Jenjang */}
-              <div className="relative flex items-center">
-                <GraduationCap className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
-                <select
-                  id="filter-jenjang"
-                  value={packageFilter}
-                  onChange={(e) => setPackageFilter(e.target.value)}
-                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="ALL">Semua Jenjang</option>
-                  <option value="UTBK">Intensif UTBK</option>
-                  <option value="SMA">SMA Sukses</option>
-                  <option value="SMP">SMP Prestasi</option>
-                  <option value="SD">SD Cendekia</option>
-                </select>
-                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
-              </div>
-
-              {/* Filter 2: Rombel */}
-              <div className="relative flex items-center">
-                <Users className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
-                <select
-                  id="filter-rombel"
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
-                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="ALL">Semua Rombel</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
-              </div>
-
-              {/* Filter 3: Status */}
-              <div className="relative flex items-center">
-                <CheckCircle2 className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
-                <select
-                  id="filter-status-siswa"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="ALL">Semua Status</option>
-                  <option value="aktif">Status Aktif</option>
-                  <option value="nonaktif">Status Nonaktif</option>
-                </select>
-                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Reset Filter Button if any filter active */}
-            {isFilterActive && (
-              <div className="mt-2.5 pt-2.5 border-t border-[#D2D2D2]/50 flex items-center justify-between">
-                <span className="text-[11px] text-[#555555]">
-                  Filter sedang aktif membatasi siswa yang ditampilkan.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81F45] transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset Semua Filter</span>
-                </button>
-              </div>
-            )}
+              return (
+                <SummaryMetricCard
+                  key={pkg.code}
+                  title={pkg.label}
+                  value={count}
+                  unit="Siswa"
+                  description={pkg.description}
+                  icon={pkg.icon}
+                  isSelected={isSelected}
+                  onClick={() => setPackageFilter(pkg.code)}
+                  className="rounded-[14px]"
+                  footer={
+                    <div className="text-xs">
+                      <span>{pkg.sub}</span>
+                    </div>
+                  }
+                />
+              )
+            })}
           </div>
-        }
-      />
+
+          {/* Unified DataTable Card */}
+          <DataTable
+            columns={columns}
+            data={filteredStudents}
+            totalCount={students.length}
+            counterLabel="siswa"
+            searchPlaceholder="Cari NIS, nama siswa, sekolah, atau nama orang tua..."
+            filterSlot={
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Filter 1: Jenjang */}
+                  <div className="relative flex items-center">
+                    <GraduationCap className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                    <select
+                      id="filter-jenjang"
+                      value={packageFilter}
+                      onChange={(e) => setPackageFilter(e.target.value)}
+                      className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="ALL">Semua Jenjang</option>
+                      <option value="UTBK">Intensif UTBK</option>
+                      <option value="SMA">SMA Sukses</option>
+                      <option value="SMP">SMP Prestasi</option>
+                      <option value="SD">SD Cendekia</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                  </div>
+
+                  {/* Filter 2: Rombel */}
+                  <div className="relative flex items-center">
+                    <Users className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                    <select
+                      id="filter-rombel"
+                      value={classFilter}
+                      onChange={(e) => setClassFilter(e.target.value)}
+                      className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="ALL">Semua Rombel</option>
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                  </div>
+
+                  {/* Filter 3: Status */}
+                  <div className="relative flex items-center">
+                    <CheckCircle2 className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                    <select
+                      id="filter-status-siswa"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="ALL">Semua Status</option>
+                      <option value="aktif">Status Aktif</option>
+                      <option value="nonaktif">Status Nonaktif</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Reset Filter Button if any filter active */}
+                {isFilterActive && (
+                  <div className="mt-2.5 pt-2.5 border-t border-[#D2D2D2]/50 flex items-center justify-between">
+                    <span className="text-[11px] text-[#555555]">
+                      Filter sedang aktif membatasi siswa yang ditampilkan.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81F45] transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset Semua Filter</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            }
+          />
+        </>
+      ) : (
+        <>
+          {/* 4 Summary Cards for Rombel */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <SummaryMetricCard
+              title="Total Rombel"
+              value={classes.length}
+              unit="Kelas"
+              description="Rombongan belajar aktif semester ini"
+              icon={GraduationCap}
+              className="rounded-[14px]"
+            />
+            <SummaryMetricCard
+              title="Total Kapasitas"
+              value={totalCapacity}
+              unit="Kursi"
+              description="Maksimal 12 siswa per rombel"
+              icon={Building2}
+              className="rounded-[14px]"
+            />
+            <SummaryMetricCard
+              title="Siswa Terisi"
+              value={totalEnrolled}
+              unit="Siswa"
+              description="Siswa yang sudah di-plotting"
+              icon={Users}
+              className="rounded-[14px]"
+            />
+            <SummaryMetricCard
+              title="Kursi Tersedia"
+              value={totalAvailableSeats}
+              unit="Kursi"
+              description="Kuota pendaftaran calon siswa"
+              icon={Sparkles}
+              className="rounded-[14px]"
+            />
+          </div>
+
+          {/* Rombel DataTable */}
+          <DataTable
+            columns={classColumns}
+            data={classes}
+            totalCount={classes.length}
+            counterLabel="rombel"
+            searchPlaceholder="Cari nama rombel, program, atau tutor pengampu..."
+          />
+        </>
+      )}
 
       {/* DIALOG 1: Tambah Siswa Baru */}
       <Dialog.Root
@@ -813,6 +1029,133 @@ function AdminSiswaPage() {
                   </div>
                 </form>
               )}
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* DIALOG 3: Tambah Rombel Baru */}
+      <Dialog.Root
+        open={isAddClassOpen}
+        onOpenChange={(open) => !open && setIsAddClassOpen(false)}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3.5">
+                <div>
+                  <Dialog.Title className="font-display font-bold text-base text-[#000000]">
+                    Tambah Rombel Kelas Baru
+                  </Dialog.Title>
+                  <p className="text-xs text-[#555555] mt-0.5">
+                    Buat rombel belajar baru dengan batas kapasitas maksimal 12 siswa.
+                  </p>
+                </div>
+                <Dialog.Close
+                  render={
+                    <button
+                      type="button"
+                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px]"
+                    />
+                  }
+                >
+                  <X className="w-4 h-4" />
+                </Dialog.Close>
+              </div>
+
+              <form onSubmit={handleAddClassSubmit} className="space-y-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-[#000000] block">
+                    Nama Rombel Kelas <span className="text-[#CB2957]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: UTBK Intensif C, SMA IPA 2..."
+                    value={classForm.name}
+                    onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
+                    className="w-full h-10 px-3 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[#000000] block">
+                      Program Paket <span className="text-[#CB2957]">*</span>
+                    </label>
+                    <select
+                      value={classForm.courseCode}
+                      onChange={(e) =>
+                        setClassForm({
+                          ...classForm,
+                          courseCode: e.target.value as PackageCode,
+                        })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                    >
+                      <option value="UTBK">Intensif UTBK</option>
+                      <option value="SMA">SMA Sukses</option>
+                      <option value="SMP">SMP Prestasi</option>
+                      <option value="SD">SD Cendekia</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-semibold text-[#000000] block">
+                      Kapasitas Maksimal (1–12) <span className="text-[#CB2957]">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      required
+                      value={classForm.capacity}
+                      onChange={(e) =>
+                        setClassForm({
+                          ...classForm,
+                          capacity: Math.min(12, Math.max(1, Number(e.target.value) || 12)),
+                        })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-[#000000] block">
+                    Tutor Pengampu
+                  </label>
+                  <select
+                    value={classForm.tutorName}
+                    onChange={(e) => setClassForm({ ...classForm, tutorName: e.target.value })}
+                    className="w-full h-10 px-3 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                  >
+                    <option value="">Pilih Tutor Pengampu...</option>
+                    {tutors.map((t) => (
+                      <option key={t.id} value={t.name}>
+                        {t.name} ({t.subjects.join(', ')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#D2D2D2]">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddClassOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors"
+                  >
+                    Buat Rombel
+                  </button>
+                </div>
+              </form>
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

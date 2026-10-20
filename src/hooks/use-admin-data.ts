@@ -102,7 +102,32 @@ export function useAdminTutors() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.tutors,
-    queryFn: () => adminStore.getState().tutors,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tutors')
+          .select('id, specialty_subject, education_background, weekly_sessions_count, status, profile:profiles(id, full_name, phone_number, email)')
+        if (!error && data && data.length > 0) {
+          const mapped: Tutor[] = data.map((t: any) => ({
+            id: t.id,
+            name: t.profile?.full_name || 'Tutor Bimbel',
+            phone: t.profile?.phone_number || '',
+            education: t.education_background || '',
+            subjects: t.specialty_subject
+              ? t.specialty_subject.split(',').map((s: string) => s.trim()).filter(Boolean)
+              : [],
+            weeklySessionsCount: t.weekly_sessions_count || 0,
+            status: (t.status || 'aktif') as 'aktif' | 'nonaktif',
+          }))
+          adminStore.syncTutorsFromDb(mapped)
+          return mapped
+        }
+      } catch (err) {
+        // Fallback to store
+      }
+      return adminStore.getState().tutors
+    },
+    initialData: () => adminStore.getState().tutors,
   })
 }
 
@@ -118,7 +143,26 @@ export function useAdminRooms() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.rooms,
-    queryFn: () => adminStore.getState().rooms,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.from('rooms').select('*').order('room_name')
+        if (!error && data && data.length > 0) {
+          const mapped: Room[] = data.map((r: any) => ({
+            id: r.id,
+            name: r.room_name,
+            capacity: Math.min(12, Math.max(1, r.capacity || 12)),
+            facilities: r.facilities || '',
+            isActive: Boolean(r.is_active),
+          }))
+          adminStore.syncRoomsFromDb(mapped)
+          return mapped
+        }
+      } catch (err) {
+        // Fallback to store
+      }
+      return adminStore.getState().rooms
+    },
+    initialData: () => adminStore.getState().rooms,
   })
 }
 
@@ -126,7 +170,34 @@ export function useAdminCourses() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.courses,
-    queryFn: () => adminStore.getState().courses,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.from('courses').select('*').order('course_code')
+        if (!error && data && data.length > 0) {
+          const currentClasses = adminStore.getState().classes
+          const mapped: Course[] = data.map((c: any) => {
+            const activeClassesCount = currentClasses.filter(
+              (cls) => cls.courseCode === c.course_code
+            ).length
+            return {
+              id: c.id,
+              code: c.course_code as PackageCode,
+              name: c.course_name,
+              price: Number(c.price) || 0,
+              maxStudents: Math.min(12, Math.max(1, c.max_students || 12)),
+              description: c.description || '',
+              activeClassesCount,
+            }
+          })
+          adminStore.syncCoursesFromDb(mapped)
+          return mapped
+        }
+      } catch (err) {
+        // Fallback to store
+      }
+      return adminStore.getState().courses
+    },
+    initialData: () => adminStore.getState().courses,
   })
 }
 
@@ -134,7 +205,30 @@ export function useAdminClasses() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.classes,
-    queryFn: () => adminStore.getState().classes,
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select('id, class_name, capacity, academic_year, course:courses(course_code, course_name), tutor:tutors(id, profile:profiles(full_name)), members:class_members(id)')
+        if (!error && data && data.length > 0) {
+          const mapped: ClassGroup[] = data.map((c: any) => ({
+            id: c.id,
+            name: c.class_name,
+            courseCode: (c.course?.course_code || 'UTBK') as PackageCode,
+            courseName: c.course?.course_name || 'Intensif UTBK-SNBT',
+            capacity: Math.min(12, Math.max(1, c.capacity || 12)),
+            studentCount: Array.isArray(c.members) ? c.members.length : 0,
+            tutorName: c.tutor?.profile?.full_name || 'Tutor Bimbel',
+          }))
+          adminStore.syncClassesFromDb(mapped)
+          return mapped
+        }
+      } catch (err) {
+        // Fallback to store
+      }
+      return adminStore.getState().classes
+    },
+    initialData: () => adminStore.getState().classes,
   })
 }
 
@@ -482,18 +576,59 @@ export function useAdminMutations() {
 
   const addTutorMutation = useMutation({
     mutationFn: async (input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) => {
-      return adminStore.addTutor(input)
+      const newTutor = adminStore.addTutor(input)
+      try {
+        const { data: profData } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              full_name: input.name,
+              email: `${input.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@tadulakocendekia.sch.id`,
+              role: 'tutor',
+              phone_number: input.phone,
+              status: 'aktif',
+            },
+          ])
+          .select()
+          .single()
+
+        if (profData?.id) {
+          await supabase.from('tutors').insert([
+            {
+              profile_id: profData.id,
+              specialty_subject: input.subjects.join(', '),
+              education_background: input.education,
+              status: 'aktif',
+            },
+          ])
+        }
+      } catch (err) {
+        console.info('Supabase tutor insert note:', err)
+      }
+      return newTutor
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.tutors })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateTutorMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tutor> }) => {
-      return adminStore.updateTutor(id, updates)
+      const result = adminStore.updateTutor(id, updates)
+      try {
+        const patch: any = {}
+        if (updates.education !== undefined) patch.education_background = updates.education
+        if (updates.subjects !== undefined) patch.specialty_subject = updates.subjects.join(', ')
+        if (updates.status !== undefined) patch.status = updates.status
+        await supabase.from('tutors').update(patch).eq('id', id)
+      } catch (err) {
+        console.info('Supabase tutor update note:', err)
+      }
+      return result
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.tutors })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -503,60 +638,144 @@ export function useAdminMutations() {
       return adminStore.addSubject(input)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.subjects })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const addRoomMutation = useMutation({
     mutationFn: async (input: Omit<Room, 'id' | 'isActive'>) => {
-      return adminStore.addRoom(input)
+      const clampedCap = Math.min(12, Math.max(1, Number(input.capacity) || 12))
+      const newRoom = adminStore.addRoom({
+        ...input,
+        capacity: clampedCap,
+      })
+      try {
+        await supabase.from('rooms').insert([
+          {
+            room_name: input.name,
+            capacity: clampedCap,
+            facilities: input.facilities,
+            is_active: true,
+          },
+        ])
+      } catch (err) {
+        console.info('Supabase room insert note:', err)
+      }
+      return newRoom
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Room, 'id'>> }) => {
-      return adminStore.updateRoom(id, updates)
+      const result = adminStore.updateRoom(id, updates)
+      try {
+        const patch: any = {}
+        if (updates.name !== undefined) patch.room_name = updates.name
+        if (updates.capacity !== undefined)
+          patch.capacity = Math.min(12, Math.max(1, Number(updates.capacity) || 12))
+        if (updates.facilities !== undefined) patch.facilities = updates.facilities
+        if (updates.isActive !== undefined) patch.is_active = updates.isActive
+        await supabase.from('rooms').update(patch).eq('id', id)
+      } catch (err) {
+        console.info('Supabase room update note:', err)
+      }
+      return result
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const toggleRoomActiveMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminStore.toggleRoomActive(id)
+      const result = adminStore.toggleRoomActive(id)
+      const room = adminStore.getState().rooms.find((r) => r.id === id)
+      if (room) {
+        try {
+          await supabase.from('rooms').update({ is_active: room.isActive }).eq('id', id)
+        } catch (err) {
+          console.info('Supabase room toggle note:', err)
+        }
+      }
+      return result
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateCourseMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Course> }) => {
-      return adminStore.updateCourse(id, updates)
+      const result = adminStore.updateCourse(id, updates)
+      try {
+        const patch: any = {}
+        if (updates.price !== undefined) patch.price = updates.price
+        if (updates.maxStudents !== undefined)
+          patch.max_students = Math.min(12, Math.max(1, Number(updates.maxStudents) || 12))
+        if (updates.description !== undefined) patch.description = updates.description
+        await supabase.from('courses').update(patch).eq('id', id)
+      } catch (err) {
+        console.info('Supabase course update note:', err)
+      }
+      return result
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const addClassMutation = useMutation({
     mutationFn: async (input: Omit<ClassGroup, 'id' | 'studentCount'>) => {
-      return adminStore.addClass(input)
+      const clampedCap = Math.min(12, Math.max(1, Number(input.capacity) || 12))
+      const newClass = adminStore.addClass({
+        ...input,
+        capacity: clampedCap,
+      })
+      try {
+        await supabase.from('classes').insert([
+          {
+            class_name: input.name,
+            capacity: clampedCap,
+            academic_year: '2026/2027',
+          },
+        ])
+      } catch (err) {
+        console.info('Supabase class insert note:', err)
+      }
+      return newClass
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.classes })
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateClassMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<ClassGroup, 'id'>> }) => {
-      return adminStore.updateClass(id, updates)
+      const result = adminStore.updateClass(id, updates)
+      try {
+        const patch: any = {}
+        if (updates.name !== undefined) patch.class_name = updates.name
+        if (updates.capacity !== undefined)
+          patch.capacity = Math.min(12, Math.max(1, Number(updates.capacity) || 12))
+        await supabase.from('classes').update(patch).eq('id', id)
+      } catch (err) {
+        console.info('Supabase class update note:', err)
+      }
+      return result
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.classes })
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })

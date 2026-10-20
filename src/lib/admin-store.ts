@@ -1472,6 +1472,39 @@ export const adminStore = {
     return state.classes[index]
   },
 
+  syncRoomsFromDb(rooms: Room[]) {
+    if (!rooms || rooms.length === 0) return
+    state.rooms = rooms.map((r) => ({
+      ...r,
+      capacity: clampCapacity(r.capacity, 12),
+    }))
+    saveAndNotify()
+  },
+
+  syncTutorsFromDb(tutors: Tutor[]) {
+    if (!tutors || tutors.length === 0) return
+    state.tutors = tutors.map((t) => ({ ...t }))
+    saveAndNotify()
+  },
+
+  syncClassesFromDb(classes: ClassGroup[]) {
+    if (!classes || classes.length === 0) return
+    state.classes = classes.map((c) => ({
+      ...c,
+      capacity: clampCapacity(c.capacity, 12),
+    }))
+    saveAndNotify()
+  },
+
+  syncCoursesFromDb(courses: Course[]) {
+    if (!courses || courses.length === 0) return
+    state.courses = courses.map((c) => ({
+      ...c,
+      maxStudents: clampCapacity(c.maxStudents, 12),
+    }))
+    saveAndNotify()
+  },
+
   // SCHEDULES & CONFLICT DETECTION (SCHED-02)
   addSchedule(input: Omit<Schedule, 'id'>) {
     const conflict = detectScheduleConflicts(input, state.schedules, state.rooms)

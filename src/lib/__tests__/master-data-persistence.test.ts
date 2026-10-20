@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import * as React from 'react'
+import { renderToString } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   adminStore,
   type Room,
@@ -7,7 +10,16 @@ import {
   type Registration,
   type Course,
   type PackageCode,
+  type Tutor,
 } from '../admin-store'
+import {
+  useAdminRooms,
+  useAdminTutors,
+  useAdminClasses,
+  useAdminCourses,
+  ADMIN_KEYS,
+} from '../../hooks/use-admin-data'
+import { seedDatabase, SEED_DATA } from '../../db/seed'
 import {
   rooms,
   classes,
@@ -535,6 +547,138 @@ describe('Tiket 01 — Master Data Persistence & Rombel Plotting Audit', () => {
       expect(approval?.credentials.studentNis).toMatch(/^TC-2026-\d{3}$/)
       expect(approval?.credentials.studentPassword).toBe('siswa2026')
       expect(approval?.credentials.parentPassword).toBe('wali2026')
+    })
+  })
+
+  // =========================================================================
+  // 6. VALIDASI DATABASE SEEDING ENGINE & INTEGRASI PANEL ADMIN
+  // =========================================================================
+  describe('Validasi Database Seeding Engine & Integrasi Panel Admin', () => {
+    function renderHookWithClient<T>(hookFn: () => T): T {
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      })
+      const state = adminStore.getState()
+      queryClient.setQueryData(ADMIN_KEYS.rooms, state.rooms)
+      queryClient.setQueryData(ADMIN_KEYS.tutors, state.tutors)
+      queryClient.setQueryData(ADMIN_KEYS.classes, state.classes)
+      queryClient.setQueryData(ADMIN_KEYS.courses, state.courses)
+
+      let result!: T
+      function TestHarness() {
+        result = hookFn()
+        return null
+      }
+
+      renderToString(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(TestHarness)
+        )
+      )
+      return result
+    }
+
+    it('menjalankan script database seed (seedDatabase) dan menghasilkan ringkasan master data lengkap', async () => {
+      const seedResult = await seedDatabase({ quiet: true })
+
+      expect(seedResult).toBeDefined()
+      expect(seedResult.success).toBe(true)
+      expect(seedResult.counts.courses).toBeGreaterThanOrEqual(4)
+      expect(seedResult.counts.rooms).toBeGreaterThanOrEqual(4)
+      expect(seedResult.counts.tutors).toBeGreaterThanOrEqual(4)
+      expect(seedResult.counts.classes).toBeGreaterThanOrEqual(5)
+
+      // Verifikasi dataset seed bawaan
+      expect(SEED_DATA.courses.length).toBe(4)
+      expect(SEED_DATA.rooms.length).toBe(4)
+      expect(SEED_DATA.tutors.length).toBe(4)
+      expect(SEED_DATA.classes.length).toBe(5)
+
+      // Memastikan seluruh ruangan seed mematuhi batas maksimal 12 siswa
+      for (const room of SEED_DATA.rooms) {
+        expect(room.capacity).toBeLessThanOrEqual(12)
+        expect(room.capacity).toBeGreaterThanOrEqual(1)
+      }
+
+      // Memastikan seluruh rombel seed mematuhi batas maksimal 12 siswa
+      for (const cls of SEED_DATA.classes) {
+        expect(cls.capacity).toBeLessThanOrEqual(12)
+        expect(cls.capacity).toBeGreaterThanOrEqual(1)
+      }
+    })
+
+    it('hook useAdminRooms membaca data ruangan dinamis dan type-safe', () => {
+      const { data: rooms } = renderHookWithClient(() => useAdminRooms())
+      expect(rooms).toBeDefined()
+      expect(Array.isArray(rooms)).toBe(true)
+      expect(rooms.length).toBeGreaterThanOrEqual(4)
+
+      const roomPalu1 = rooms.find((r) => r.name === 'Ruang Palu-1')
+      expect(roomPalu1).toBeDefined()
+      expect(roomPalu1?.capacity).toBe(12)
+      expect(roomPalu1?.isActive).toBe(true)
+    })
+
+    it('hook useAdminTutors membaca data tutor dan spesialisasi mapel dari database/store', () => {
+      const { data: tutors } = renderHookWithClient(() => useAdminTutors())
+      expect(tutors).toBeDefined()
+      expect(Array.isArray(tutors)).toBe(true)
+      expect(tutors.length).toBeGreaterThanOrEqual(4)
+
+      const tutorDian = tutors.find((t) => t.name.includes('Dian Pratiwi'))
+      expect(tutorDian).toBeDefined()
+      expect(tutorDian?.subjects.length).toBeGreaterThan(0)
+      expect(tutorDian?.status).toBe('aktif')
+    })
+
+    it('hook useAdminClasses membaca data rombel kelas dari database/store', () => {
+      const { data: classes } = renderHookWithClient(() => useAdminClasses())
+      expect(classes).toBeDefined()
+      expect(Array.isArray(classes)).toBe(true)
+      expect(classes.length).toBeGreaterThanOrEqual(5)
+
+      for (const cls of classes) {
+        expect(cls.capacity).toBeLessThanOrEqual(12)
+        expect(cls.studentCount).toBeLessThanOrEqual(cls.capacity)
+      }
+    })
+
+    it('syncRoomsFromDb, syncTutorsFromDb, syncClassesFromDb memperbarui data dengan clamping kapasitas ketat', () => {
+      adminStore.syncRoomsFromDb([
+        {
+          id: 'rm-sync-test',
+          name: 'Ruang Sync Test',
+          capacity: 50, // diinput overcapacity 50
+          facilities: 'AC, TV',
+          isActive: true,
+        },
+      ])
+
+      const syncedRoom = adminStore.getState().rooms.find((r) => r.id === 'rm-sync-test')
+      expect(syncedRoom).toBeDefined()
+      expect(syncedRoom?.capacity).toBe(12) // Wajib di-clamp ke 12
+
+      adminStore.syncClassesFromDb([
+        {
+          id: 'cls-sync-test',
+          name: 'Rombel Sync Test',
+          courseCode: 'UTBK',
+          courseName: 'Intensif UTBK-SNBT',
+          capacity: 99, // diinput overcapacity 99
+          studentCount: 5,
+          tutorName: 'Tutor Test',
+        },
+      ])
+
+      const syncedClass = adminStore.getState().classes.find((c) => c.id === 'cls-sync-test')
+      expect(syncedClass).toBeDefined()
+      expect(syncedClass?.capacity).toBe(12) // Wajib di-clamp ke 12
     })
   })
 })
