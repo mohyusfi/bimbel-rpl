@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { DashboardShell, type DashboardNavGroup } from '~/components/dashboard/DashboardShell'
 import { useParentDashboardData, useBimbelMutations } from '~/hooks/use-admin-data'
+import { useAuth } from '~/hooks/use-auth'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent')({
@@ -55,6 +56,10 @@ const NAV_GROUPS: DashboardNavGroup[] = [
 function ParentLayout() {
   const { parent, children, selectedChild } = useParentDashboardData()
   const { setSelectedChildId } = useBimbelMutations()
+  const auth = useAuth()
+
+  const currentParentName = auth.userDisplayName || parent?.name || 'Ir. H. Ahmad Dahlan'
+  const currentParentInitials = auth.userInitials || 'AD'
 
   const currentChildId = selectedChild?.id || children[0]?.id || 'stu-1'
 
@@ -121,9 +126,9 @@ function ParentLayout() {
       portalName="Portal Orang Tua / Wali"
       navGroups={NAV_GROUPS}
       currentUser={{
-        name: parent?.name || 'Ir. H. Ahmad Dahlan',
+        name: currentParentName,
         roleTitle: `Wali Murid (${children.length} Siswa)`,
-        initials: 'AD',
+        initials: currentParentInitials,
       }}
       topSlot={topSlot}
     >

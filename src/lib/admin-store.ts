@@ -1132,20 +1132,20 @@ export const adminStore = {
 
   approveRegistration(regId: string, classId: string) {
     const reg = state.registrations.find((r) => r.id === regId)
-    if (!reg) return false
+    if (!reg) return null
 
     const targetClass = state.classes.find((c) => c.id === classId)
-    if (!targetClass) return false
+    if (!targetClass) return null
 
     // Update status pendaftaran
     reg.status = 'terverifikasi'
     reg.assignedClassId = classId
 
     // Tambah ke tabel siswa aktif jika belum ada
-    const studentExists = state.students.some((s) => s.email === reg.studentEmail)
-    if (!studentExists) {
+    let studentRecord = state.students.find((s) => s.email === reg.studentEmail)
+    if (!studentRecord) {
       const nisNumber = (state.students.length + 1).toString().padStart(3, '0')
-      const newStudent: Student = {
+      studentRecord = {
         id: `stu-${Date.now().toString().slice(-4)}`,
         nis: `TC-2026-${nisNumber}`,
         name: reg.studentName,
@@ -1167,10 +1167,34 @@ export const adminStore = {
         }).format(new Date()),
         status: 'aktif',
       }
-      state.students = [newStudent, ...state.students]
+      state.students = [studentRecord, ...state.students]
 
       // Increment jumlah siswa di kelas
       targetClass.studentCount += 1
+    }
+
+    // Hubungkan atau daftarkan profil orang tua
+    let parentRecord = state.parents.find(
+      (p) =>
+        (reg.parentEmail && p.email.toLowerCase() === reg.parentEmail.toLowerCase()) ||
+        p.phone.replace(/[^0-9]/g, '') === reg.parentPhone.replace(/[^0-9]/g, '')
+    )
+
+    if (parentRecord) {
+      if (!parentRecord.studentIds.includes(studentRecord.id)) {
+        parentRecord.studentIds = [...parentRecord.studentIds, studentRecord.id]
+      }
+    } else {
+      parentRecord = {
+        id: `par-${Date.now().toString().slice(-4)}`,
+        name: reg.parentName,
+        email: reg.parentEmail || `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+        phone: reg.parentPhone,
+        job: reg.parentJob || 'Wali Murid',
+        address: reg.parentAddress || 'Kota Palu',
+        studentIds: [studentRecord.id],
+      }
+      state.parents = [parentRecord, ...state.parents]
     }
 
     // Tambah notifikasi
@@ -1187,7 +1211,23 @@ export const adminStore = {
     ]
 
     saveAndNotify()
-    return true
+
+    return {
+      success: true,
+      student: studentRecord,
+      parent: parentRecord,
+      credentials: {
+        studentNis: studentRecord.nis,
+        studentName: studentRecord.name,
+        studentEmail: studentRecord.email,
+        studentPassword: 'siswa2026',
+        className: targetClass.name,
+        parentName: parentRecord.name,
+        parentEmail: parentRecord.email,
+        parentPhone: parentRecord.phone,
+        parentPassword: 'wali2026',
+      },
+    }
   },
 
   rejectRegistration(regId: string, reason: string) {
@@ -1565,6 +1605,21 @@ export const adminStore = {
   setActiveStudentId(studentId: string) {
     state.activeStudentId = studentId
     saveAndNotify()
+  },
+
+  setActiveParentId(parentId: string) {
+    state.activeParentId = parentId
+    saveAndNotify()
+  },
+
+  addParent(input: Omit<ParentProfile, 'id'>) {
+    const newParent: ParentProfile = {
+      ...input,
+      id: `par-${Date.now().toString().slice(-4)}`,
+    }
+    state.parents = [newParent, ...state.parents]
+    saveAndNotify()
+    return newParent
   },
 
   // ANNOUNCEMENTS

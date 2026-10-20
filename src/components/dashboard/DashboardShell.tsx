@@ -12,10 +12,12 @@ import {
   ArrowRightLeft,
   PanelLeft,
   PanelLeftClose,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { SidebarBrand } from './SidebarBrand'
 import { useAdminNotifications, useAdminMutations } from '~/hooks/use-admin-data'
+import { authStore } from '~/lib/auth-store'
 import type { AdminNotification } from '~/lib/admin-store'
 
 export interface DashboardNavItem {
@@ -67,6 +69,13 @@ export function DashboardShell({
   })
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false)
   const [notifFilter, setNotifFilter] = React.useState<string>('ALL')
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false)
+
+  const handleLogout = React.useCallback(() => {
+    authStore.logout()
+    setIsLogoutConfirmOpen(false)
+    navigate({ to: '/masuk' as any })
+  }, [navigate])
 
   const toggleSidebar = React.useCallback(() => {
     setIsSidebarCollapsed((prev) => {
@@ -240,13 +249,26 @@ export function DashboardShell({
             </span>
           </div>
 
-          <Link
-            to="/masuk"
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF] border border-transparent hover:border-[#D2D2D2] rounded-[8px] transition-colors"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Ganti Portal (Demo)</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-1.5">
+            <Link
+              to="/masuk"
+              className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] transition-colors"
+              title="Ganti Portal Role (Demo)"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              <span>Ganti Role</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(true)}
+              className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#901B14] hover:text-[#FFFFFF] hover:bg-[#901B14] border border-[#D2D2D2] hover:border-[#901B14] rounded-[8px] transition-colors cursor-pointer"
+              title="Keluar dari Akun"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Keluar</span>
+            </button>
+          </div>
         </div>
         </div>
       </aside>
@@ -405,6 +427,65 @@ export function DashboardShell({
                           <p className="font-semibold text-[#000000]">Tidak ada notifikasi</p>
                         </div>
                       )}
+                    </div>
+                  </Dialog.Popup>
+                </Dialog.Viewport>
+              </Dialog.Portal>
+            </Dialog.Root>
+
+            {/* Modal Dialog Konfirmasi Logout */}
+            <Dialog.Root
+              open={isLogoutConfirmOpen}
+              onOpenChange={(open) => !open && setIsLogoutConfirmOpen(false)}
+            >
+              <Dialog.Portal>
+                <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
+                <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+                  <Dialog.Popup className="w-full max-w-sm bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 shadow-xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
+                      <Dialog.Title className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
+                        <LogOut className="w-4 h-4 text-[#901B14]" />
+                        <span>Konfirmasi Keluar</span>
+                      </Dialog.Title>
+                      <Dialog.Close
+                        render={
+                          <button
+                            type="button"
+                            className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                            onClick={() => setIsLogoutConfirmOpen(false)}
+                            aria-label="Tutup dialog"
+                          />
+                        }
+                      >
+                        <X className="w-4 h-4" />
+                      </Dialog.Close>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-[#555555] leading-relaxed">
+                      <p>
+                        Apakah Anda yakin ingin mengakhiri sesi masuk untuk akun{' '}
+                        <strong className="text-[#000000]">{currentUser.name}</strong>?
+                      </p>
+                      <p>
+                        Anda akan dialihkan ke halaman masuk dan dapat masuk kembali kapan saja.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
+                      <button
+                        type="button"
+                        onClick={() => setIsLogoutConfirmOpen(false)}
+                        className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#901B14] hover:bg-[#721510] rounded-[8px] transition-colors cursor-pointer"
+                      >
+                        Ya, Keluar
+                      </button>
                     </div>
                   </Dialog.Popup>
                 </Dialog.Viewport>

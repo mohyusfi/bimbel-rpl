@@ -6,13 +6,20 @@ import {
   BookOpen,
   Users,
   ArrowRight,
-  Sparkles,
   Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  UserPlus,
+  AlertCircle,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { Header } from '~/components/landing/Header'
 import { CtaFooter } from '~/components/landing/CtaFooter'
 import { RegisterModal } from '~/components/landing/RegisterModal'
 import { MobileDrawer } from '~/components/landing/MobileDrawer'
+import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
 
 export const Route = createFileRoute('/masuk')({
   ssr: false,
@@ -20,7 +27,7 @@ export const Route = createFileRoute('/masuk')({
 })
 
 interface RoleCard {
-  role: 'admin' | 'tutor' | 'student' | 'parent'
+  role: UserRole
   title: string
   subtitle: string
   description: string
@@ -28,57 +35,62 @@ interface RoleCard {
   icon: React.ComponentType<{ className?: string }>
   badgeText: string
   demoAccount: string
-  accentColor: string
+  demoEmail: string
+  demoPassword: string
 }
 
 const ROLES: RoleCard[] = [
   {
     role: 'admin',
-    title: 'Portal Tata Usaha (Admin)',
+    title: 'Portal Tata Usaha',
     subtitle: 'Pengelola Bimbel & Master Data',
     description:
-      'Verifikasi pendaftaran mandiri calon siswa, manajemen jadwal anti-bentrok, dan verifikasi bukti pembayaran SPP.',
+      'Verifikasi pendaftaran mandiri calon siswa, manajemen jadwal anti-bentrok, dan verifikasi pembayaran SPP.',
     href: '/admin',
     icon: ShieldCheck,
     badgeText: 'Akses Penuh',
-    demoAccount: 'Hj. Nuraini, S.Pd (Kepala TU)',
-    accentColor: '#000000',
+    demoAccount: DEMO_ACCOUNTS.admin.name,
+    demoEmail: DEMO_ACCOUNTS.admin.email,
+    demoPassword: DEMO_ACCOUNTS.admin.defaultPassword,
   },
   {
     role: 'tutor',
-    title: 'Portal Pengajar (Tutor)',
+    title: 'Portal Pengajar',
     subtitle: 'Tenaga Pendidik Tadulako Cendekia',
     description:
-      'Checklist presensi digital sesi kelas hari ini, input nilai latihan & try out, serta distribusi modul dan tugas mandiri.',
+      'Checklist presensi digital sesi kelas, input nilai latihan & try out, serta distribusi modul bimbingan.',
     href: '/tutor',
     icon: GraduationCap,
     badgeText: 'Akademik',
-    demoAccount: 'Kak Dian Pratiwi, S.Si (Fisika)',
-    accentColor: '#CB2957',
+    demoAccount: DEMO_ACCOUNTS.tutor.name,
+    demoEmail: DEMO_ACCOUNTS.tutor.email,
+    demoPassword: DEMO_ACCOUNTS.tutor.defaultPassword,
   },
   {
     role: 'student',
     title: 'Portal Siswa',
     subtitle: 'Peserta Bimbingan Belajar',
     description:
-      'Pantau jadwal bimbingan les mingguan, unduh modul pelajaran, cek rapor nilai try out, dan lihat status SPP.',
+      'Pantau jadwal bimbingan mingguan, unduh modul pelajaran, cek rapor nilai try out, dan status tagihan les.',
     href: '/student',
     icon: BookOpen,
     badgeText: 'Ruang Belajar',
-    demoAccount: 'Fahri Ramadhan (Kelas 12 UTBK)',
-    accentColor: '#000000',
+    demoAccount: DEMO_ACCOUNTS.student.name,
+    demoEmail: DEMO_ACCOUNTS.student.email,
+    demoPassword: DEMO_ACCOUNTS.student.defaultPassword,
   },
   {
     role: 'parent',
     title: 'Portal Orang Tua / Wali',
     subtitle: 'Pemantauan Terpadu Putra-Putri',
     description:
-      'Pantau kehadiran anak real-time, evaluasi rapor perkembangan nilai dari tutor, serta unggah bukti transfer SPP & unduh kwitansi.',
+      'Pantau kehadiran anak real-time, evaluasi rapor nilai, serta unggah bukti transfer SPP & unduh kwitansi resmi.',
     href: '/parent',
     icon: Users,
     badgeText: 'Multi-Child',
-    demoAccount: 'Ir. H. Ahmad Dahlan (Wali 2 Siswa)',
-    accentColor: '#A81E46',
+    demoAccount: DEMO_ACCOUNTS.parent.name,
+    demoEmail: DEMO_ACCOUNTS.parent.email,
+    demoPassword: DEMO_ACCOUNTS.parent.defaultPassword,
   },
 ]
 
@@ -88,25 +100,46 @@ function LoginPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
 
   const [selectedRole, setSelectedRole] = React.useState<RoleCard>(ROLES[0])
-  const [email, setEmail] = React.useState('nuraini.tu@tadulakocendekia.sch.id')
-  const [password, setPassword] = React.useState('password123')
+  const [emailOrId, setEmailOrId] = React.useState(ROLES[0].demoEmail)
+  const [password, setPassword] = React.useState(ROLES[0].demoPassword)
+  const [showPassword, setShowPassword] = React.useState(false)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
-  const handleRoleSelect = (roleCard: RoleCard) => {
+  const handleRoleCardClick = (roleCard: RoleCard) => {
     setSelectedRole(roleCard)
-    if (roleCard.role === 'admin') {
-      setEmail('nuraini.tu@tadulakocendekia.sch.id')
-    } else if (roleCard.role === 'tutor') {
-      setEmail('dian.pratiwi@tadulakocendekia.sch.id')
-    } else if (roleCard.role === 'student') {
-      setEmail('fahri.ramadhan@siswa.tadulakocendekia.sch.id')
-    } else {
-      setEmail('ahmad.dahlan@wali.tadulakocendekia.sch.id')
-    }
+    setEmailOrId(roleCard.demoEmail)
+    setPassword(roleCard.demoPassword)
+    setErrorMessage(null)
   }
 
-  const handleDirectLogin = (e: React.FormEvent) => {
+  // 1-Click Quick Demo Login
+  const handleQuickDemoLogin = (role: UserRole) => {
+    const result = authStore.quickLogin(role)
+    navigate({ to: result.href as any })
+  }
+
+  // Interactive Form Login
+  const handleFormLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    navigate({ to: selectedRole.href as any })
+    setErrorMessage(null)
+    setIsSubmitting(true)
+
+    try {
+      const result = await authStore.login(emailOrId, password, selectedRole.role)
+      if (result.success && result.href) {
+        navigate({ to: result.href as any })
+      } else {
+        setErrorMessage(
+          result.error ||
+            'Email atau kata sandi tidak cocok. Silakan gunakan akun demo atau periksa kembali input Anda.'
+        )
+      }
+    } catch {
+      setErrorMessage('Terjadi kesalahan saat memproses login. Silakan coba kembali.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -116,21 +149,21 @@ function LoginPage() {
         onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
       />
 
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-10">
         {/* Editorial Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
-          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#A81E46]">
-            Autentikasi & Hak Akses Berbasis Peran (RBAC)
+        <div className="text-center max-w-2xl mx-auto space-y-2.5">
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#A81E46]">
+            Autentikasi & Hak Akses Berbasis Peran
           </span>
           <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#000000] tracking-tight">
             Masuk ke Portal Layanan
           </h1>
-          <p className="text-sm text-[#555555] leading-relaxed">
-            Pilih salah satu peran pengguna di bawah ini untuk langsung mengakses panel kerja operasional atau uji coba akun demo simulasi.
+          <p className="text-xs sm:text-sm text-[#555555] leading-relaxed">
+            Pilih portal layanan yang sesuai atau gunakan tombol <strong>Masuk Cepat Demo</strong> untuk uji coba instan panel kerja operasional tanpa konfigurasi.
           </p>
         </div>
 
-        {/* 4 Role Selection Cards */}
+        {/* 4 Role Selection & Quick Demo Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {ROLES.map((item) => {
             const Icon = item.icon
@@ -139,33 +172,35 @@ function LoginPage() {
             return (
               <div
                 key={item.role}
-                onClick={() => handleRoleSelect(item)}
-                className={`bg-[#FFFFFF] border rounded-[14px] p-5 flex flex-col justify-between transition-all cursor-pointer relative group select-none ${
+                className={`bg-[#FFFFFF] rounded-[14px] p-5 flex flex-col justify-between transition-all relative select-none ${
                   isSelected
-                    ? 'border-2 border-[#000000]'
-                    : 'border-[#D2D2D2] hover:border-[#000000]'
+                    ? 'border-2 border-[#000000] shadow-sm'
+                    : 'border border-[#D2D2D2] hover:border-[#000000]'
                 }`}
               >
-                <div className="space-y-3">
+                <div
+                  className="space-y-3 cursor-pointer"
+                  onClick={() => handleRoleCardClick(item)}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center border transition-colors ${
                         isSelected
                           ? 'bg-[#000000] text-[#FFFFFF] border-[#000000]'
-                          : 'bg-[#F6F6F6] text-[#292524] border-[#D2D2D2] group-hover:border-[#000000]'
+                          : 'bg-[#F6F6F6] text-[#292524] border-[#D2D2D2]'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className="text-[11px] font-semibold text-[#555555] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-[#555555] uppercase tracking-wider">
                       {item.badgeText}
                     </span>
                   </div>
 
                   <div>
-                    <h3 className="font-display font-bold text-base text-[#000000] leading-snug">
+                    <h2 className="font-display font-bold text-base text-[#000000] leading-snug">
                       {item.title}
-                    </h3>
+                    </h2>
                     <p className="text-xs font-semibold text-[#A81E46] mt-0.5">
                       {item.subtitle}
                     </p>
@@ -175,78 +210,169 @@ function LoginPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-[#D2D2D2] space-y-2">
+                <div className="pt-4 mt-4 border-t border-[#D2D2D2] space-y-3">
                   <div className="text-[11px] text-[#555555]">
                     Akun Demo:
-                    <strong className="block text-[#000000] truncate mt-0.5">
+                    <strong className="block text-[#000000] truncate mt-0.5 font-medium">
                       {item.demoAccount}
                     </strong>
+                    <span className="font-mono text-[10px] text-[#555555] block truncate mt-0.5">
+                      {item.demoEmail}
+                    </span>
                   </div>
 
-                  <Link
-                    to={item.href as any}
-                    className="inline-flex items-center justify-between w-full px-3 py-2 text-xs font-semibold rounded-[8px] bg-[#F6F6F6] hover:bg-[#000000] hover:text-[#FFFFFF] border border-[#D2D2D2] hover:border-[#000000] transition-colors"
-                  >
-                    <span>Buka Portal Langsung</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="grid grid-cols-1 gap-2">
+                    {/* Quick Demo 1-Click Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDemoLogin(item.role)}
+                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-[8px] bg-[#000000] text-[#FFFFFF] hover:bg-[#262626] transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#CB2957]" />
+                      <span>Masuk Cepat Demo</span>
+                    </button>
+
+                    {/* Choose to fill interactive form */}
+                    <button
+                      type="button"
+                      onClick={() => handleRoleCardClick(item)}
+                      className={`w-full inline-flex items-center justify-between px-3 py-1.5 text-[11px] font-medium rounded-[8px] transition-colors cursor-pointer border ${
+                        isSelected
+                          ? 'bg-[#F6F6F6] text-[#000000] border-[#000000]'
+                          : 'bg-[#FFFFFF] text-[#555555] border-[#D2D2D2] hover:text-[#000000] hover:border-[#000000]'
+                      }`}
+                    >
+                      <span>Isi Form Login</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* Quick Simulation Form */}
-        <div className="max-w-md mx-auto bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 sm:p-7 space-y-5">
-          <div className="flex items-center gap-2.5 pb-4 border-b border-[#D2D2D2]">
-            <div className="w-8 h-8 rounded-full bg-[#CB2957]/10 text-[#CB2957] flex items-center justify-center shrink-0">
+        {/* Interactive Login Form */}
+        <div className="max-w-md mx-auto bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 sm:p-7 space-y-5 shadow-xs">
+          <div className="flex items-center gap-3 pb-4 border-b border-[#D2D2D2]">
+            <div className="w-9 h-9 rounded-full bg-[#000000] text-[#FFFFFF] flex items-center justify-center shrink-0">
               <Lock className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-display font-bold text-sm text-[#000000]">
-                Simulasi Form Masuk ({selectedRole.title})
-              </h2>
+              <h3 className="font-display font-bold text-sm text-[#000000]">
+                Formulir Masuk ({selectedRole.title})
+              </h3>
               <p className="text-xs text-[#555555]">
-                Klik "Masuk Sekarang" untuk langsung menuju dashboard.
+                Masukkan email atau NIS beserta kata sandi Anda.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleDirectLogin} className="space-y-4">
+          {errorMessage && (
+            <div
+              className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+              role="alert"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleFormLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#292524] block">
-                Alamat Email Pengguna
+              <label
+                htmlFor="login-email"
+                className="text-xs font-semibold text-[#292524] flex items-center justify-between"
+              >
+                <span>Alamat Email atau NIS</span>
+                <span className="text-[10px] font-mono text-[#555555] font-normal">
+                  {selectedRole.role === 'student' ? 'Email / NIS' : 'Email Terdaftar'}
+                </span>
               </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full h-10 px-3 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] focus:ring-2 focus:ring-[#CB2957]/20 transition-all font-mono"
-              />
+              <div className="relative">
+                <input
+                  id="login-email"
+                  type="text"
+                  value={emailOrId}
+                  onChange={(e) => setEmailOrId(e.target.value)}
+                  placeholder="nama@tadulakocendekia.sch.id"
+                  required
+                  className="w-full h-10 pl-3 pr-9 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] transition-all font-mono"
+                />
+                <Mail className="w-4 h-4 text-[#555555] absolute right-3 top-3 pointer-events-none" />
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#292524] block">
-                Kata Sandi
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full h-10 px-3 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] focus:ring-2 focus:ring-[#CB2957]/20 transition-all font-mono"
-              />
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="login-password"
+                  className="text-xs font-semibold text-[#292524] block"
+                >
+                  Kata Sandi
+                </label>
+                <span className="text-[10px] text-[#555555]">
+                  Demo: <code className="font-mono text-[#000000]">{selectedRole.demoPassword}</code>
+                </span>
+              </div>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi"
+                  required
+                  className="w-full h-10 pl-3 pr-9 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] transition-all font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-[#555555] hover:text-[#000000] cursor-pointer"
+                  aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
-              className="w-full h-10 inline-flex items-center justify-center gap-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full h-10 inline-flex items-center justify-center gap-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] disabled:opacity-50 rounded-[8px] transition-colors cursor-pointer mt-2"
             >
-              <span>Masuk Sekarang ({selectedRole.role.toUpperCase()})</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memproses Masuk...</span>
+                </>
+              ) : (
+                <>
+                  <span>Masuk ke {selectedRole.title}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </>
+              )}
             </button>
           </form>
+
+          {/* Registration Prompt Link */}
+          <div className="pt-4 border-t border-[#D2D2D2] text-center space-y-2">
+            <p className="text-xs text-[#555555]">
+              Belum terdaftar sebagai siswa bimbingan?
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsRegisterOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81E46] transition-colors cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Daftar Calon Siswa Baru Sekarang</span>
+            </button>
+          </div>
         </div>
       </main>
 

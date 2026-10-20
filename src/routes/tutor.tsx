@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { DashboardShell } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
+import { useAuth } from '~/hooks/use-auth'
 
 export const Route = createFileRoute('/tutor')({
   ssr: false,
@@ -16,6 +17,7 @@ export const Route = createFileRoute('/tutor')({
 
 function TutorLayout() {
   const { data: session } = useActiveSession()
+  const { userDisplayName, userInitials } = useAuth()
   const tutor = session?.tutor || {
     name: 'Kak Dian Pratiwi, S.Si',
     specialization: 'Fisika & UTBK',
@@ -61,9 +63,9 @@ function TutorLayout() {
   ]
 
   const currentUser = {
-    name: tutor.name || 'Kak Dian Pratiwi, S.Si',
+    name: userDisplayName || tutor.name || 'Kak Dian Pratiwi, S.Si',
     roleTitle: `Tutor ${tutor.subjects?.[0] || 'Fisika UTBK'}`,
-    initials: 'DP',
+    initials: userInitials || 'DP',
   }
 
   return (
