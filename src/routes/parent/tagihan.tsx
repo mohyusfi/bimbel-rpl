@@ -307,15 +307,15 @@ function ParentBillingPage() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="bg-[#F6F6F6] px-4 py-2 rounded-[10px] border border-[#D2D2D2]">
-              <span className="text-[10px] uppercase font-bold text-[#555555] block">
-                Nomor Rekening Bimbel:
+          <div className="w-full md:w-auto flex items-center justify-between gap-3 sm:gap-4 bg-[#F8F8F8] border border-[#D2D2D2] px-4 py-2.5 rounded-[10px]">
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-[0.06em] text-[#555555] block">
+                Nomor Rekening Bimbel
               </span>
-              <span className="font-mono font-bold text-base text-[#000000] tabular-nums">
+              <span className="font-mono font-bold text-base sm:text-lg text-[#000000] tabular-nums tracking-wider leading-tight block">
                 7123-4567-89
               </span>
-              <span className="text-[11px] text-[#555555] block">
+              <span className="text-[11px] text-[#555555] block mt-0.5">
                 a.n. Bimbel Tadulako Cendekia
               </span>
             </div>
@@ -323,17 +323,18 @@ function ParentBillingPage() {
             <button
               type="button"
               onClick={() => handleCopyAccount('7123456789')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] active:scale-95 rounded-[8px] transition-all cursor-pointer shrink-0"
+              title="Salin nomor rekening ke papan klip"
             >
               {copiedAccount === '7123456789' ? (
                 <>
-                  <Check className="w-4 h-4 text-[#166534]" />
-                  <span>No. Rekening Tersalin!</span>
+                  <Check className="w-4 h-4 text-[#22C55E]" />
+                  <span>Tersalin!</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  <span>Salin No. Rekening</span>
+                  <span>Salin<span className="hidden sm:inline"> No. Rekening</span></span>
                 </>
               )}
             </button>
