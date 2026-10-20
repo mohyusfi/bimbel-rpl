@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   Users,
   Clock,
+  ChevronDown,
+  RotateCcw,
+  GraduationCap,
 } from 'lucide-react'
 import {
   useAdminRegistrations,
@@ -76,6 +79,14 @@ function AdminPendaftaranPage() {
       statusFilter === 'ALL' || reg.status === statusFilter
     return matchPackage && matchStatus
   })
+
+  // Filter state helpers
+  const isFilterActive = packageFilter !== 'ALL' || statusFilter !== 'ALL'
+
+  const handleResetFilters = () => {
+    setPackageFilter('ALL')
+    setStatusFilter('ALL')
+  }
 
   // Open approval modal
   const handleOpenApproval = (reg: Registration) => {
@@ -366,50 +377,65 @@ function AdminPendaftaranPage() {
       <DataTable
         columns={columns}
         data={filteredData}
+        totalCount={registrations.length}
+        counterLabel="pendaftar"
         searchPlaceholder="Cari nama calon siswa, sekolah, wali, atau ID..."
         filterSlot={
-          <>
-            <div className="flex items-center gap-2 text-xs">
-              <label
-                htmlFor="filter-paket"
-                className="font-medium text-[#555555]"
-              >
-                Paket:
-              </label>
-              <select
-                id="filter-paket"
-                value={packageFilter}
-                onChange={(e) => setPackageFilter(e.target.value)}
-                className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                <option value="ALL">Semua Paket</option>
-                <option value="UTBK">Intensif UTBK</option>
-                <option value="SMA">SMA Sukses</option>
-                <option value="SMP">SMP Prestasi</option>
-                <option value="SD">SD Cendekia</option>
-              </select>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Filter 1: Paket */}
+              <div className="relative flex items-center">
+                <GraduationCap className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-paket"
+                  value={packageFilter}
+                  onChange={(e) => setPackageFilter(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Paket</option>
+                  <option value="UTBK">Intensif UTBK</option>
+                  <option value="SMA">SMA Sukses</option>
+                  <option value="SMP">SMP Prestasi</option>
+                  <option value="SD">SD Cendekia</option>
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
+
+              {/* Filter 2: Status */}
+              <div className="relative flex items-center">
+                <CheckCircle2 className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Status</option>
+                  <option value="menunggu">Menunggu Verifikasi</option>
+                  <option value="terverifikasi">Terverifikasi</option>
+                  <option value="ditolak">Ditolak</option>
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <label
-                htmlFor="filter-status"
-                className="font-medium text-[#555555]"
-              >
-                Status:
-              </label>
-              <select
-                id="filter-status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-              >
-                <option value="ALL">Semua Status</option>
-                <option value="menunggu">Menunggu Verifikasi</option>
-                <option value="terverifikasi">Terverifikasi</option>
-                <option value="ditolak">Ditolak</option>
-              </select>
-            </div>
-          </>
+            {/* Reset Filter Button if any filter active */}
+            {isFilterActive && (
+              <div className="mt-2.5 pt-2.5 border-t border-[#D2D2D2]/50 flex items-center justify-between">
+                <span className="text-[11px] text-[#555555]">
+                  Filter sedang aktif membatasi pendaftar yang ditampilkan.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81F45] transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Semua Filter</span>
+                </button>
+              </div>
+            )}
+          </div>
         }
       />
 

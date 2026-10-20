@@ -44,7 +44,7 @@ export function SummaryMetricCard({
             className={cn(
               'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-colors shrink-0',
               isSelected
-                ? 'bg-[#CB2957] text-[#FFFFFF] border border-[#CB2957] shadow-xs'
+                ? 'bg-[#CB2957] text-[#FFFFFF] border border-[#CB2957]'
                 : isUrgent
                   ? 'bg-[#FFFFFF] text-[#CB2957] border border-[#CB2957]/40 group-hover:border-[#CB2957]'
                   : 'bg-[#FFFFFF] text-[#292524] border border-[#D2D2D2] group-hover:border-[#000000]'
@@ -87,7 +87,7 @@ export function SummaryMetricCard({
   const commonClasses = cn(
     'bg-[#FFFFFF] text-[#000000] p-4 sm:p-5 flex flex-col justify-between transition-all select-none group rounded-[14px]',
     isSelected
-      ? 'border-2 border-[#000000] shadow-xs'
+      ? 'border-2 border-[#000000]'
       : 'border border-[#D2D2D2] hover:border-[#000000]',
     className
   )

@@ -14,6 +14,11 @@ import {
   type Announcement,
   type AdminNotification,
   type ScheduleCandidate,
+  type AttendanceSession,
+  type AttendanceEntry,
+  type LearningMaterial,
+  type GradeRecord,
+  type ParentProfile,
   detectScheduleConflicts,
 } from '~/lib/admin-store'
 
@@ -30,6 +35,11 @@ export const ADMIN_KEYS = {
   invoices: ['admin', 'invoices'] as const,
   announcements: ['admin', 'announcements'] as const,
   notifications: ['admin', 'notifications'] as const,
+  attendance: ['admin', 'attendance'] as const,
+  materials: ['admin', 'materials'] as const,
+  grades: ['admin', 'grades'] as const,
+  parents: ['admin', 'parents'] as const,
+  session: ['admin', 'session'] as const,
 }
 
 export function useAdminDataSync() {
@@ -354,6 +364,85 @@ export function useAdminMutations() {
     },
   })
 
+  const submitPaymentProofMutation = useMutation({
+    mutationFn: async (input: {
+      invoiceId: string
+      fileName: string
+      bankName: string
+      paymentMethod: string
+      submittedByRole: 'student' | 'parent'
+      submittedByName: string
+    }) => {
+      return adminStore.submitPaymentProof(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const saveSessionAttendanceMutation = useMutation({
+    mutationFn: async (input: {
+      sessionId: string
+      topic: string
+      entries: AttendanceEntry[]
+    }) => {
+      return adminStore.saveSessionAttendance(
+        input.sessionId,
+        input.topic,
+        input.entries
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const addLearningMaterialMutation = useMutation({
+    mutationFn: async (input: Omit<LearningMaterial, 'id' | 'uploadedAt'>) => {
+      return adminStore.addLearningMaterial(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const deleteLearningMaterialMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return adminStore.deleteLearningMaterial(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const addGradeRecordMutation = useMutation({
+    mutationFn: async (input: Omit<GradeRecord, 'id' | 'assessmentDate'>) => {
+      return adminStore.addGradeRecord(input)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const updateGradeRecordMutation = useMutation({
+    mutationFn: async (input: { id: string; updates: Partial<GradeRecord> }) => {
+      return adminStore.updateGradeRecord(input.id, input.updates)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
+  const setSelectedChildIdMutation = useMutation({
+    mutationFn: async (childId: string) => {
+      adminStore.setSelectedChildId(childId)
+      return childId
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+    },
+  })
+
   return {
     approveRegistration: approveRegistrationMutation.mutateAsync,
     rejectRegistration: rejectRegistrationMutation.mutateAsync,
@@ -372,9 +461,216 @@ export function useAdminMutations() {
     createInvoice: createInvoiceMutation.mutateAsync,
     verifyInvoice: verifyInvoiceMutation.mutateAsync,
     rejectInvoice: rejectInvoiceMutation.mutateAsync,
+    submitPaymentProof: submitPaymentProofMutation.mutateAsync,
+    saveSessionAttendance: saveSessionAttendanceMutation.mutateAsync,
+    addLearningMaterial: addLearningMaterialMutation.mutateAsync,
+    deleteLearningMaterial: deleteLearningMaterialMutation.mutateAsync,
+    addGradeRecord: addGradeRecordMutation.mutateAsync,
+    updateGradeRecord: updateGradeRecordMutation.mutateAsync,
+    setSelectedChildId: setSelectedChildIdMutation.mutateAsync,
     addAnnouncement: addAnnouncementMutation.mutateAsync,
     deleteAnnouncement: deleteAnnouncementMutation.mutateAsync,
     markAllNotificationsRead: markAllNotificationsReadMutation.mutateAsync,
     markNotificationRead: markNotificationReadMutation.mutateAsync,
   }
 }
+
+// -------------------------------------------------------------
+// Specialized Query Hooks for Tutor, Student, and Parent Portals
+// -------------------------------------------------------------
+
+export function useAttendanceSessions() {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ADMIN_KEYS.attendance,
+    queryFn: () => adminStore.getState().attendanceSessions,
+    initialData: () => adminStore.getState().attendanceSessions,
+  })
+}
+
+export function useLearningMaterials() {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ADMIN_KEYS.materials,
+    queryFn: () => adminStore.getState().learningMaterials,
+    initialData: () => adminStore.getState().learningMaterials,
+  })
+}
+
+export function useGradeRecords() {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ADMIN_KEYS.grades,
+    queryFn: () => adminStore.getState().gradeRecords,
+    initialData: () => adminStore.getState().gradeRecords,
+  })
+}
+
+export function useParents() {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ADMIN_KEYS.parents,
+    queryFn: () => adminStore.getState().parents,
+    initialData: () => adminStore.getState().parents,
+  })
+}
+
+export function useActiveSession() {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ADMIN_KEYS.session,
+    queryFn: () => {
+      const state = adminStore.getState()
+      const student = state.students.find((s) => s.id === state.activeStudentId) || state.students[0]
+      const tutor = state.tutors.find((t) => t.id === state.activeTutorId) || state.tutors[0]
+      const parent = state.parents.find((p) => p.id === state.activeParentId) || state.parents[0]
+      const selectedChild = state.students.find((s) => s.id === state.selectedChildId) || student
+
+      return {
+        activeStudentId: state.activeStudentId,
+        activeTutorId: state.activeTutorId,
+        activeParentId: state.activeParentId,
+        selectedChildId: state.selectedChildId,
+        student,
+        tutor,
+        parent,
+        selectedChild,
+      }
+    },
+    initialData: () => {
+      const state = adminStore.getState()
+      const student = state.students.find((s) => s.id === state.activeStudentId) || state.students[0]
+      const tutor = state.tutors.find((t) => t.id === state.activeTutorId) || state.tutors[0]
+      const parent = state.parents.find((p) => p.id === state.activeParentId) || state.parents[0]
+      const selectedChild = state.students.find((s) => s.id === state.selectedChildId) || student
+
+      return {
+        activeStudentId: state.activeStudentId,
+        activeTutorId: state.activeTutorId,
+        activeParentId: state.activeParentId,
+        selectedChildId: state.selectedChildId,
+        student,
+        tutor,
+        parent,
+        selectedChild,
+      }
+    },
+  })
+}
+
+export function useStudentDashboardData(targetStudentId?: string) {
+  const { data: session } = useActiveSession()
+  const studentId = targetStudentId || session?.activeStudentId || 'stu-1'
+
+  const { data: students = [] } = useAdminStudents()
+  const { data: schedules = [] } = useAdminSchedules()
+  const { data: sessions = [] } = useAttendanceSessions()
+  const { data: materials = [] } = useLearningMaterials()
+  const { data: grades = [] } = useGradeRecords()
+  const { data: invoices = [] } = useAdminInvoices()
+
+  const currentStudent = students.find((s) => s.id === studentId) || students[0]
+
+  // Filtered schedules for student's class
+  const classSchedules = schedules.filter((s) => s.classId === currentStudent?.classId)
+
+  // Attendance statistics
+  const studentSessions = sessions.filter((s) =>
+    s.entries.some((e) => e.studentId === studentId)
+  )
+  const totalAttended = studentSessions.filter((s) => {
+    const entry = s.entries.find((e) => e.studentId === studentId)
+    return entry?.status === 'hadir'
+  }).length
+  const attendanceRate =
+    studentSessions.length > 0
+      ? Math.round((totalAttended / studentSessions.length) * 100)
+      : 96
+
+  // Grades for student
+  const studentGrades = grades.filter((g) => g.studentId === studentId)
+  const avgGrade =
+    studentGrades.length > 0
+      ? Math.round(
+          studentGrades.reduce((sum, g) => sum + g.score, 0) /
+            studentGrades.length
+        )
+      : 88
+
+  // Class materials
+  const classMaterials = materials.filter(
+    (m) => m.classId === currentStudent?.classId
+  )
+
+  // Invoices
+  const studentInvoices = invoices.filter((i) => i.studentId === studentId)
+
+  return {
+    student: currentStudent,
+    classSchedules,
+    sessions: studentSessions,
+    attendanceRate,
+    totalSessions: studentSessions.length,
+    attendedSessions: totalAttended,
+    grades: studentGrades,
+    avgGrade,
+    materials: classMaterials,
+    invoices: studentInvoices,
+  }
+}
+
+export function useTutorDashboardData(targetTutorId?: string) {
+  const { data: session } = useActiveSession()
+  const tutorId = targetTutorId || session?.activeTutorId || 'tut-1'
+
+  const { data: tutors = [] } = useAdminTutors()
+  const { data: schedules = [] } = useAdminSchedules()
+  const { data: sessions = [] } = useAttendanceSessions()
+  const { data: materials = [] } = useLearningMaterials()
+  const { data: grades = [] } = useGradeRecords()
+  const { data: classes = [] } = useAdminClasses()
+  const { data: students = [] } = useAdminStudents()
+
+  const currentTutor = tutors.find((t) => t.id === tutorId) || tutors[0]
+
+  const tutorSchedules = schedules.filter((s) => s.tutorId === tutorId)
+  const tutorSessions = sessions.filter((s) => s.tutorId === tutorId)
+  const tutorMaterials = materials.filter((m) => m.tutorId === tutorId)
+  const tutorGrades = grades.filter((g) => g.tutorId === tutorId)
+
+  return {
+    tutor: currentTutor,
+    schedules: tutorSchedules,
+    sessions: tutorSessions,
+    materials: tutorMaterials,
+    grades: tutorGrades,
+    classes,
+    students,
+  }
+}
+
+export function useParentDashboardData(targetParentId?: string, targetChildId?: string) {
+  const { data: session } = useActiveSession()
+  const parentId = targetParentId || session?.activeParentId || 'par-1'
+
+  const { data: parents = [] } = useParents()
+  const { data: allStudents = [] } = useAdminStudents()
+
+  const currentParent = parents.find((p) => p.id === parentId) || parents[0]
+  const children = allStudents.filter((s) => currentParent?.studentIds.includes(s.id))
+
+  const selectedChildId =
+    targetChildId || session?.selectedChildId || children[0]?.id || 'stu-1'
+  const activeChild = children.find((c) => c.id === selectedChildId) || children[0]
+
+  const childData = useStudentDashboardData(activeChild?.id)
+
+  return {
+    parent: currentParent,
+    children,
+    selectedChild: activeChild,
+    childData,
+  }
+}
+
+export const useBimbelMutations = useAdminMutations

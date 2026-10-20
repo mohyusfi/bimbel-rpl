@@ -169,8 +169,8 @@ function AdminDashboardIndex() {
         />
       </div>
 
-      {/* Priority Action Queues (Two Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Priority Action Queues (Two Columns on xl+, Stacked on 1024px) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Queue 1: Calon Siswa Menunggu Verifikasi */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between gap-3 bg-[#F6F6F6]/70">
@@ -316,9 +316,9 @@ function AdminDashboardIndex() {
       </div>
 
       {/* Today's Schedule Matrix & Announcements */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Sesi Agenda (2 Cols) */}
-        <div className="lg:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Today's Sesi Agenda (2 Cols on xl+, Full width on 1024px) */}
+        <div className="xl:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-[#D2D2D2] flex items-center justify-between gap-3 bg-[#F6F6F6]/70">
             <div>
               <h2 className="font-display font-bold text-base text-[#000000]">
@@ -416,12 +416,12 @@ function AdminDashboardIndex() {
               </Link>
             </div>
 
-            <div className="p-5 space-y-3.5">
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3.5">
               {announcements.slice(0, 2).map((ann) => (
                 <div
                   key={ann.id}
                   className={cn(
-                    'p-4 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2] space-y-1.5',
+                    'p-4 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2] space-y-1.5 flex flex-col justify-between',
                     ann.isPinned && 'border-l-4 border-l-[#CB2957]'
                   )}
                 >

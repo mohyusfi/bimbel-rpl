@@ -77,7 +77,7 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
             <ul>
               {LOGIN_LINKS.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.to}>{link.label}</Link>
+                  <Link to={link.to as any}>{link.label}</Link>
                 </li>
               ))}
             </ul>

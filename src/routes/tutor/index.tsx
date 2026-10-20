@@ -191,8 +191,8 @@ function TutorDashboardIndex() {
         </div>
       ) : null}
 
-      {/* Two Column Layout: Weekly Schedule & Quick Material / Grade Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Two Column Layout: Weekly Schedule & Quick Material / Grade Overview (xl+, Stacked on 1024px) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Weekly Teaching Schedule Box */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div className="space-y-3">

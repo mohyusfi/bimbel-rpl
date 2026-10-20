@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Clock, AlertCircle, CheckCircle2, XCircle } from 'lucide-react'
+import { Clock, AlertCircle, CheckCircle2, XCircle, Calendar } from 'lucide-react'
 import { cn } from '~/lib/utils'
 
 export type BadgeStatus =
@@ -12,6 +12,12 @@ export type BadgeStatus =
   | 'nonaktif'
   | 'belum_dibayar'
   | 'bentrok'
+  | 'hadir'
+  | 'sakit'
+  | 'izin'
+  | 'alpa'
+  | 'terjadwal'
+  | 'dibatalkan'
 
 export interface StatusBadgeProps {
   status: BadgeStatus
@@ -94,15 +100,92 @@ export function StatusBadge({
     )
   }
 
-  // 2. Done (Lunas, Disetujui, Terverifikasi, Aktif)
+  // 2. Belum dibayar (Warning amber, NOT brand red)
+  if (normalized === 'belum_dibayar') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#8C5806] select-none shrink-0',
+          className
+        )}
+      >
+        <AlertCircle className="w-3.5 h-3.5 text-[#8C5806] shrink-0" aria-hidden="true" />
+        <span>{label || 'Belum dibayar'}</span>
+      </span>
+    )
+  }
+
+  // 3. Izin (Info blue)
+  if (normalized === 'izin') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#3A5A80] select-none shrink-0',
+          className
+        )}
+      >
+        <Clock className="w-3.5 h-3.5 text-[#3A5A80] shrink-0" aria-hidden="true" />
+        <span>{label || 'Izin'}</span>
+      </span>
+    )
+  }
+
+  // 4. Sakit (Amber warning)
+  if (normalized === 'sakit') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#8C5806] select-none shrink-0',
+          className
+        )}
+      >
+        <AlertCircle className="w-3.5 h-3.5 text-[#8C5806] shrink-0" aria-hidden="true" />
+        <span>{label || 'Sakit'}</span>
+      </span>
+    )
+  }
+
+  // 5. Terjadwal / Netral
+  if (normalized === 'terjadwal') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#292524] select-none shrink-0',
+          className
+        )}
+      >
+        <Calendar className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
+        <span>{label || 'Terjadwal'}</span>
+      </span>
+    )
+  }
+
+  // 6. Dibatalkan
+  if (normalized === 'dibatalkan') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#555555] select-none shrink-0',
+          className
+        )}
+      >
+        <XCircle className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
+        <span>{label || 'Dibatalkan'}</span>
+      </span>
+    )
+  }
+
+  // 7. Done (Lunas, Hadir, Disetujui, Terverifikasi, Aktif)
   if (
     normalized === 'lunas' ||
+    normalized === 'hadir' ||
     normalized === 'disetujui' ||
     normalized === 'terverifikasi' ||
     normalized === 'aktif'
   ) {
     const defaultLabels: Record<string, string> = {
       lunas: 'Lunas',
+      hadir: 'Hadir',
       terverifikasi: 'Terverifikasi',
       disetujui: 'Disetujui',
       aktif: 'Aktif',
@@ -122,12 +205,12 @@ export function StatusBadge({
     )
   }
 
-  // 3. Rejected or Destructive (Ditolak, Bentrok, Nonaktif, Belum Dibayar)
+  // 8. Rejected or Destructive (Ditolak, Alpa, Bentrok, Nonaktif)
   const defaultRejectedLabels: Record<string, string> = {
     ditolak: 'Ditolak',
+    alpa: 'Alpa',
     nonaktif: 'Nonaktif',
     bentrok: 'Bentrok',
-    belum_dibayar: 'Belum dibayar',
   }
   const displayLabel = label || defaultRejectedLabels[normalized] || 'Ditolak'
 

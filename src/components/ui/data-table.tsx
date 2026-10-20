@@ -28,8 +28,11 @@ interface DataTableProps<TData, TValue> {
   searchColumn?: string
   filterSlot?: React.ReactNode
   emptyState?: React.ReactNode
+  renderMobileCard?: (row: TData) => React.ReactNode
   pageSize?: number
   className?: string
+  totalCount?: number
+  counterLabel?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -38,8 +41,11 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = 'Cari data...',
   filterSlot,
   emptyState,
+  renderMobileCard,
   pageSize = 10,
   className,
+  totalCount,
+  counterLabel,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -95,13 +101,18 @@ export function DataTable<TData, TValue>({
   return (
     <div
       className={cn(
-        'w-full bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] shadow-2xs overflow-hidden font-sans',
+        'w-full bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden font-sans',
         className
       )}
     >
-      {/* Unified Card Header Toolbar: Search + Filters */}
-      <div className="px-5 py-4 border-b border-[#D2D2D2] bg-[#FFFFFF] flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="relative w-full md:max-w-sm">
+      {/* Tier 1: Search Toolbar & Live Counter */}
+      <div
+        className={cn(
+          'px-4 sm:px-5 py-3 sm:py-3.5 bg-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-3',
+          !filterSlot && 'border-b border-[#D2D2D2]'
+        )}
+      >
+        <div className="relative w-full sm:max-w-sm">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555555] pointer-events-none"
             aria-hidden="true"
@@ -111,13 +122,13 @@ export function DataTable<TData, TValue>({
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-10 pl-10 pr-8 text-[13px] bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[10px] focus:outline-none focus:border-[#000000] focus:ring-2 focus:ring-[#CB2957]/20 transition-all placeholder:text-[#555555]"
+            className="w-full h-10 pl-10 pr-8 text-xs font-medium bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[10px] focus:outline-none focus:border-[#000000] transition-colors placeholder:text-[#555555]"
           />
           {globalFilter && (
             <button
               type="button"
               onClick={() => setGlobalFilter('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#555555] hover:text-[#000000] rounded-[4px]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#555555] hover:text-[#000000] rounded-[4px] cursor-pointer"
               aria-label="Bersihkan pencarian"
             >
               <X className="w-3.5 h-3.5" />
@@ -125,15 +136,49 @@ export function DataTable<TData, TValue>({
           )}
         </div>
 
-        {filterSlot && (
-          <div className="flex items-center gap-2.5 flex-wrap md:justify-end">
-            {filterSlot}
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-xs text-[#555555] self-start sm:self-center shrink-0">
+          <span>
+            Menampilkan{' '}
+            <strong className="font-semibold text-[#000000] tabular-nums">
+              {totalRows}
+            </strong>{' '}
+            {counterLabel ?? 'baris data'}
+            {totalCount != null && totalCount !== totalRows && (
+              <span className="text-[#888888]"> (dari total {totalCount})</span>
+            )}
+          </span>
+        </div>
       </div>
 
-      {/* Responsive Table Container */}
-      <div className="overflow-x-auto">
+      {/* Tier 2: Filter Section (Visible when filterSlot is provided) */}
+      {filterSlot && (
+        <div className="border-t border-b border-[#D2D2D2]/60 bg-[#FAFAFA] p-3 sm:p-3.5">
+          {filterSlot}
+        </div>
+      )}
+
+      {/* Mobile Card List View (if provided) */}
+      {renderMobileCard && (
+        <div className="md:hidden divide-y divide-[#D2D2D2]">
+          {table.getRowModel().rows.length > 0 ? (
+            table.getRowModel().rows.map((row) => (
+              <div
+                key={row.id}
+                className="p-4 hover:bg-[#F6F6F6]/60 transition-colors"
+              >
+                {renderMobileCard(row.original)}
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center text-xs text-[#555555]">
+              {emptyState || 'Tidak ada data yang cocok'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Responsive Table Container (Desktop / Default) */}
+      <div className={cn('overflow-x-auto', renderMobileCard && 'hidden md:block')}>
         <table className="w-full text-left border-collapse font-sans">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (

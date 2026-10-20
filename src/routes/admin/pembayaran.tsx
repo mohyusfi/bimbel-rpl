@@ -13,6 +13,8 @@ import {
   CreditCard,
   Clock,
   AlertTriangle,
+  ChevronDown,
+  RotateCcw,
 } from 'lucide-react'
 import {
   useAdminInvoices,
@@ -68,6 +70,13 @@ function AdminPembayaranPage() {
     }
     return inv.status === statusFilter
   })
+
+  // Filter state helpers
+  const isFilterActive = statusFilter !== 'ALL'
+
+  const handleResetFilters = () => {
+    setStatusFilter('ALL')
+  }
 
   // Quick Filter Cards data
   const summaryCards = [
@@ -361,30 +370,50 @@ function AdminPembayaranPage() {
       <DataTable
         columns={columns}
         data={filteredInvoices}
+        totalCount={invoices.length}
+        counterLabel="tagihan"
         searchPlaceholder="Cari nomor tagihan, nama siswa, NIS, atau program..."
         filterSlot={
-          <div className="flex items-center gap-2 text-xs">
-            <label
-              htmlFor="filter-status-tagihan"
-              className="font-medium text-[#555555]"
-            >
-              Status Tagihan:
-            </label>
-            <select
-              id="filter-status-tagihan"
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(
-                  e.target.value as 'ALL' | 'menunggu' | 'lunas' | 'unpaid'
-                )
-              }
-              className="h-10 px-3 text-xs font-medium bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-            >
-              <option value="ALL">Semua Status</option>
-              <option value="menunggu">Menunggu Verifikasi</option>
-              <option value="lunas">Lunas</option>
-              <option value="unpaid">Belum Dibayar / Ditolak</option>
-            </select>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {/* Filter: Status Tagihan */}
+              <div className="relative flex items-center">
+                <CreditCard className="absolute left-3 w-4 h-4 text-[#555555] pointer-events-none" />
+                <select
+                  id="filter-status-tagihan"
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(
+                      e.target.value as 'ALL' | 'menunggu' | 'lunas' | 'unpaid'
+                    )
+                  }
+                  className="w-full h-10 pl-9 pr-8 text-xs font-medium bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] transition-colors appearance-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Status Tagihan</option>
+                  <option value="menunggu">Menunggu Verifikasi</option>
+                  <option value="lunas">Lunas</option>
+                  <option value="unpaid">Belum Dibayar / Ditolak</option>
+                </select>
+                <ChevronDown className="absolute right-3 w-4 h-4 text-[#555555] pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Reset Filter Button if any filter active */}
+            {isFilterActive && (
+              <div className="mt-2.5 pt-2.5 border-t border-[#D2D2D2]/50 flex items-center justify-between">
+                <span className="text-[11px] text-[#555555]">
+                  Filter sedang aktif membatasi tagihan yang ditampilkan.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81F45] transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Semua Filter</span>
+                </button>
+              </div>
+            )}
           </div>
         }
       />

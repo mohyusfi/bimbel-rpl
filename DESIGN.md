@@ -242,7 +242,7 @@ Sistem membedakan perlakuan bentuk antara halaman publik (\`body.landing\` di \`
 | Konteks | Radius | Border & Pemisah | Shadow |
 |---|---|---|---|
 | \*\*Landing Page (\`body.landing\`)\*\* | Tajam: \`2px\` (\`--radius-sm/md\`) hingga \`4px\` (\`--radius-lg/xl\`) | Garis hitam tegas \`2px solid #000000\` (\`--rule\`) untuk struktur utama dan \`1px solid #000000\` (\`--rule-thin\`) untuk sub-baris | \*\*Tidak ada shadow\*\* (\`none\`) pada seluruh elemen termasuk modal |
-| \*\*Dashboard (\`styles.css\`)\*\* | Nyaman: \`6px\` (\`sm\`), \`10px\` (\`md\`), \`14px\` (\`lg\`) | Border abu-abu \`1px solid #D2D2D2\` (\`--border\`) untuk kartu dan tabel | Halus (\`--shadow-sm\` s.d. \`--shadow-lg\`) untuk kartu dan dialog melayang |
+| \*\*Dashboard (\`styles.css\`)\*\* | Nyaman: \`6px\` (\`sm\`), \`10px\` (\`md\`), \`14px\` (\`lg\`) | Border abu-abu \`1px solid #D2D2D2\` (\`--border\`) untuk kartu dan tabel | Datar (\`none\`) untuk kartu dan tabel; halus (\`--shadow-sm\` s.d. \`--shadow-lg\`) khusus untuk dialog modal melayang, drawer, dan popover |
 
 ### 4.7 Ikon
 

@@ -220,8 +220,8 @@ function StudentTagihanPage() {
         </div>
       </div>
 
-      {/* 2. SPP Obligation Summary & Official Account Banner */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* 2. SPP Obligation Summary & Official Account Banner (xl+, Stacked on 1024px) */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Left: Kewajiban SPP Summary Card */}
         <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div>
@@ -259,7 +259,7 @@ function StudentTagihanPage() {
         </div>
 
         {/* Right: Rekening Resmi Bimbel Tadulako Cendekia */}
-        <div className="lg:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
+        <div className="xl:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
