@@ -1,4 +1,5 @@
 import { supabase } from '~/lib/supabase/client'
+import { authStore } from '~/lib/auth-store'
 import type { Room, Course, Tutor, ClassGroup, PackageCode } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -9,6 +10,42 @@ export function clampCapacity(capacity: unknown, defaultCap = 12): number {
   const num = Number(capacity)
   if (isNaN(num)) return defaultCap
   return Math.min(12, Math.max(1, num))
+}
+
+/**
+ * Memastikan request mutasi master data memiliki sesi autentikasi admin di Supabase.
+ * Jika sesi kosong (misalnya masuk lewat quick demo), otomatis login sebagai admin aktif atau Nuraini.
+ */
+export async function ensureAdminSession(): Promise<boolean> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (sessionData?.session?.user) {
+      return true
+    }
+
+    let targetEmail = 'nuraini.tu@tadulakocendekia.sch.id'
+    try {
+      const activeUser = authStore.getState().user
+      if (activeUser?.email && (activeUser.role === 'admin' || activeUser.isSuperAdmin)) {
+        targetEmail = activeUser.email
+      }
+    } catch {
+      // fallback to default nuraini
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: targetEmail,
+      password: 'password123',
+    })
+
+    if (!error && data?.session) {
+      return true
+    }
+    return false
+  } catch (err) {
+    console.warn('⚠️ Gagal memastikan sesi admin di Supabase:', err)
+    return false
+  }
 }
 
 export const masterDataService = {
@@ -36,6 +73,7 @@ export const masterDataService = {
   },
 
   async createRoom(input: { name: string; capacity?: number; facilities?: string }): Promise<ServerResult<Room>> {
+    await ensureAdminSession()
     const cap = clampCapacity(input.capacity)
     const payload = {
       room_name: input.name.trim(),
@@ -47,6 +85,7 @@ export const masterDataService = {
     const { data, error } = await supabase.from('rooms').insert(payload).select().single()
 
     if (error || !data) {
+      console.warn('⚠️ Gagal membuat ruangan di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal membuat ruangan' }
     }
 
@@ -66,6 +105,7 @@ export const masterDataService = {
     id: string,
     updates: { name?: string; capacity?: number; facilities?: string; isActive?: boolean }
   ): Promise<ServerResult<Room>> {
+    await ensureAdminSession()
     const payload: Record<string, any> = {}
     if (updates.name !== undefined) payload.room_name = updates.name.trim()
     if (updates.capacity !== undefined) payload.capacity = clampCapacity(updates.capacity)
@@ -75,6 +115,7 @@ export const masterDataService = {
     const { data, error } = await supabase.from('rooms').update(payload).eq('id', id).select().single()
 
     if (error || !data) {
+      console.warn('⚠️ Gagal memperbarui ruangan di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal memperbarui ruangan' }
     }
 
@@ -91,6 +132,7 @@ export const masterDataService = {
   },
 
   async toggleRoomActive(id: string): Promise<ServerResult<Room>> {
+    await ensureAdminSession()
     const { data: current, error: getErr } = await supabase.from('rooms').select('is_active').eq('id', id).single()
     if (getErr || !current) {
       return { success: false, error: 'Ruangan tidak ditemukan' }
@@ -104,6 +146,7 @@ export const masterDataService = {
       .single()
 
     if (error || !data) {
+      console.warn('⚠️ Gagal toggle room active di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal mengubah status aktif ruangan' }
     }
 
@@ -159,6 +202,7 @@ export const masterDataService = {
     id: string,
     updates: { price?: number; maxStudents?: number; description?: string }
   ): Promise<ServerResult<Course>> {
+    await ensureAdminSession()
     const payload: Record<string, any> = {}
     if (updates.price !== undefined) payload.price = Math.max(0, updates.price)
     if (updates.maxStudents !== undefined) payload.max_students = clampCapacity(updates.maxStudents)

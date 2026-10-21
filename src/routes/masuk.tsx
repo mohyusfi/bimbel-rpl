@@ -114,7 +114,21 @@ function LoginPage() {
   }
 
   // 1-Click Quick Demo Login
-  const handleQuickDemoLogin = (role: UserRole) => {
+  const handleQuickDemoLogin = async (role: UserRole) => {
+    setIsSubmitting(true)
+    try {
+      const demoAccount = DEMO_ACCOUNTS[role]
+      const loginRes = await authStore.login(demoAccount.email, demoAccount.defaultPassword, role)
+      if (loginRes.success && loginRes.href) {
+        navigate({ to: loginRes.href as any })
+        return
+      }
+    } catch (err) {
+      console.warn('Quick login Supabase auth fallback:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+
     const result = authStore.quickLogin(role)
     navigate({ to: result.href as any })
   }
