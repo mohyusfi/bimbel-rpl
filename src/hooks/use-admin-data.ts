@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '~/lib/supabase/client'
+import { masterDataService } from '~/server/services/master-data.service'
 import {
   adminStore,
   type Registration,
@@ -102,7 +103,18 @@ export function useAdminTutors() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.tutors,
-    queryFn: () => adminStore.getState().tutors,
+    queryFn: async () => {
+      try {
+        const dbTutors = await masterDataService.getTutors()
+        if (dbTutors && dbTutors.length > 0) {
+          return dbTutors
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for tutors:', err)
+      }
+      return adminStore.getState().tutors
+    },
+    initialData: () => adminStore.getState().tutors,
   })
 }
 
@@ -118,7 +130,18 @@ export function useAdminRooms() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.rooms,
-    queryFn: () => adminStore.getState().rooms,
+    queryFn: async () => {
+      try {
+        const dbRooms = await masterDataService.getRooms()
+        if (dbRooms && dbRooms.length > 0) {
+          return dbRooms
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for rooms:', err)
+      }
+      return adminStore.getState().rooms
+    },
+    initialData: () => adminStore.getState().rooms,
   })
 }
 
@@ -126,7 +149,18 @@ export function useAdminCourses() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.courses,
-    queryFn: () => adminStore.getState().courses,
+    queryFn: async () => {
+      try {
+        const dbCourses = await masterDataService.getCourses()
+        if (dbCourses && dbCourses.length > 0) {
+          return dbCourses
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for courses:', err)
+      }
+      return adminStore.getState().courses
+    },
+    initialData: () => adminStore.getState().courses,
   })
 }
 
@@ -134,7 +168,18 @@ export function useAdminClasses() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.classes,
-    queryFn: () => adminStore.getState().classes,
+    queryFn: async () => {
+      try {
+        const dbClasses = await masterDataService.getClasses()
+        if (dbClasses && dbClasses.length > 0) {
+          return dbClasses
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for classes:', err)
+      }
+      return adminStore.getState().classes
+    },
+    initialData: () => adminStore.getState().classes,
   })
 }
 
@@ -509,36 +554,79 @@ export function useAdminMutations() {
 
   const addRoomMutation = useMutation({
     mutationFn: async (input: Omit<Room, 'id' | 'isActive'>) => {
+      try {
+        const res = await masterDataService.createRoom(input)
+        if (res.success && res.data) {
+          adminStore.addRoom({
+            ...input,
+            capacity: res.data.capacity,
+          })
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for addRoom:', err)
+      }
       return adminStore.addRoom(input)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateRoomMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Room, 'id'>> }) => {
+      try {
+        const res = await masterDataService.updateRoom(id, updates)
+        if (res.success && res.data) {
+          adminStore.updateRoom(id, updates)
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for updateRoom:', err)
+      }
       return adminStore.updateRoom(id, updates)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const toggleRoomActiveMutation = useMutation({
     mutationFn: async (id: string) => {
+      try {
+        const res = await masterDataService.toggleRoomActive(id)
+        if (res.success && res.data) {
+          adminStore.toggleRoomActive(id)
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for toggleRoomActive:', err)
+      }
       return adminStore.toggleRoomActive(id)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.rooms })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateCourseMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Course> }) => {
+      try {
+        const res = await masterDataService.updateCourse(id, updates)
+        if (res.success && res.data) {
+          adminStore.updateCourse(id, updates)
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for updateCourse:', err)
+      }
       return adminStore.updateCourse(id, updates)
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.courses })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
