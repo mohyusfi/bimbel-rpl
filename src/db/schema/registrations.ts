@@ -11,6 +11,7 @@ export const registrations = pgTable(
   'registrations',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    registrationNumber: varchar('registration_number', { length: 50 }).unique(),
     studentName: varchar('student_name', { length: 255 }).notNull(),
     studentEmail: varchar('student_email', { length: 255 }).notNull(),
     studentPhone: varchar('student_phone', { length: 50 }).notNull(),

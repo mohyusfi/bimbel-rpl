@@ -5,6 +5,7 @@ import { adminStore, type PackageCode } from '~/lib/admin-store'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { useNavigate } from '@tanstack/react-router'
 import { supabase } from '~/lib/supabase/client'
+import { registrationService } from '~/server/services/registration.service'
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -42,6 +43,7 @@ export function RegisterModal({
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [submittedTicket, setSubmittedTicket] = React.useState<{
     id: string
+    registrationNumber?: string
     studentName: string
     packageName: string
     studentSchool: string
@@ -128,6 +130,30 @@ export function RegisterModal({
       }
       const packageName = pkgLabels[formData.studentPackage] || 'Intensif UTBK-SNBT'
 
+      let registrationNumber: string | undefined
+
+      // 1. Simpan ke tabel registrations Supabase via registrationService
+      try {
+        const res = await registrationService.createRegistration({
+          studentName: formData.studentName.trim(),
+          studentEmail: formData.studentEmail.trim(),
+          studentPhone: formData.studentPhone.trim(),
+          studentSchool: formData.studentSchool.trim(),
+          packageCode: formData.studentPackage as PackageCode,
+          packageName,
+          parentName: formData.parentName.trim(),
+          parentEmail: formData.parentEmail.trim() || undefined,
+          parentPhone: formData.parentPhone.trim(),
+          parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+        })
+        if (res.success && res.data) {
+          registrationNumber = res.data.registrationNumber
+        }
+      } catch (err) {
+        console.info('Supabase registration insert local fallback:', err)
+      }
+
+      // 2. Sinkronkan ke local admin store
       const newRegistration = adminStore.addRegistration({
         studentName: formData.studentName.trim(),
         studentEmail: formData.studentEmail.trim(),
@@ -139,30 +165,13 @@ export function RegisterModal({
         parentEmail: formData.parentEmail.trim(),
         parentPhone: formData.parentPhone.trim(),
         parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+        registrationNumber,
       })
-
-      // Sinkronisasi pendaftaran langsung ke tabel registrations Supabase (graceful error handling)
-      try {
-        await supabase.from('registrations').insert([{
-          student_name: formData.studentName.trim(),
-          student_email: formData.studentEmail.trim(),
-          student_phone: formData.studentPhone.trim(),
-          student_school: formData.studentSchool.trim(),
-          package_code: formData.studentPackage,
-          package_name: packageName,
-          parent_name: formData.parentName.trim(),
-          parent_email: formData.parentEmail.trim() || null,
-          parent_phone: formData.parentPhone.trim(),
-          parent_address: formData.parentAddress.trim() || 'Kota Palu',
-          status: 'menunggu',
-        }])
-      } catch (err) {
-        console.info('Supabase registration insert local fallback:', err)
-      }
 
       // Tampilkan tiket konfirmasi sukses tanpa browser alert kasar
       setSubmittedTicket({
         id: newRegistration.id,
+        registrationNumber: newRegistration.registrationNumber,
         studentName: newRegistration.studentName,
         packageName: newRegistration.packageName,
         studentSchool: newRegistration.studentSchool,
@@ -179,7 +188,8 @@ export function RegisterModal({
 
   const handleCopyTicket = () => {
     if (!submittedTicket) return
-    const text = `Nomor Pendaftaran: ${submittedTicket.id}\nNama Calon Siswa: ${submittedTicket.studentName}\nPaket Bimbel: ${submittedTicket.packageName}\nStatus: Menunggu Verifikasi Admin`
+    const ticketId = submittedTicket.registrationNumber || submittedTicket.id
+    const text = `Nomor Pendaftaran: ${ticketId}\nNama Calon Siswa: ${submittedTicket.studentName}\nPaket Bimbel: ${submittedTicket.packageName}\nStatus: Menunggu Verifikasi Admin`
     navigator.clipboard.writeText(text)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 2000)
@@ -237,7 +247,7 @@ export function RegisterModal({
                       Tiket Pendaftaran
                     </span>
                     <span className="font-mono text-xs font-semibold text-[#000000] tabular-nums">
-                      {submittedTicket.id}
+                      {submittedTicket.registrationNumber || submittedTicket.id}
                     </span>
                   </div>
 

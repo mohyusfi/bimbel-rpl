@@ -4,6 +4,7 @@ export type PackageCode = 'UTBK' | 'SMA' | 'SMP' | 'SD'
 
 export interface Registration {
   id: string
+  registrationNumber?: string
   studentName: string
   studentEmail: string
   studentPhone: string
@@ -1139,10 +1140,17 @@ export const adminStore = {
   },
 
   // REGISTRATIONS
-  addRegistration(input: Omit<Registration, 'id' | 'createdAt' | 'status'>) {
+  addRegistration(input: Omit<Registration, 'id' | 'createdAt' | 'status'> & { registrationNumber?: string }) {
+    const regNum =
+      input.registrationNumber ||
+      `REG-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(
+        state.registrations.length + 1
+      ).padStart(4, '0')}`
+
     const newReg: Registration = {
       ...input,
       id: generateUniqueId('reg'),
+      registrationNumber: regNum,
       createdAt: new Date().toISOString(),
       status: 'menunggu',
     }

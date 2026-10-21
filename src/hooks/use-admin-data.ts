@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '~/lib/supabase/client'
 import { masterDataService } from '~/server/services/master-data.service'
+import { registrationService } from '~/server/services/registration.service'
 import {
   adminStore,
   type Registration,
@@ -87,7 +88,17 @@ export function useAdminRegistrations() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.registrations,
-    queryFn: () => adminStore.getState().registrations,
+    queryFn: async () => {
+      try {
+        const dbRegs = await registrationService.getRegistrations()
+        if (dbRegs && dbRegs.length > 0) {
+          return dbRegs
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for registrations:', err)
+      }
+      return adminStore.getState().registrations
+    },
   })
 }
 
@@ -482,6 +493,20 @@ export function useAdminMutations() {
 
   const approveRegistrationMutation = useMutation({
     mutationFn: async ({ regId, classId }: { regId: string; classId: string }) => {
+      // 1. Eksekusi di database Supabase via service layer
+      try {
+        const result = await registrationService.approveRegistration(regId, classId)
+        if (!result.success) {
+          throw new Error(result.error)
+        }
+      } catch (err: any) {
+        console.warn('Supabase approveRegistration fallback / warning:', err?.message)
+        // Jika error terkait kapasitas penuh, teruskan error agar UI menampilkan peringatan
+        if (err?.message?.includes('sudah penuh') || err?.message?.includes('kapasitas')) {
+          throw err
+        }
+      }
+      // 2. Sinkronisasi local store
       return adminStore.approveRegistration(regId, classId)
     },
     onSuccess: () => {
@@ -491,6 +516,11 @@ export function useAdminMutations() {
 
   const rejectRegistrationMutation = useMutation({
     mutationFn: async ({ regId, reason }: { regId: string; reason: string }) => {
+      try {
+        await registrationService.rejectRegistration(regId, reason)
+      } catch (err) {
+        console.warn('Supabase rejectRegistration fallback / warning:', err)
+      }
       return adminStore.rejectRegistration(regId, reason)
     },
     onSuccess: () => {
@@ -500,6 +530,29 @@ export function useAdminMutations() {
 
   const addRegistrationMutation = useMutation({
     mutationFn: async (input: Omit<Registration, 'id' | 'createdAt' | 'status'>) => {
+      try {
+        const res = await registrationService.createRegistration({
+          studentName: input.studentName,
+          studentEmail: input.studentEmail,
+          studentPhone: input.studentPhone,
+          studentSchool: input.studentSchool,
+          packageCode: input.packageCode,
+          packageName: input.packageName,
+          parentName: input.parentName,
+          parentEmail: input.parentEmail,
+          parentPhone: input.parentPhone,
+          parentJob: input.parentJob,
+          parentAddress: input.parentAddress,
+        })
+        if (res.success && res.data) {
+          return adminStore.addRegistration({
+            ...input,
+            registrationNumber: res.data.registrationNumber,
+          })
+        }
+      } catch (err) {
+        console.warn('Supabase addRegistration fallback / warning:', err)
+      }
       return adminStore.addRegistration(input)
     },
     onSuccess: () => {
@@ -967,6 +1020,17 @@ export function usePlotRegistrationMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ regId, classId }: { regId: string; classId: string }) => {
+      try {
+        const result = await registrationService.approveRegistration(regId, classId)
+        if (!result.success) {
+          throw new Error(result.error)
+        }
+      } catch (err: any) {
+        console.warn('Supabase usePlotRegistrationMutation warning:', err?.message)
+        if (err?.message?.includes('sudah penuh') || err?.message?.includes('kapasitas')) {
+          throw err
+        }
+      }
       return adminStore.approveRegistration(regId, classId)
     },
     onSuccess: () => {

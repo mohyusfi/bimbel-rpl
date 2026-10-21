@@ -342,7 +342,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                 {reg.studentName}
               </span>
               <span className="font-mono text-xs text-[#6B6B6B] tabular-nums">
-                {reg.id}
+                {reg.registrationNumber || reg.id}
               </span>
             </div>
             <p className="text-xs text-[#6B6B6B] mt-0.5">
