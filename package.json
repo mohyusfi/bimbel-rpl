@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:seed": "node --env-file=.env --experimental-strip-types src/db/seed.ts",
+    "db:clean": "node --env-file=.env --experimental-strip-types src/db/cleanup-and-seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"

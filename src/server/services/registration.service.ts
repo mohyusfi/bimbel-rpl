@@ -1,5 +1,5 @@
 import { supabase } from '~/lib/supabase/client'
-import type { Registration, PackageCode } from '~/lib/admin-store'
+import type { Registration, PackageCode, Student } from '~/lib/admin-store'
 import { clampCapacity, ensureAdminSession } from './master-data.service'
 
 export { clampCapacity }
@@ -64,6 +64,93 @@ export const registrationService = {
       assignedClassId: r.assigned_class_id || undefined,
       createdAt: r.created_at,
     }))
+  },
+
+  /**
+   * Mengambil data seluruh siswa dari Supabase beserta relasi profil, wali, dan rombel kelas
+   */
+  async getStudents(): Promise<Student[]> {
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        id,
+        nis,
+        origin_school,
+        grade_level,
+        status,
+        created_at,
+        profiles:profile_id (
+          id,
+          full_name,
+          email,
+          phone_number
+        ),
+        parents:parent_id (
+          id,
+          occupation,
+          address,
+          profiles:profile_id (
+            full_name,
+            email,
+            phone_number
+          )
+        ),
+        class_members (
+          class_id,
+          classes:class_id (
+            id,
+            class_name,
+            courses:course_id (
+              course_code
+            )
+          )
+        )
+      `)
+      .order('nis', { ascending: true })
+
+    if (error || !data) {
+      console.warn('⚠️ Gagal mengambil students dari Supabase:', error?.message)
+      return []
+    }
+
+    return data.map((s: any) => {
+      const studentProfile = s.profiles || {}
+      const parentRecord = s.parents || {}
+      const parentProfile = parentRecord.profiles || {}
+      const firstMember = s.class_members?.[0] || {}
+      const classRecord = firstMember.classes || {}
+      const courseRecord = classRecord.courses || {}
+
+      const packageCode =
+        (courseRecord.course_code as PackageCode) ||
+        (s.grade_level === 'SMA' ? 'UTBK' : (s.grade_level as PackageCode)) ||
+        'UTBK'
+
+      return {
+        id: s.id,
+        nis: s.nis,
+        name: studentProfile.full_name || 'Siswa Bimbel',
+        email: studentProfile.email || '',
+        phone: studentProfile.phone_number || '',
+        school: s.origin_school || 'Sekolah di Kota Palu',
+        packageCode,
+        classId: firstMember.class_id || '',
+        className: classRecord.class_name || 'Rombel Bimbingan',
+        parentName: parentProfile.full_name || 'Wali Murid',
+        parentPhone: parentProfile.phone_number || '',
+        parentEmail: parentProfile.email || undefined,
+        parentJob: parentRecord.occupation || undefined,
+        parentAddress: parentRecord.address || undefined,
+        joinDate: s.created_at
+          ? new Intl.DateTimeFormat('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            }).format(new Date(s.created_at))
+          : 'Oktober 2026',
+        status: (s.status as 'aktif' | 'nonaktif') || 'aktif',
+      }
+    })
   },
 
   /**

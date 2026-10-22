@@ -106,7 +106,17 @@ export function useAdminStudents() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.students,
-    queryFn: () => adminStore.getState().students,
+    queryFn: async () => {
+      try {
+        const dbStudents = await registrationService.getStudents()
+        if (dbStudents && dbStudents.length > 0) {
+          return dbStudents
+        }
+      } catch (err) {
+        console.warn('Fallback to local store for students:', err)
+      }
+      return adminStore.getState().students
+    },
   })
 }
 
@@ -125,7 +135,6 @@ export function useAdminTutors() {
       }
       return adminStore.getState().tutors
     },
-    initialData: () => adminStore.getState().tutors,
   })
 }
 
@@ -152,7 +161,6 @@ export function useAdminRooms() {
       }
       return adminStore.getState().rooms
     },
-    initialData: () => adminStore.getState().rooms,
   })
 }
 
@@ -171,7 +179,6 @@ export function useAdminCourses() {
       }
       return adminStore.getState().courses
     },
-    initialData: () => adminStore.getState().courses,
   })
 }
 
@@ -190,7 +197,6 @@ export function useAdminClasses() {
       }
       return adminStore.getState().classes
     },
-    initialData: () => adminStore.getState().classes,
   })
 }
 
@@ -612,6 +618,7 @@ export function useAdminMutations() {
         if (res.success && res.data) {
           adminStore.addRoom({
             ...input,
+            id: res.data.id,
             capacity: res.data.capacity,
           })
           return res.data

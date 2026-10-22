@@ -1034,27 +1034,44 @@ function loadInitialState(): AdminState {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
-        const learningMaterials = rawMaterials.map((m) => {
-          if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
-            return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
-          }
-          if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
-            return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
-          }
-          return m
-        })
+        // Auto-purge legacy mock data (IDs like 'rm-1', 'cls-1', 'tut-1', 'stu-1')
+        const hasLegacyMock =
+          parsed.rooms?.some((r: any) => typeof r.id === 'string' && r.id.startsWith('rm-')) ||
+          parsed.classes?.some((c: any) => typeof c.id === 'string' && c.id.startsWith('cls-')) ||
+          parsed.students?.some((s: any) => typeof s.id === 'string' && s.id.startsWith('stu-'))
 
-        return {
-          ...parsed,
-          attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
-          learningMaterials,
-          gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
-          parents: parsed.parents || INITIAL_PARENTS,
-          selectedChildId: parsed.selectedChildId || 'stu-1',
-          activeTutorId: parsed.activeTutorId || 'tut-1',
-          activeStudentId: parsed.activeStudentId || 'stu-1',
-          activeParentId: parsed.activeParentId || 'par-1',
+        if (hasLegacyMock) {
+          console.info('🧹 Auto-purging legacy mock data from localStorage...')
+          localStorage.removeItem(STORAGE_KEY)
+        } else {
+          const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
+          const learningMaterials = rawMaterials.map((m) => {
+            if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
+              return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
+            }
+            if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
+              return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
+            }
+            return m
+          })
+
+          return {
+            ...parsed,
+            registrations: parsed.registrations || [],
+            students: parsed.students || [],
+            tutors: parsed.tutors || [],
+            rooms: parsed.rooms || [],
+            courses: parsed.courses || [],
+            classes: parsed.classes || [],
+            attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
+            learningMaterials,
+            gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
+            parents: parsed.parents || INITIAL_PARENTS,
+            selectedChildId: parsed.selectedChildId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+            activeTutorId: parsed.activeTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
+            activeStudentId: parsed.activeStudentId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+            activeParentId: parsed.activeParentId || 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
+          }
         }
       }
     } catch (e) {
@@ -1063,14 +1080,14 @@ function loadInitialState(): AdminState {
   }
 
   return {
-    registrations: INITIAL_REGISTRATIONS.map((r) => ({ ...r })),
-    students: INITIAL_STUDENTS.map((s) => ({ ...s })),
+    registrations: [],
+    students: [],
     tutors: INITIAL_TUTORS.map((t) => ({ ...t })),
     subjects: INITIAL_SUBJECTS.map((s) => ({ ...s })),
     rooms: INITIAL_ROOMS.map((r) => ({ ...r })),
     courses: INITIAL_COURSES.map((c) => ({ ...c })),
     classes: INITIAL_CLASSES.map((c) => ({ ...c })),
-    schedules: INITIAL_SCHEDULES.map((s) => ({ ...s })),
+    schedules: [],
     invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
     announcements: INITIAL_ANNOUNCEMENTS.map((a) => ({ ...a })),
     notifications: INITIAL_NOTIFICATIONS.map((n) => ({ ...n })),
@@ -1078,10 +1095,10 @@ function loadInitialState(): AdminState {
     learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
     gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
     parents: INITIAL_PARENTS.map((p) => ({ ...p })),
-    selectedChildId: 'stu-1',
-    activeTutorId: 'tut-1',
-    activeStudentId: 'stu-1',
-    activeParentId: 'par-1',
+    selectedChildId: 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+    activeTutorId: '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
+    activeStudentId: 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+    activeParentId: 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
   }
 }
 
@@ -1415,12 +1432,12 @@ export const adminStore = {
   },
 
   // ROOMS
-  addRoom(input: Omit<Room, 'id' | 'isActive'>) {
+  addRoom(input: Omit<Room, 'id' | 'isActive'> & { id?: string }) {
     const capacity = clampCapacity(input.capacity, 12)
     const newRoom: Room = {
       ...input,
       capacity,
-      id: generateUniqueId('rm'),
+      id: input.id || generateUniqueId('rm'),
       isActive: true,
     }
     state.rooms = [...state.rooms, newRoom]

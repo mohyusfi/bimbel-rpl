@@ -589,25 +589,29 @@ export const authStore = {
         adminState.students.find((s) => s.email.toLowerCase() === demoInfo.email.toLowerCase()) ||
         adminState.students[0] ||
         null
-      if (studentRecord) adminStore.setActiveStudentId(studentRecord.id)
+      const studentId = studentRecord?.id || 'd992d9fc-6f5b-434f-998b-358e54a754b7'
+      adminStore.setActiveStudentId(studentId)
     } else if (targetRole === 'parent') {
       parentRecord =
         adminState.parents.find((p) => p.email.toLowerCase() === demoInfo.email.toLowerCase()) ||
         adminState.parents[0] ||
         null
       mappedChildren = adminState.students.filter((s) =>
-        parentRecord?.studentIds.includes(s.id)
+        parentRecord?.studentIds?.includes(s.id)
       )
       if (mappedChildren.length === 0 && adminState.students.length > 0) {
         mappedChildren = [adminState.students[0]]
       }
-      if (parentRecord) adminStore.setActiveParentId(parentRecord.id)
-      if (mappedChildren[0]?.id) adminStore.setSelectedChildId(mappedChildren[0].id)
+      const parentId = parentRecord?.id || 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8'
+      const childId = mappedChildren[0]?.id || 'd992d9fc-6f5b-434f-998b-358e54a754b7'
+      adminStore.setActiveParentId(parentId)
+      adminStore.setSelectedChildId(childId)
     } else if (targetRole === 'tutor') {
       const tutor =
         adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
         adminState.tutors[0]
-      if (tutor) adminStore.setActiveTutorId(tutor.id)
+      const tutorId = tutor?.id || '9383fc09-99fc-423c-ac09-e3f94c26f5e9'
+      adminStore.setActiveTutorId(tutorId)
     }
 
     state = {
