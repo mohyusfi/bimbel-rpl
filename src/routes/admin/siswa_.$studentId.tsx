@@ -103,8 +103,9 @@ function AdminStudentDetailPage() {
         },
       })
       setIsEditModalOpen(false)
-    } catch (err: any) {
-      setEditError(err.message || 'Gagal menyimpan perubahan data siswa.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan perubahan data siswa.'
+      setEditError(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -169,7 +170,7 @@ function AdminStudentDetailPage() {
             <h1 className="font-display font-extrabold text-2xl sm:text-[28px] text-[#000000] tracking-tight leading-tight">
               {student.name}
             </h1>
-            <span className="font-mono text-xs text-[#555555] bg-[#F6F6F6] px-2.5 py-1 rounded-[6px] border border-[#D2D2D2]">
+            <span className="font-mono text-xs text-[#555555]">
               NIS: {student.nis}
             </span>
             <StatusBadge status={student.status} />

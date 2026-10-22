@@ -54,4 +54,32 @@ describe('RegistrationService — TDD Unit Tests', () => {
       expect(resOk.error).toBeUndefined()
     })
   })
+
+  describe('Service Interface — getStudentById & updateStudent Contracts', () => {
+    it('mengembalikan error gracefully jika mencari ID siswa yang tidak ada', async () => {
+      const res = await registrationService.getStudentById('00000000-0000-0000-0000-000000000000')
+      expect(res.success).toBe(false)
+      if (!res.success) {
+        expect(res.error).toContain('tidak ditemukan')
+      }
+    })
+
+    it('menolak updateStudent jika ID siswa tidak ada di database', async () => {
+      const res = await registrationService.updateStudent({
+        id: '00000000-0000-0000-0000-000000000000',
+        name: 'Siswa Fiktif',
+        email: 'fiktif@email.com',
+        phone: '081234567890',
+        school: 'SMAN 1 Palu',
+        classId: 'cls-1',
+        parentName: 'Wali Fiktif',
+        parentPhone: '081234567891',
+        status: 'aktif',
+      })
+      expect(res.success).toBe(false)
+      if (!res.success) {
+        expect(res.error).toContain('tidak ditemukan')
+      }
+    })
+  })
 })

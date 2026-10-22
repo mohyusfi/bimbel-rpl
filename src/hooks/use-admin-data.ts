@@ -610,29 +610,24 @@ export function useAdminMutations() {
 
   const addStudentMutation = useMutation({
     mutationFn: async (input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) => {
-      try {
-        const res = await registrationService.createStudent({
-          name: input.name,
-          email: input.email,
-          phone: input.phone,
-          school: input.school,
-          packageCode: input.packageCode,
-          classId: input.classId,
-          parentName: input.parentName,
-          parentPhone: input.parentPhone,
-          parentEmail: input.parentEmail,
-          parentJob: input.parentJob,
-          parentAddress: input.parentAddress,
-        })
-        if (!res.success) {
-          throw new Error(res.error)
-        }
-        adminStore.addStudent(input)
-        return res.data
-      } catch (err: any) {
-        console.warn('Fallback addStudent to local store:', err)
-        return adminStore.addStudent(input)
+      const res = await registrationService.createStudent({
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        school: input.school,
+        packageCode: input.packageCode,
+        classId: input.classId,
+        parentName: input.parentName,
+        parentPhone: input.parentPhone,
+        parentEmail: input.parentEmail,
+        parentJob: input.parentJob,
+        parentAddress: input.parentAddress,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
       }
+      adminStore.addStudent(input)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -641,31 +636,25 @@ export function useAdminMutations() {
 
   const updateStudentMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Student> }) => {
-      try {
-        const res = await registrationService.updateStudent({
-          id,
-          name: updates.name || '',
-          email: updates.email || '',
-          phone: updates.phone || '',
-          school: updates.school || '',
-          classId: updates.classId || '',
-          parentName: updates.parentName || '',
-          parentPhone: updates.parentPhone || '',
-          parentEmail: updates.parentEmail,
-          parentJob: updates.parentJob,
-          parentAddress: updates.parentAddress,
-          status: (updates.status as 'aktif' | 'nonaktif') || 'aktif',
-        })
-        if (!res.success) {
-          throw new Error(res.error)
-        }
-        adminStore.updateStudent(id, updates)
-        return res.data
-      } catch (err: any) {
-        console.warn('Fallback updateStudent to local store:', err)
-        adminStore.updateStudent(id, updates)
-        return true
+      const res = await registrationService.updateStudent({
+        id,
+        name: updates.name || '',
+        email: updates.email || '',
+        phone: updates.phone || '',
+        school: updates.school || '',
+        classId: updates.classId || '',
+        parentName: updates.parentName || '',
+        parentPhone: updates.parentPhone || '',
+        parentEmail: updates.parentEmail,
+        parentJob: updates.parentJob,
+        parentAddress: updates.parentAddress,
+        status: (updates.status as 'aktif' | 'nonaktif') || 'aktif',
+      })
+      if (!res.success) {
+        throw new Error(res.error)
       }
+      adminStore.updateStudent(id, updates)
+      return res.data
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })

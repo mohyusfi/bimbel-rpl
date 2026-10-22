@@ -169,8 +169,9 @@ function AdminSiswaPage() {
         },
       })
       setEditingStudent(null)
-    } catch (err: any) {
-      setEditError(err.message || 'Gagal menyimpan perubahan data siswa.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan perubahan data siswa.'
+      setEditError(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -216,8 +217,9 @@ function AdminSiswaPage() {
         parentJob: '',
         parentAddress: '',
       })
-    } catch (err: any) {
-      setAddError(err.message || 'Gagal menambahkan data siswa baru.')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menambahkan data siswa baru.'
+      setAddError(message)
     } finally {
       setIsSubmitting(false)
     }
