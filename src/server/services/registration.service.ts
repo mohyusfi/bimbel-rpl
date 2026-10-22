@@ -1,6 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import type { Registration, PackageCode } from '~/lib/admin-store'
-import { clampCapacity } from './master-data.service'
+import { clampCapacity, ensureAdminSession } from './master-data.service'
 
 export { clampCapacity }
 
@@ -137,24 +137,56 @@ export const registrationService = {
     regId: string,
     classId: string
   ): Promise<ServerResult<{ studentId: string; nis: string; classId: string }>> {
-    // 1. Ambil data kelas target untuk validasi kuota
-    const { data: targetClass, error: classErr } = await supabase
-      .from('classes')
-      .select('id, class_name, capacity')
-      .eq('id', classId)
-      .single()
+    await ensureAdminSession()
 
-    if (classErr || !targetClass) {
+    // 1. Ambil data kelas target untuk validasi kuota
+    // Dukung pencarian baik berdasarkan UUID database maupun ID lokal 'cls-X'
+    let targetClass: { id: string; class_name: string; capacity: number } | null = null
+
+    const { data: dbClasses } = await supabase.from('classes').select('id, class_name, capacity')
+    if (dbClasses && dbClasses.length > 0) {
+      targetClass = dbClasses.find((c: any) => c.id === classId) || null
+      // Jika classId berasal dari local store misal 'cls-1', cocokkan berdasarkan nama
+      if (!targetClass) {
+        const clsMapping: Record<string, string> = {
+          'cls-1': 'UTBK Intensif A',
+          'cls-2': 'UTBK Intensif B',
+          'cls-3': 'SMA IPA 1',
+          'cls-4': 'SMP Prestasi A',
+          'cls-5': 'SD Cendekia A',
+        }
+        const mappedName = clsMapping[classId]
+        if (mappedName) {
+          targetClass = dbClasses.find((c: any) => c.class_name.toLowerCase() === mappedName.toLowerCase()) || null
+        }
+      }
+    }
+
+    if (!targetClass) {
+      // Cek apakah query langsung by ID berhasil
+      const { data: directClass } = await supabase
+        .from('classes')
+        .select('id, class_name, capacity')
+        .eq('id', classId)
+        .maybeSingle()
+
+      if (directClass) {
+        targetClass = directClass
+      }
+    }
+
+    if (!targetClass) {
       return { success: false, error: 'Kelas rombel tujuan tidak ditemukan.' }
     }
 
+    const resolvedClassId = targetClass.id
     const maxCapacity = Math.min(12, clampCapacity(targetClass.capacity || 12))
 
     // 2. Cek jumlah siswa yang sudah ada di class_members
-    const { count: currentMembersCount, error: memberCountErr } = await supabase
+    const { count: currentMembersCount } = await supabase
       .from('class_members')
       .select('id', { count: 'exact', head: true })
-      .eq('class_id', classId)
+      .eq('class_id', resolvedClassId)
 
     const currentCount = currentMembersCount ?? 0
     if (currentCount >= maxCapacity) {
@@ -194,13 +226,16 @@ export const registrationService = {
     if (existingStudentProfile) {
       studentProfileId = existingStudentProfile.id
     } else {
+      const generatedProfileId = crypto.randomUUID()
       const { data: newProfile, error: profErr } = await supabase
         .from('profiles')
         .insert([{
+          id: generatedProfileId,
           full_name: reg.student_name,
           email: reg.student_email.trim().toLowerCase(),
           phone_number: reg.student_phone,
           role: 'student',
+          status: 'aktif',
         }])
         .select('id')
         .single()
@@ -227,24 +262,30 @@ export const registrationService = {
         parentId = parentRecord.id
       }
     } else {
+      const parentProfileId = crypto.randomUUID()
       const { data: newParentProfile } = await supabase
         .from('profiles')
         .insert([{
+          id: parentProfileId,
           full_name: reg.parent_name,
           email: parentEmail,
           phone_number: reg.parent_phone,
           role: 'parent',
+          status: 'aktif',
         }])
         .select('id')
         .single()
 
       if (newParentProfile) {
+        const parentRecordId = crypto.randomUUID()
         const { data: newParent } = await supabase
           .from('parents')
           .insert([{
+            id: parentRecordId,
             profile_id: newParentProfile.id,
             occupation: reg.parent_job || 'Wali Murid',
             address: reg.parent_address || 'Kota Palu',
+            phone_number: reg.parent_phone,
           }])
           .select('id')
           .single()
@@ -266,20 +307,21 @@ export const registrationService = {
       // Update class_id dan parent_id jika diperlukan
       await supabase
         .from('students')
-        .update({ class_id: classId, parent_id: parentId })
+        .update({ class_id: resolvedClassId, parent_id: parentId })
         .eq('id', studentId)
     } else {
+      const generatedStudentId = crypto.randomUUID()
       const { data: newStudent, error: studErr } = await supabase
         .from('students')
         .insert([{
+          id: generatedStudentId,
           profile_id: studentProfileId,
           parent_id: parentId,
           nis,
           origin_school: reg.student_school,
           grade_level: reg.package_code === 'UTBK' ? 'SMA' : reg.package_code,
-          package_code: reg.package_code,
           status: 'aktif',
-          class_id: classId,
+          class_id: resolvedClassId,
         }])
         .select('id')
         .single()
@@ -294,15 +336,17 @@ export const registrationService = {
     const { data: existingMember } = await supabase
       .from('class_members')
       .select('id')
-      .eq('class_id', classId)
+      .eq('class_id', resolvedClassId)
       .eq('student_id', studentId)
       .maybeSingle()
 
     if (!existingMember) {
+      const memberId = crypto.randomUUID()
       const { error: memberInsertErr } = await supabase
         .from('class_members')
         .insert([{
-          class_id: classId,
+          id: memberId,
+          class_id: resolvedClassId,
           student_id: studentId,
         }])
 
@@ -316,7 +360,7 @@ export const registrationService = {
       .from('registrations')
       .update({
         status: 'terverifikasi',
-        assigned_class_id: classId,
+        assigned_class_id: resolvedClassId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', regId)
@@ -330,7 +374,7 @@ export const registrationService = {
       data: {
         studentId,
         nis,
-        classId,
+        classId: resolvedClassId,
       },
     }
   },

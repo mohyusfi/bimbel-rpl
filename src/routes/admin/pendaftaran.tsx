@@ -148,6 +148,7 @@ function AdminPendaftaranPage() {
       const result = await approveRegistration({
         regId: reg.id,
         classId: selectedClassId,
+        reg,
       })
 
       const creds = (result as any)?.credentials
@@ -253,6 +254,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
     await rejectRegistration({
       regId: rejectionTarget.id,
       reason: rejectionReason.trim(),
+      reg: rejectionTarget,
     })
     setRejectionTarget(null)
   }

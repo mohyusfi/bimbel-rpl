@@ -492,7 +492,7 @@ export function useAdminMutations() {
   const queryClient = useQueryClient()
 
   const approveRegistrationMutation = useMutation({
-    mutationFn: async ({ regId, classId }: { regId: string; classId: string }) => {
+    mutationFn: async ({ regId, classId, reg }: { regId: string; classId: string; reg?: Registration }) => {
       // 1. Eksekusi di database Supabase via service layer
       try {
         const result = await registrationService.approveRegistration(regId, classId)
@@ -507,7 +507,7 @@ export function useAdminMutations() {
         }
       }
       // 2. Sinkronisasi local store
-      return adminStore.approveRegistration(regId, classId)
+      return adminStore.approveRegistration(regId, classId, reg)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -515,13 +515,13 @@ export function useAdminMutations() {
   })
 
   const rejectRegistrationMutation = useMutation({
-    mutationFn: async ({ regId, reason }: { regId: string; reason: string }) => {
+    mutationFn: async ({ regId, reason, reg }: { regId: string; reason: string; reg?: Registration }) => {
       try {
         await registrationService.rejectRegistration(regId, reason)
       } catch (err) {
         console.warn('Supabase rejectRegistration fallback / warning:', err)
       }
-      return adminStore.rejectRegistration(regId, reason)
+      return adminStore.rejectRegistration(regId, reason, reg)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })

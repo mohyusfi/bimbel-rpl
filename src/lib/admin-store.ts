@@ -400,6 +400,15 @@ const INITIAL_CLASSES: ClassGroup[] = [
     studentCount: 7,
     tutorName: 'Kak Rizky Pratama, S.Kom',
   },
+  {
+    id: 'cls-full',
+    name: 'UTBK Kuota Penuh',
+    courseCode: 'UTBK',
+    courseName: 'Intensif UTBK-SNBT',
+    capacity: 12,
+    studentCount: 12,
+    tutorName: 'Pak Hendra Wijaya, M.Pd',
+  },
 ]
 
 // Current date for relative calculation: 2026-10-17T15:43:00+08:00
@@ -1173,8 +1182,12 @@ export const adminStore = {
     return newReg
   },
 
-  approveRegistration(regId: string, classId: string) {
-    const reg = state.registrations.find((r) => r.id === regId)
+  approveRegistration(regId: string, classId: string, fallbackReg?: Registration) {
+    let reg = state.registrations.find((r) => r.id === regId || r.registrationNumber === regId)
+    if (!reg && fallbackReg) {
+      reg = { ...fallbackReg, id: regId }
+      state.registrations = [reg, ...state.registrations]
+    }
     if (!reg) return null
 
     const targetClass = state.classes.find((c) => c.id === classId)
@@ -1281,8 +1294,12 @@ export const adminStore = {
     }
   },
 
-  rejectRegistration(regId: string, reason: string) {
-    const reg = state.registrations.find((r) => r.id === regId)
+  rejectRegistration(regId: string, reason: string, fallbackReg?: Registration) {
+    let reg = state.registrations.find((r) => r.id === regId || r.registrationNumber === regId)
+    if (!reg && fallbackReg) {
+      reg = { ...fallbackReg, id: regId }
+      state.registrations = [reg, ...state.registrations]
+    }
     if (!reg) return false
 
     reg.status = 'ditolak'
