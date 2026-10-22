@@ -643,6 +643,16 @@ function AdminJadwalPage() {
           columns={tableColumns}
           data={filteredSchedules}
           searchPlaceholder="Cari kelas, mata pelajaran, ruangan, atau tutor..."
+          emptyState={
+            <div className="space-y-1.5 text-center py-8">
+              <p className="text-sm font-semibold text-[#000000]">
+                Belum ada jadwal bimbingan
+              </p>
+              <p className="text-xs text-[#555555]">
+                Belum ada jadwal bimbingan di database. Klik tombol &quot;Tambah Jadwal&quot; di atas untuk membuat jadwal baru.
+              </p>
+            </div>
+          }
         />
       )}
 

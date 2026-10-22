@@ -19,7 +19,7 @@ export const Route = createFileRoute('/student/jadwal')({
 
 function StudentJadwalPage() {
   const { student, classSchedules } = useStudentDashboardData()
-  const { data: studentSessions = [] } = useAttendanceSessions()
+  const { data: studentSessions = [] } = useAttendanceSessions(undefined, student?.classId)
   const [selectedSubject, setSelectedSubject] = React.useState<string>('Semua')
 
   // Subject options for filter slot
@@ -47,7 +47,7 @@ function StudentJadwalPage() {
       header: 'Waktu bimbingan',
       cell: ({ row }) => {
         const nextSession = studentSessions.find(
-          (s: any) => s.scheduleId === row.original.id && !s.isCompleted
+          (s) => s.scheduleId === row.original.id && !s.isCompleted
         )
         return (
           <div className="space-y-0.5">
@@ -160,6 +160,16 @@ function StudentJadwalPage() {
               <Clock className="w-3.5 h-3.5 text-[#555555]" />
               <span>WITA (UTC+8)</span>
             </div>
+          </div>
+        }
+        emptyState={
+          <div className="space-y-1.5 text-center py-8">
+            <p className="text-sm font-semibold text-[#000000]">
+              Belum ada jadwal bimbingan
+            </p>
+            <p className="text-xs text-[#555555]">
+              Belum ada jadwal tatap muka untuk rombel kelas Anda di database.
+            </p>
           </div>
         }
         renderMobileCard={(row) => (

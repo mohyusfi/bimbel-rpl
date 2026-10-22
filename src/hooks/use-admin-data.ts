@@ -1238,13 +1238,17 @@ export function useSubmitPaymentProofMutation() {
 // Specialized Query Hooks for Tutor, Student, and Parent Portals
 // -------------------------------------------------------------
 
-export function useAttendanceSessions(tutorId?: string) {
+export function useAttendanceSessions(tutorId?: string, classId?: string) {
   useAdminDataSync()
   return useQuery<AttendanceSession[]>({
-    queryKey: tutorId ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const) : ADMIN_KEYS.attendance,
+    queryKey: tutorId
+      ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const)
+      : classId
+        ? ([...ADMIN_KEYS.attendance, 'class', classId] as const)
+        : ADMIN_KEYS.attendance,
     queryFn: async () => {
       try {
-        const dbSessions = await scheduleService.getSessions(tutorId)
+        const dbSessions = await scheduleService.getSessions(tutorId, classId)
         if (Array.isArray(dbSessions)) {
           return dbSessions.map((s) => ({
             id: s.id,
@@ -1262,7 +1266,7 @@ export function useAttendanceSessions(tutorId?: string) {
             endTime: s.endTime || '17:30',
             topic: s.topic || 'Sesi Bimbingan',
             isCompleted: s.isCompleted,
-            entries: ((s as any).entries || []) as AttendanceEntry[],
+            entries: ((s as { entries?: AttendanceEntry[] }).entries || []),
           }))
         }
       } catch (err) {

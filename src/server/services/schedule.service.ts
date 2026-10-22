@@ -234,12 +234,48 @@ export interface SessionItem {
   createdAt?: string | Date
 }
 
+export interface ScheduleJoinedRow {
+  id: string
+  class_id: string
+  subject_name: string | null
+  tutor_id: string | null
+  room_id: string | null
+  day_of_week: string
+  start_time: string
+  end_time: string
+  created_at: string
+  classes: { id: string; class_name: string } | null
+  rooms: { id: string; room_name: string } | null
+  tutors: { id: string; profiles: { full_name: string } | null } | null
+}
+
+export interface SessionJoinedRow {
+  id: string
+  schedule_id: string | null
+  class_id: string
+  tutor_id: string | null
+  room_id: string | null
+  session_date: string
+  topic: string | null
+  is_completed: boolean
+  created_at: string
+  classes: { id: string; class_name: string } | null
+  rooms: { id: string; room_name: string } | null
+  tutors: { id: string; profiles: { full_name: string } | null } | null
+  schedules: {
+    id: string
+    day_of_week: string
+    start_time: string
+    end_time: string
+    subject_name: string | null
+  } | null
+}
+
 export const scheduleService = {
   /**
    * Mengambil semua jadwal bimbingan aktif dari database Supabase
    */
   async getSchedules(): Promise<ScheduleItem[]> {
-    await ensureAdminSession()
     const { data, error } = await supabase
       .from('schedules')
       .select(`
@@ -263,14 +299,15 @@ export const scheduleService = {
       return []
     }
 
-    return data.map((s: any) => ({
+    const rows = data as unknown as ScheduleJoinedRow[]
+    return rows.map((s) => ({
       id: s.id,
       classId: s.class_id,
       className: s.classes?.class_name || 'Rombel Kelas',
       subjectName: s.subject_name || 'Sesi Bimbingan',
-      tutorId: s.tutor_id,
+      tutorId: s.tutor_id || '',
       tutorName: s.tutors?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: s.room_id,
+      roomId: s.room_id || '',
       roomName: s.rooms?.room_name || 'Ruang Belajar',
       dayOfWeek: s.day_of_week,
       startTime: s.start_time,
@@ -391,34 +428,37 @@ export const scheduleService = {
       }
     }
 
+    const scheduleRow = insertedSchedule as unknown as ScheduleJoinedRow
+    const sessionRow = insertedSession as unknown as SessionJoinedRow
+
     const scheduleItem: ScheduleItem = {
-      id: insertedSchedule.id,
-      classId: insertedSchedule.class_id,
-      className: (insertedSchedule.classes as any)?.class_name || 'Rombel Kelas',
-      subjectName: insertedSchedule.subject_name,
-      tutorId: insertedSchedule.tutor_id,
-      tutorName: (insertedSchedule.tutors as any)?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: insertedSchedule.room_id,
-      roomName: (insertedSchedule.rooms as any)?.room_name || 'Ruang Belajar',
-      dayOfWeek: insertedSchedule.day_of_week,
-      startTime: insertedSchedule.start_time,
-      endTime: insertedSchedule.end_time,
-      createdAt: insertedSchedule.created_at,
+      id: scheduleRow.id,
+      classId: scheduleRow.class_id,
+      className: scheduleRow.classes?.class_name || 'Rombel Kelas',
+      subjectName: scheduleRow.subject_name || 'Sesi Bimbingan',
+      tutorId: scheduleRow.tutor_id || '',
+      tutorName: scheduleRow.tutors?.profiles?.full_name || 'Tutor Bimbel',
+      roomId: scheduleRow.room_id || '',
+      roomName: scheduleRow.rooms?.room_name || 'Ruang Belajar',
+      dayOfWeek: scheduleRow.day_of_week,
+      startTime: scheduleRow.start_time,
+      endTime: scheduleRow.end_time,
+      createdAt: scheduleRow.created_at,
     }
 
     const sessionItem: SessionItem = {
-      id: insertedSession.id,
-      scheduleId: insertedSession.schedule_id,
-      classId: insertedSession.class_id,
-      className: (insertedSession.classes as any)?.class_name || 'Rombel Kelas',
-      tutorId: insertedSession.tutor_id,
-      tutorName: (insertedSession.tutors as any)?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: insertedSession.room_id,
-      roomName: (insertedSession.rooms as any)?.room_name || 'Ruang Belajar',
-      sessionDate: insertedSession.session_date,
-      topic: insertedSession.topic,
-      isCompleted: insertedSession.is_completed,
-      createdAt: insertedSession.created_at,
+      id: sessionRow.id,
+      scheduleId: sessionRow.schedule_id || undefined,
+      classId: sessionRow.class_id,
+      className: sessionRow.classes?.class_name || 'Rombel Kelas',
+      tutorId: sessionRow.tutor_id || undefined,
+      tutorName: sessionRow.tutors?.profiles?.full_name || 'Tutor Bimbel',
+      roomId: sessionRow.room_id || undefined,
+      roomName: sessionRow.rooms?.room_name || 'Ruang Belajar',
+      sessionDate: sessionRow.session_date,
+      topic: sessionRow.topic || undefined,
+      isCompleted: sessionRow.is_completed,
+      createdAt: sessionRow.created_at,
     }
 
     return {
@@ -528,19 +568,21 @@ export const scheduleService = {
         .eq('is_completed', false)
     }
 
+    const updatedRow = updatedSchedule as unknown as ScheduleJoinedRow
+
     const scheduleItem: ScheduleItem = {
-      id: updatedSchedule.id,
-      classId: updatedSchedule.class_id,
-      className: (updatedSchedule.classes as any)?.class_name || 'Rombel Kelas',
-      subjectName: updatedSchedule.subject_name,
-      tutorId: updatedSchedule.tutor_id,
-      tutorName: (updatedSchedule.tutors as any)?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: updatedSchedule.room_id,
-      roomName: (updatedSchedule.rooms as any)?.room_name || 'Ruang Belajar',
-      dayOfWeek: updatedSchedule.day_of_week,
-      startTime: updatedSchedule.start_time,
-      endTime: updatedSchedule.end_time,
-      createdAt: updatedSchedule.created_at,
+      id: updatedRow.id,
+      classId: updatedRow.class_id,
+      className: updatedRow.classes?.class_name || 'Rombel Kelas',
+      subjectName: updatedRow.subject_name || 'Sesi Bimbingan',
+      tutorId: updatedRow.tutor_id || '',
+      tutorName: updatedRow.tutors?.profiles?.full_name || 'Tutor Bimbel',
+      roomId: updatedRow.room_id || '',
+      roomName: updatedRow.rooms?.room_name || 'Ruang Belajar',
+      dayOfWeek: updatedRow.day_of_week,
+      startTime: updatedRow.start_time,
+      endTime: updatedRow.end_time,
+      createdAt: updatedRow.created_at,
     }
 
     return {
@@ -550,15 +592,24 @@ export const scheduleService = {
   },
 
   /**
-   * Menghapus jadwal dan sesi yang belum berlangsung dari database
+   * Menghapus jadwal dan sesi yang belum berlangsung dari database.
+   * Riwayat sesi yang sudah selesai (is_completed = true) dilepaskan schedule_id-nya
+   * (SET NULL) agar tetap tersimpan utuh untuk kebutuhan audit presensi.
    */
   async deleteSchedule(id: string): Promise<ServerResult<boolean>> {
     await ensureAdminSession()
 
-    // 1. Hapus sesi yang belum berlangsung (is_completed = false)
+    // 1. Lepaskan relasi sesi yang sudah selesai agar tidak ikut terhapus oleh ON DELETE CASCADE
+    await supabase
+      .from('sessions')
+      .update({ schedule_id: null })
+      .eq('schedule_id', id)
+      .eq('is_completed', true)
+
+    // 2. Hapus sesi yang belum berlangsung (is_completed = false)
     await supabase.from('sessions').delete().eq('schedule_id', id).eq('is_completed', false)
 
-    // 2. Hapus entri jadwal
+    // 3. Hapus entri jadwal
     const { error } = await supabase.from('schedules').delete().eq('id', id)
     if (error) {
       return { success: false, error: error.message }
@@ -567,10 +618,9 @@ export const scheduleService = {
   },
 
   /**
-   * Mengambil sesi bimbingan dari database
+   * Mengambil sesi bimbingan dari database (Read query tidak memerlukan sesi admin)
    */
   async getSessions(tutorId?: string, classId?: string): Promise<SessionItem[]> {
-    await ensureAdminSession()
     let query = supabase
       .from('sessions')
       .select(`
@@ -603,14 +653,15 @@ export const scheduleService = {
       return []
     }
 
-    return data.map((s: any) => ({
+    const rows = data as unknown as SessionJoinedRow[]
+    return rows.map((s) => ({
       id: s.id,
-      scheduleId: s.schedule_id,
+      scheduleId: s.schedule_id || undefined,
       classId: s.class_id,
       className: s.classes?.class_name || 'Rombel Kelas',
-      tutorId: s.tutor_id,
+      tutorId: s.tutor_id || undefined,
       tutorName: s.tutors?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: s.room_id,
+      roomId: s.room_id || undefined,
       roomName: s.rooms?.room_name || 'Ruang Belajar',
       sessionDate: s.session_date,
       topic: s.topic || 'Sesi Bimbingan',
