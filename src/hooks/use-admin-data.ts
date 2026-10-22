@@ -121,6 +121,37 @@ export function useAdminStudents() {
   })
 }
 
+export function useAdminStudentDetail(studentId: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ['admin', 'student', studentId],
+    queryFn: async () => {
+      if (!studentId) return null
+      try {
+        const res = await registrationService.getStudentById(studentId)
+        if (res.success && res.data) {
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback student detail:', err)
+      }
+      const localStudent = adminStore.getState().students.find((s) => s.id === studentId)
+      if (!localStudent) return null
+      return {
+        ...localStudent,
+        classDetails: {
+          id: localStudent.classId,
+          name: localStudent.className,
+          capacity: 12,
+          currentStudents: 1,
+        },
+        schedules: [],
+      }
+    },
+    enabled: Boolean(studentId),
+  })
+}
+
 export function useAdminTutors() {
   useAdminDataSync()
   return useQuery({
@@ -579,7 +610,29 @@ export function useAdminMutations() {
 
   const addStudentMutation = useMutation({
     mutationFn: async (input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) => {
-      return adminStore.addStudent(input)
+      try {
+        const res = await registrationService.createStudent({
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          school: input.school,
+          packageCode: input.packageCode,
+          classId: input.classId,
+          parentName: input.parentName,
+          parentPhone: input.parentPhone,
+          parentEmail: input.parentEmail,
+          parentJob: input.parentJob,
+          parentAddress: input.parentAddress,
+        })
+        if (!res.success) {
+          throw new Error(res.error)
+        }
+        adminStore.addStudent(input)
+        return res.data
+      } catch (err: any) {
+        console.warn('Fallback addStudent to local store:', err)
+        return adminStore.addStudent(input)
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -588,10 +641,35 @@ export function useAdminMutations() {
 
   const updateStudentMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Student> }) => {
-      return adminStore.updateStudent(id, updates)
+      try {
+        const res = await registrationService.updateStudent({
+          id,
+          name: updates.name || '',
+          email: updates.email || '',
+          phone: updates.phone || '',
+          school: updates.school || '',
+          classId: updates.classId || '',
+          parentName: updates.parentName || '',
+          parentPhone: updates.parentPhone || '',
+          parentEmail: updates.parentEmail,
+          parentJob: updates.parentJob,
+          parentAddress: updates.parentAddress,
+          status: (updates.status as 'aktif' | 'nonaktif') || 'aktif',
+        })
+        if (!res.success) {
+          throw new Error(res.error)
+        }
+        adminStore.updateStudent(id, updates)
+        return res.data
+      } catch (err: any) {
+        console.warn('Fallback updateStudent to local store:', err)
+        adminStore.updateStudent(id, updates)
+        return true
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'student', variables.id] })
     },
   })
 

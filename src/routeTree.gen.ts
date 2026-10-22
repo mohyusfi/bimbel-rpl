@@ -38,6 +38,7 @@ import { Route as TutorJadwalRouteImport } from './routes/tutor/jadwal'
 import { Route as TutorMateriRouteImport } from './routes/tutor/materi'
 import { Route as TutorNilaiRouteImport } from './routes/tutor/nilai'
 import { Route as TutorPresensiRouteImport } from './routes/tutor/presensi'
+import { Route as AdminSiswaStudentIdRouteImport } from './routes/admin/siswa_.$studentId'
 import { Route as StudentPreviewMaterialIdRouteImport } from './routes/student/preview.$materialId'
 import { Route as TutorPreviewMaterialIdRouteImport } from './routes/tutor/preview.$materialId'
 
@@ -186,6 +187,11 @@ const TutorPresensiRoute = TutorPresensiRouteImport.update({
   path: '/presensi',
   getParentRoute: () => TutorRoute,
 } as any)
+const AdminSiswaStudentIdRoute = AdminSiswaStudentIdRouteImport.update({
+  id: '/siswa_/$studentId',
+  path: '/siswa/$studentId',
+  getParentRoute: () => AdminRoute,
+} as any)
 const StudentPreviewMaterialIdRoute =
   StudentPreviewMaterialIdRouteImport.update({
     id: '/preview/$materialId',
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
   '/tutor/': typeof TutorIndexRoute
+  '/admin/siswa/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/parent': typeof ParentIndexRoute
   '/student': typeof StudentIndexRoute
   '/tutor': typeof TutorIndexRoute
+  '/admin/siswa/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
   '/tutor/': typeof TutorIndexRoute
+  '/admin/siswa_/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
@@ -326,6 +335,7 @@ export interface FileRouteTypes {
     | '/parent/'
     | '/student/'
     | '/tutor/'
+    | '/admin/siswa/$studentId'
     | '/student/preview/$materialId'
     | '/tutor/preview/$materialId'
   fileRoutesByTo: FileRoutesByTo
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/student'
     | '/tutor'
+    | '/admin/siswa/$studentId'
     | '/student/preview/$materialId'
     | '/tutor/preview/$materialId'
   id:
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/parent/'
     | '/student/'
     | '/tutor/'
+    | '/admin/siswa_/$studentId'
     | '/student/preview/$materialId'
     | '/tutor/preview/$materialId'
   fileRoutesById: FileRoutesById
@@ -606,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TutorPresensiRouteImport
       parentRoute: typeof TutorRoute
     }
+    '/admin/siswa_/$studentId': {
+      id: '/admin/siswa_/$studentId'
+      path: '/siswa/$studentId'
+      fullPath: '/admin/siswa/$studentId'
+      preLoaderRoute: typeof AdminSiswaStudentIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/student/preview/$materialId': {
       id: '/student/preview/$materialId'
       path: '/preview/$materialId'
@@ -633,6 +652,7 @@ interface AdminRouteChildren {
   AdminStafRoute: typeof AdminStafRoute
   AdminTutorRoute: typeof AdminTutorRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminSiswaStudentIdRoute: typeof AdminSiswaStudentIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -645,6 +665,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStafRoute: AdminStafRoute,
   AdminTutorRoute: AdminTutorRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminSiswaStudentIdRoute: AdminSiswaStudentIdRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

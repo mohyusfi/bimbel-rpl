@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   generateRegistrationNumber,
+  generateStudentNis,
+  validateClassCapacityForTransfer,
   registrationService,
   clampCapacity,
 } from '../registration.service'
@@ -21,11 +23,35 @@ describe('RegistrationService — TDD Unit Tests', () => {
     })
   })
 
+  describe('generateStudentNis', () => {
+    it('menghasilkan NIS dengan format TC-YYYY-XXX dengan 3 digit padding', () => {
+      expect(generateStudentNis(1, 2026)).toBe('TC-2026-001')
+      expect(generateStudentNis(42, 2026)).toBe('TC-2026-042')
+      expect(generateStudentNis(105, 2026)).toBe('TC-2026-105')
+    })
+  })
+
   describe('validasi kapasitas rombel maksimal 12 siswa', () => {
     it('memastikan batas kapasitas rombel tidak melebihi 12', () => {
       expect(clampCapacity(15)).toBe(12)
       expect(clampCapacity(12)).toBe(12)
       expect(clampCapacity(5)).toBe(5)
+    })
+
+    it('menolak penambahan/mutasi jika rombel sudah mencapai kapasitas 12 siswa', () => {
+      const resFull = validateClassCapacityForTransfer(12, 12, 'UTBK Intensif A')
+      expect(resFull.valid).toBe(false)
+      expect(resFull.error).toContain('sudah penuh')
+      expect(resFull.error).toContain('12/12 siswa')
+
+      const resExceed = validateClassCapacityForTransfer(13, 12, 'UTBK Intensif A')
+      expect(resExceed.valid).toBe(false)
+    })
+
+    it('mengizinkan mutasi jika rombel masih memiliki kursi kosong (< 12)', () => {
+      const resOk = validateClassCapacityForTransfer(11, 12, 'UTBK Intensif A')
+      expect(resOk.valid).toBe(true)
+      expect(resOk.error).toBeUndefined()
     })
   })
 })
