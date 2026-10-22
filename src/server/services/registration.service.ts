@@ -110,7 +110,6 @@ interface DbStudentRelationRow {
   nis: string
   origin_school: string | null
   grade_level: string
-  package_code: string
   status: string
   created_at: string | null
   profiles?: {
@@ -162,6 +161,8 @@ export const registrationService = {
    * Mengambil semua data pendaftaran calon siswa dari Supabase
    */
   async getRegistrations(): Promise<Registration[]> {
+    await ensureAdminSession()
+
     const { data, error } = await supabase
       .from('registrations')
       .select('*')
@@ -197,6 +198,8 @@ export const registrationService = {
    * Mengambil data seluruh siswa dari Supabase beserta relasi profil, wali, dan rombel kelas
    */
   async getStudents(): Promise<Student[]> {
+    await ensureAdminSession()
+
     const { data, error } = await supabase
       .from('students')
       .select(`
@@ -619,14 +622,40 @@ export const registrationService = {
   async updateStudent(input: UpdateStudentInput): Promise<ServerResult<Student>> {
     await ensureAdminSession()
 
-    // 1. Ambil data siswa yang akan diupdate
-    const { data: studentRecord, error: studErr } = await supabase
+    // 1. Ambil data siswa yang akan diupdate (dukung UUID maupun ID mock 'stu-X')
+    let studentRecord: {
+      id: string
+      profile_id: string
+      parent_id: string | null
+      class_id: string | null
+      grade_level: string
+      nis: string
+      created_at: string | null
+    } | null = null
+
+    const { data: directStudent } = await supabase
       .from('students')
-      .select('id, profile_id, parent_id, class_id, package_code, nis, created_at')
+      .select('id, profile_id, parent_id, class_id, grade_level, nis, created_at')
       .eq('id', input.id)
       .maybeSingle()
 
-    if (studErr || !studentRecord) {
+    if (directStudent) {
+      studentRecord = directStudent
+    } else if (input.id.startsWith('stu-')) {
+      const seq = input.id.replace('stu-', '').padStart(3, '0')
+      const targetNis = `TC-2026-${seq}`
+      const { data: nisStudent } = await supabase
+        .from('students')
+        .select('id, profile_id, parent_id, class_id, grade_level, nis, created_at')
+        .eq('nis', targetNis)
+        .maybeSingle()
+
+      if (nisStudent) {
+        studentRecord = nisStudent
+      }
+    }
+
+    if (!studentRecord) {
       return { success: false, error: 'Data siswa tidak ditemukan di database.' }
     }
 
@@ -684,7 +713,8 @@ export const registrationService = {
 
     // 4. Cek perubahan kelas / mutasi rombel
     let currentClassId = studentRecord.class_id
-    let updatedPackageCode = (studentRecord.package_code as PackageCode) || 'UTBK'
+    let updatedPackageCode: PackageCode =
+      (studentRecord.grade_level === 'SMA' ? 'UTBK' : (studentRecord.grade_level as PackageCode)) || 'UTBK'
     let resolvedClassName = 'Rombel Bimbingan'
 
     // Ambil info semua kelas untuk resolusi
@@ -765,9 +795,7 @@ export const registrationService = {
         origin_school: input.school.trim(),
         status: input.status,
         class_id: currentClassId,
-        package_code: updatedPackageCode,
         grade_level: gradeLevel,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', studentRecord.id)
 
@@ -915,7 +943,6 @@ export const registrationService = {
         nis,
         origin_school: input.school.trim(),
         grade_level: gradeLevel,
-        package_code: courseCode,
         status: 'aktif',
         class_id: targetClass.id,
       }])
@@ -965,14 +992,18 @@ export const registrationService = {
    * Mengambil detail lengkap seorang siswa berdasarkan ID
    */
   async getStudentById(id: string): Promise<ServerResult<StudentDetail>> {
-    const { data, error } = await supabase
+    await ensureAdminSession()
+
+    let studentData: DbStudentRelationRow | null = null
+
+    // 1. Coba query langsung by id (UUID)
+    const { data: directData } = await supabase
       .from('students')
       .select(`
         id,
         nis,
         origin_school,
         grade_level,
-        package_code,
         status,
         created_at,
         profiles:profile_id (
@@ -1011,11 +1042,67 @@ export const registrationService = {
       .eq('id', id)
       .maybeSingle()
 
-    if (error || !data) {
+    if (directData) {
+      studentData = directData as unknown as DbStudentRelationRow
+    } else if (id.startsWith('stu-')) {
+      // 2. Pemetaan ID mock 'stu-X' ke NIS 'TC-2026-00X'
+      const seq = id.replace('stu-', '').padStart(3, '0')
+      const targetNis = `TC-2026-${seq}`
+      const { data: nisData } = await supabase
+        .from('students')
+        .select(`
+          id,
+          nis,
+          origin_school,
+          grade_level,
+          status,
+          created_at,
+          profiles:profile_id (
+            id,
+            full_name,
+            email,
+            phone_number
+          ),
+          parents:parent_id (
+            id,
+            occupation,
+            address,
+            profiles:profile_id (
+              full_name,
+              email,
+              phone_number
+            )
+          ),
+          class_members (
+            class_id,
+            classes:class_id (
+              id,
+              class_name,
+              capacity,
+              courses:course_id (
+                course_code
+              ),
+              tutors:tutor_id (
+                profiles:profile_id (
+                  full_name
+                )
+              )
+            )
+          )
+        `)
+        .eq('nis', targetNis)
+        .maybeSingle()
+
+      if (nisData) {
+        studentData = nisData as unknown as DbStudentRelationRow
+      }
+    }
+
+    if (!studentData) {
       return { success: false, error: 'Siswa tidak ditemukan' }
     }
 
-    const s = data as unknown as DbStudentRelationRow
+    const s = studentData
     const studentProfile = s.profiles || {}
     const parentRecord = s.parents || {}
     const parentProfile = parentRecord.profiles || {}
@@ -1075,7 +1162,7 @@ export const registrationService = {
 
     const packageCode =
       (courseRecord.course_code as PackageCode) ||
-      (s.package_code as PackageCode) ||
+      (s.grade_level === 'SMA' ? 'UTBK' : (s.grade_level as PackageCode)) ||
       'UTBK'
 
     const studentDetail: StudentDetail = {
