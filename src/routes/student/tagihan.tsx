@@ -157,7 +157,7 @@ function StudentTagihanPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
               >
                 <Receipt className="w-3.5 h-3.5" />
-                <span>Unduh Kwitansi</span>
+                <span>Cetak Kwitansi</span>
               </button>
             </div>
           )
@@ -172,7 +172,7 @@ function StudentTagihanPage() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#FFFFFF] bg-[#CB2957] rounded-[8px] hover:bg-[#A81F45] transition-colors cursor-pointer shadow-none"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Unggah Bukti Transfer</span>
+                <span>{inv.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
               </button>
             </div>
           )
@@ -392,7 +392,7 @@ function StudentTagihanPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                   >
                     <Receipt className="w-3.5 h-3.5" />
-                    <span>Unduh Kwitansi</span>
+                    <span>Cetak Kwitansi</span>
                   </button>
                 ) : row.status === 'belum_dibayar' || row.status === 'ditolak' ? (
                   <button
@@ -401,7 +401,7 @@ function StudentTagihanPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#FFFFFF] bg-[#CB2957] rounded-[8px] hover:bg-[#A81F45] transition-colors cursor-pointer"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>Unggah Bukti Transfer</span>
+                    <span>{row.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
                   </button>
                 ) : (
                   <span className="text-xs text-[#555555] italic">

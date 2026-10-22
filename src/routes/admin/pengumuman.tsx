@@ -12,7 +12,7 @@ import {
   useAdminAnnouncements,
   useAdminMutations,
 } from '~/hooks/use-admin-data'
-import type { Announcement } from '~/lib/admin-store'
+import { adminStore, type Announcement } from '~/lib/admin-store'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/admin/pengumuman')({
@@ -34,6 +34,7 @@ function AdminPengumumanPage() {
     content: '',
     targetAudience: 'Semua' as Announcement['targetAudience'],
     isPinned: false,
+    broadcast: true,
   })
 
   const [announcementToDelete, setAnnouncementToDelete] =
@@ -47,18 +48,24 @@ function AdminPengumumanPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await addAnnouncement({
+    const newAnn = await addAnnouncement({
       title: form.title,
       content: form.content,
       targetAudience: form.targetAudience,
       isPinned: form.isPinned,
     })
+
+    if (form.broadcast && newAnn) {
+      await adminStore.broadcastAnnouncement(newAnn)
+    }
+
     setIsAddModalOpen(false)
     setForm({
       title: '',
       content: '',
       targetAudience: 'Semua',
       isPinned: false,
+      broadcast: true,
     })
   }
 
@@ -269,6 +276,24 @@ function AdminPengumumanPage() {
                     className="text-xs text-[#000000] font-medium select-none cursor-pointer"
                   >
                     Sematkan di bagian paling atas (Pinned Announcement)
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="broadcastCheck"
+                    checked={form.broadcast}
+                    onChange={(e) =>
+                      setForm({ ...form, broadcast: e.target.checked })
+                    }
+                    className="w-4 h-4 mt-0.5 rounded-[4px] accent-[#CB2957] cursor-pointer"
+                  />
+                  <label
+                    htmlFor="broadcastCheck"
+                    className="text-xs text-[#000000] font-medium select-none cursor-pointer leading-tight"
+                  >
+                    Siarkan notifikasi waktu-nyata ke lonceng seluruh pengguna terkait (Supabase Realtime Broadcast)
                   </label>
                 </div>
 

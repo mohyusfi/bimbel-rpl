@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { AlertCircle, ArrowLeft } from 'lucide-react'
-import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import { useStudentDashboardData, useClassMaterials } from '~/hooks/use-admin-data'
 import { MaterialPreviewHeader } from '~/components/dashboard/MaterialPreviewHeader'
 import { DocumentPreviewViewer } from '~/components/dashboard/DocumentPreviewViewer'
 
@@ -12,7 +12,8 @@ export const Route = createFileRoute('/student/preview/$materialId')({
 
 function StudentMaterialPreviewPage() {
   const { materialId } = useParams({ from: '/student/preview/$materialId' })
-  const { materials } = useStudentDashboardData()
+  const { student } = useStudentDashboardData()
+  const { data: materials = [] } = useClassMaterials(student?.classId)
 
   const material = React.useMemo(() => {
     return materials.find((m) => m.id === materialId) || null

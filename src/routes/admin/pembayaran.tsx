@@ -15,12 +15,14 @@ import {
   AlertTriangle,
   ChevronDown,
   RotateCcw,
+  ExternalLink,
 } from 'lucide-react'
 import {
   useAdminInvoices,
   useAdminStudents,
   useAdminMutations,
 } from '~/hooks/use-admin-data'
+import { supabase } from '~/lib/supabase/client'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { ReceiptModal } from '~/components/dashboard/ReceiptModal'
@@ -53,6 +55,47 @@ function AdminPembayaranPage() {
   )
   const [rejectionReason, setRejectionReason] = React.useState('')
   const [isRejecting, setIsRejecting] = React.useState(false)
+  const [resolvedReceiptUrl, setResolvedReceiptUrl] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let isMounted = true
+    if (!inspectingInvoice) {
+      setResolvedReceiptUrl(null)
+      return
+    }
+
+    if (inspectingInvoice.receiptUrl) {
+      setResolvedReceiptUrl(inspectingInvoice.receiptUrl)
+      return
+    }
+
+    if (inspectingInvoice.storage_path) {
+      supabase.storage
+        .from('receipts')
+        .createSignedUrl(inspectingInvoice.storage_path, 3600)
+        .then(({ data }) => {
+          if (isMounted) {
+            if (data?.signedUrl) {
+              setResolvedReceiptUrl(data.signedUrl)
+            } else {
+              const { data: pubData } = supabase.storage
+                .from('receipts')
+                .getPublicUrl(inspectingInvoice.storage_path!)
+              setResolvedReceiptUrl(pubData?.publicUrl || null)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setResolvedReceiptUrl(null)
+        })
+    } else {
+      setResolvedReceiptUrl(null)
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [inspectingInvoice])
 
   // New Invoice Form State
   const [invoiceForm, setInvoiceForm] = React.useState({
@@ -151,10 +194,22 @@ function AdminPembayaranPage() {
   const handleConfirmVerify = async () => {
     if (!inspectingInvoice) return
     await verifyInvoice(inspectingInvoice.id)
-    const updated = {
+    const now = new Date()
+    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+    const numberSeq = inspectingInvoice.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0') || '0001'
+    const updated: Invoice = {
       ...inspectingInvoice,
       status: 'lunas' as const,
-      receiptNumber: `KWT-${inspectingInvoice.id.replace('INV-', '')}`,
+      receiptNumber: `KWT-${yearMonth}-${numberSeq}`,
+      verifiedAt:
+        new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(now) + ' WITA',
+      verifiedBy: 'Hj. Nuraini, S.Pd',
     }
     setInspectingInvoice(null)
     setViewingReceipt(updated)
@@ -163,10 +218,7 @@ function AdminPembayaranPage() {
   // Handle Reject Invoice
   const handleConfirmReject = async () => {
     if (!inspectingInvoice || !rejectionReason.trim()) return
-    await rejectInvoice({
-      id: inspectingInvoice.id,
-      reason: rejectionReason.trim(),
-    })
+    await rejectInvoice(inspectingInvoice.id, rejectionReason.trim())
     setInspectingInvoice(null)
     setIsRejecting(false)
     setRejectionReason('')
@@ -472,25 +524,84 @@ function AdminPembayaranPage() {
                     </div>
                   </div>
 
-                  {/* Mock Proof File Visual Preview */}
+                  {/* Berkas Bukti Transfer Fisik */}
                   <div className="space-y-1.5">
-                    <span className="font-medium text-[#000000] block">
+                    <span className="font-medium text-[#000000] block text-xs">
                       Berkas Bukti Transfer Bank
                     </span>
-                    <div className="p-4 border border-dashed border-[#D2D2D2] rounded-[10px] bg-[#F9F9F9] flex flex-col items-center justify-center text-center space-y-2">
-                      <FileText className="w-8 h-8 text-[#555555]" />
-                      <div>
-                        <p className="font-mono text-xs font-semibold text-[#000000]">
-                          {inspectingInvoice.transferReceiptFile || 'struk_transfer.jpg'}
-                        </p>
-                        <p className="text-xs text-[#555555]">
-                          Rekening Tujuan: {inspectingInvoice.bankName || 'BSI Cabang Palu'}
+
+                    {resolvedReceiptUrl ? (
+                      <div className="p-3 border border-[#D2D2D2] rounded-[10px] bg-[#F9F9F9] flex flex-col items-center justify-center space-y-2">
+                        {resolvedReceiptUrl.startsWith('data:application/pdf') ||
+                        inspectingInvoice.transferReceiptFile?.toLowerCase().endsWith('.pdf') ? (
+                          <div className="p-4 text-center space-y-2">
+                            <FileText className="w-10 h-10 text-[#CB2957] mx-auto" />
+                            <div>
+                              <p className="font-mono text-xs font-semibold text-[#000000]">
+                                {inspectingInvoice.transferReceiptFile || 'struk_transfer.pdf'}
+                              </p>
+                              <p className="text-xs text-[#555555]">
+                                Rekening Tujuan: {inspectingInvoice.bankName || 'BSI Cabang Palu'}
+                              </p>
+                            </div>
+                            <a
+                              href={resolvedReceiptUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[6px] hover:bg-[#262626] transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Buka Dokumen PDF Struk</span>
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="w-full flex flex-col items-center space-y-2">
+                            <img
+                              src={resolvedReceiptUrl}
+                              alt="Bukti Transfer Fisik"
+                              className="max-h-64 object-contain rounded-[8px] border border-[#D2D2D2] bg-[#FFFFFF] mx-auto shadow-xs"
+                            />
+                            <div className="w-full flex items-center justify-between text-[11px] text-[#555555] pt-1 border-t border-[#D2D2D2]/60">
+                              <span className="font-mono truncate max-w-[220px]">
+                                {inspectingInvoice.transferReceiptFile || 'struk_transfer.jpg'}
+                              </span>
+                              <a
+                                href={resolvedReceiptUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[#CB2957] hover:underline font-semibold"
+                              >
+                                <span>Ukuran Penuh</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        <div className="w-full text-xs text-[#555555] flex flex-col sm:flex-row sm:items-center sm:justify-between pt-1 gap-1">
+                          <span>Rekening: {inspectingInvoice.bankName || 'BSI Cabang Palu'}</span>
+                          <span>
+                            Pengunggah: {inspectingInvoice.submittedByName || inspectingInvoice.studentName} (
+                            {inspectingInvoice.submittedByRole === 'parent' ? 'Orang Tua' : 'Siswa'})
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 border border-dashed border-[#D2D2D2] rounded-[10px] bg-[#F9F9F9] flex flex-col items-center justify-center text-center space-y-2">
+                        <FileText className="w-8 h-8 text-[#555555]" />
+                        <div>
+                          <p className="font-mono text-xs font-semibold text-[#000000]">
+                            {inspectingInvoice.transferReceiptFile || 'struk_transfer.jpg'}
+                          </p>
+                          <p className="text-xs text-[#555555]">
+                            Rekening Tujuan: {inspectingInvoice.bankName || 'BSI Cabang Palu'}
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-[#555555]">
+                          Pengunggah: {inspectingInvoice.submittedByName || inspectingInvoice.studentName} (
+                          {inspectingInvoice.submittedByRole === 'parent' ? 'Orang Tua' : 'Siswa'})
                         </p>
                       </div>
-                      <span className="text-[10px] font-semibold text-[#555555] bg-[#EEEEEE] border border-[#D2D2D2] px-2 py-0.5 rounded-[4px]">
-                        Struk Transaksi Valid (Tercetak Jelas)
-                      </span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Rejection Form Input (Toggle) */}

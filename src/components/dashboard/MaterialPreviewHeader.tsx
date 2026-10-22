@@ -12,6 +12,7 @@ import {
   HardDrive,
 } from 'lucide-react'
 import type { LearningMaterial } from '~/lib/admin-store'
+import { downloadMaterialFile } from '~/lib/download-material'
 
 interface MaterialPreviewHeaderProps {
   material: LearningMaterial
@@ -26,19 +27,15 @@ export function MaterialPreviewHeader({
 }: MaterialPreviewHeaderProps) {
   const [downloadSuccess, setDownloadSuccess] = React.useState(false)
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setDownloadSuccess(true)
-    const link = document.createElement('a')
-    link.href = material.fileUrl
-    link.setAttribute('download', material.title)
-    document.body.appendChild(link)
-    link.click()
-    setTimeout(() => {
-      document.body.removeChild(link)
-    }, 100)
-    setTimeout(() => {
-      setDownloadSuccess(false)
-    }, 3000)
+    try {
+      await downloadMaterialFile(material)
+    } finally {
+      setTimeout(() => {
+        setDownloadSuccess(false)
+      }, 3000)
+    }
   }
 
   const isPdf = material.fileType === 'PDF'
@@ -92,23 +89,19 @@ export function MaterialPreviewHeader({
       {/* Main Metadata Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={
-                isPdf
-                  ? 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[6px] text-[11px] font-bold bg-[#901B14]/10 text-[#901B14] border border-[#901B14]/20'
-                  : 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[6px] text-[11px] font-bold bg-[#CB2957]/10 text-[#CB2957] border border-[#CB2957]/20'
-              }
-            >
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="inline-flex items-center gap-1 font-mono font-semibold text-[11px] text-[#000000]">
               {isPdf ? (
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-3.5 h-3.5 text-[#901B14]" />
               ) : (
-                <Presentation className="w-3.5 h-3.5" />
+                <Presentation className="w-3.5 h-3.5 text-[#CB2957]" />
               )}
               <span>{material.fileType}</span>
             </span>
 
-            <span className="text-xs font-medium text-[#555555]">
+            <span className="text-[#D2D2D2]">·</span>
+
+            <span className="font-medium text-[#555555]">
               {material.category}
             </span>
           </div>

@@ -37,13 +37,16 @@ function ParentDashboardOverview() {
     invoices,
   } = childData
 
-  // 1. Attendance Today (ATTEND-02)
-  // Check the most relevant completed or ongoing session
+  // 1. Attendance Today (Check most relevant completed or ongoing session)
   const latestSession = sessions[0] || null
   const childSessionEntry = latestSession?.entries?.find(
     (e) => e.studentId === student?.id
   )
-  const attendanceStatus = childSessionEntry?.status || 'hadir'
+  const attendanceStatus = latestSession
+    ? latestSession.isCompleted
+      ? childSessionEntry?.status || 'hadir'
+      : 'terjadwal'
+    : 'terjadwal'
 
   // 2. Latest Grade & Tutor Feedback
   const latestGrade = grades[0] || null
@@ -171,7 +174,7 @@ function ParentDashboardOverview() {
           title="Tingkat Kehadiran"
           value={attendanceRate}
           unit="%"
-          description={`${attendedSessions} dari ${totalSessions} total pertemuan dihadiri tepat waktu`}
+          description={`${attendedSessions} dari ${childData.totalCompleted || totalSessions} pertemuan terlaksana`}
           footer={
             <div className="flex items-center justify-between font-medium text-[#292524]">
               <span>Target Lembaga</span>

@@ -50,12 +50,10 @@ export function TutorNilaiPage() {
   const [formAssessmentTitle, setFormAssessmentTitle] = React.useState<string>('')
   const [formCategory, setFormCategory] = React.useState<'Try Out' | 'Kuis' | 'Tugas'>('Try Out')
   const [formScore, setFormScore] = React.useState<number>(85)
-  const [formClassAverage, setFormClassAverage] = React.useState<number>(75)
   const [formFeedback, setFormFeedback] = React.useState<string>('')
 
   // Edit Form state
   const [editScore, setEditScore] = React.useState<number>(0)
-  const [editClassAverage, setEditClassAverage] = React.useState<number>(0)
   const [editFeedback, setEditFeedback] = React.useState<string>('')
 
   // Students available for selected class in add form
@@ -82,7 +80,6 @@ export function TutorNilaiPage() {
     setFormAssessmentTitle('')
     setFormCategory('Try Out')
     setFormScore(85)
-    setFormClassAverage(75)
     setFormFeedback('')
     setIsAddModalOpen(true)
   }
@@ -91,7 +88,6 @@ export function TutorNilaiPage() {
   const handleOpenEdit = (record: GradeRecord) => {
     setEditingGrade(record)
     setEditScore(record.score)
-    setEditClassAverage(record.classAverage)
     setEditFeedback(record.tutorFeedback)
   }
 
@@ -117,7 +113,6 @@ export function TutorNilaiPage() {
         assessmentTitle: formAssessmentTitle.trim(),
         category: formCategory,
         score: Number(formScore),
-        classAverage: Number(formClassAverage),
         tutorId: tutor?.id || 'tut-1',
         tutorName: tutor?.name || 'Kak Dian Pratiwi, S.Si',
         tutorFeedback: formFeedback.trim() || 'Pemahaman materi sudah baik.',
@@ -142,7 +137,6 @@ export function TutorNilaiPage() {
         id: editingGrade.id,
         updates: {
           score: Number(editScore),
-          classAverage: Number(editClassAverage),
           tutorFeedback: editFeedback.trim(),
         },
       })
@@ -526,18 +520,13 @@ export function TutorNilaiPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Rata-rata Kelas
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={formClassAverage}
-                      onChange={(e) => setFormClassAverage(Number(e.target.value))}
-                      className="w-full h-10 px-3 border border-[#D2D2D2] rounded-[8px] font-mono tabular-nums text-xs focus:outline-none focus:border-[#000000]"
-                    />
+                  <div className="space-y-1.5 flex flex-col justify-end pb-2">
+                    <span className="font-semibold text-[#555555] block">
+                      Rata-rata Rombel
+                    </span>
+                    <p className="text-xs text-[#555555] italic">
+                      Rata-rata rombel dihitung otomatis oleh sistem
+                    </p>
                   </div>
                 </div>
 
@@ -623,18 +612,16 @@ export function TutorNilaiPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Rata-rata Kelas
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={editClassAverage}
-                      onChange={(e) => setEditClassAverage(Number(e.target.value))}
-                      className="w-full h-10 px-3 border border-[#D2D2D2] rounded-[8px] font-mono tabular-nums text-xs focus:outline-none focus:border-[#000000]"
-                    />
+                  <div className="space-y-1.5 flex flex-col justify-end pb-2">
+                    <span className="font-semibold text-[#555555] block">
+                      Rata-rata Rombel Saat Ini
+                    </span>
+                    <p className="font-mono text-xs text-[#555555] tabular-nums">
+                      {editingGrade?.classAverage ?? '-'}
+                      <span className="text-[11px] text-[#777777] font-sans ml-1.5 italic">
+                        (Dihitung otomatis oleh sistem)
+                      </span>
+                    </p>
                   </div>
                 </div>
 

@@ -8,11 +8,15 @@ import {
   XCircle,
   X,
   AlertTriangle,
+  AlertCircle,
   Users,
   Clock,
   ChevronDown,
   RotateCcw,
   GraduationCap,
+  KeyRound,
+  Copy,
+  Check,
 } from 'lucide-react'
 import {
   useAdminRegistrations,
@@ -24,7 +28,7 @@ import { StatusBadge } from '~/components/ui/status-badge'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { cn } from '~/lib/utils'
 import { SearchableSelect } from '~/components/ui/searchable-select'
-import type { Registration, PackageCode } from '~/lib/admin-store'
+import { adminStore, type Registration, type PackageCode } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/pendaftaran')({
   ssr: false,
@@ -53,9 +57,25 @@ function AdminPendaftaranPage() {
   const [approvalTarget, setApprovalTarget] =
     React.useState<Registration | null>(null)
   const [selectedClassId, setSelectedClassId] = React.useState<string>('')
+  const [approvalError, setApprovalError] = React.useState<string | null>(null)
   const [rejectionTarget, setRejectionTarget] =
     React.useState<Registration | null>(null)
   const [rejectionReason, setRejectionReason] = React.useState<string>('')
+
+  // Approval Credentials Modal State
+  const [credentialsModalData, setCredentialsModalData] = React.useState<{
+    studentName: string
+    studentNis: string
+    studentEmail: string
+    studentPassword: string
+    className: string
+    packageName: string
+    parentName: string
+    parentEmail: string
+    parentPhone: string
+    parentPassword: string
+  } | null>(null)
+  const [isTemplateCopied, setIsTemplateCopied] = React.useState(false)
 
   // Add Manual Form State
   const [newForm, setNewForm] = React.useState({
@@ -91,23 +111,136 @@ function AdminPendaftaranPage() {
   // Open approval modal
   const handleOpenApproval = (reg: Registration) => {
     setApprovalTarget(reg)
+    setApprovalError(null)
     const matchingClasses = classes.filter(
       (c) => c.courseCode === reg.packageCode
     )
     if (matchingClasses.length > 0) {
-      setSelectedClassId(matchingClasses[0].id)
+      const availableClass = matchingClasses.find((c) => c.studentCount < 12)
+      setSelectedClassId(availableClass?.id || matchingClasses[0].id)
     } else {
       setSelectedClassId(classes[0]?.id || '')
     }
   }
 
-  const handleConfirmApproval = async () => {
+  // Plotting and approval handler (anti-overcapacity verification)
+  const handleApproveRegistration = async () => {
     if (!approvalTarget || !selectedClassId) return
-    await approveRegistration({
-      regId: approvalTarget.id,
-      classId: selectedClassId,
+    const reg = approvalTarget
+    const targetClass = classes.find((c) => c.id === selectedClassId)
+
+    if (!targetClass) {
+      setApprovalError('Silakan pilih rombel bimbingan terlebih dahulu.')
+      return
+    }
+
+    const maxCap = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCap || targetClass.studentCount >= 12) {
+      setApprovalError(
+        `Rombel "${targetClass.name}" telah penuh (${targetClass.studentCount}/${maxCap} siswa). Plotting pendaftaran dicegah. Silakan pilih rombel lain dengan kuota tersedia.`
+      )
+      return
+    }
+
+    setApprovalError(null)
+
+    try {
+      const result = await approveRegistration({
+        regId: reg.id,
+        classId: selectedClassId,
+        reg,
+      })
+
+      const creds = (result as any)?.credentials
+      if (creds) {
+        setCredentialsModalData({
+          studentName: creds.studentName,
+          studentNis: creds.studentNis,
+          studentEmail: creds.studentEmail,
+          studentPassword: creds.studentPassword,
+          className: creds.className,
+          packageName: reg.packageName,
+          parentName: creds.parentName,
+          parentEmail: creds.parentEmail,
+          parentPhone: creds.parentPhone,
+          parentPassword: creds.parentPassword,
+        })
+      } else {
+        setCredentialsModalData({
+          studentName: reg.studentName,
+          studentNis: 'TC-2026-004',
+          studentEmail: reg.studentEmail,
+          studentPassword: 'siswa2026',
+          className: targetClass?.name || 'Rombel Aktif',
+          packageName: reg.packageName,
+          parentName: reg.parentName,
+          parentEmail:
+            reg.parentEmail ||
+            `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+          parentPhone: reg.parentPhone,
+          parentPassword: 'wali2026',
+        })
+      }
+
+      setApprovalTarget(null)
+    } catch (err: any) {
+      setApprovalError(err?.message || 'Gagal memverifikasi pendaftaran.')
+    }
+  }
+
+  const handleConfirmApproval = handleApproveRegistration
+
+  // Open view credentials modal for verified students
+  const handleViewCredentials = (reg: Registration) => {
+    const adminState = adminStore.getState()
+    const student = adminState.students.find(
+      (s) => s.email.toLowerCase() === reg.studentEmail.toLowerCase()
+    )
+    const targetClass = classes.find((c) => c.id === reg.assignedClassId)
+    const parent = adminState.parents.find(
+      (p) => student && p.studentIds.includes(student.id)
+    )
+
+    setCredentialsModalData({
+      studentName: reg.studentName,
+      studentNis: student?.nis || 'TC-2026-001',
+      studentEmail: reg.studentEmail,
+      studentPassword: 'siswa2026',
+      className: targetClass?.name || student?.className || reg.packageName,
+      packageName: reg.packageName,
+      parentName: parent?.name || reg.parentName,
+      parentEmail:
+        parent?.email ||
+        reg.parentEmail ||
+        `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+      parentPhone: parent?.phone || reg.parentPhone,
+      parentPassword: 'wali2026',
     })
-    setApprovalTarget(null)
+  }
+
+  // Copy structured WhatsApp template for parent
+  const handleCopyWhatsAppTemplate = () => {
+    if (!credentialsModalData) return
+    const text = `*TADULAKO CENDEKIA — KREDENSIAL AKSES PORTAL*
+Yth. Bapak/Ibu ${credentialsModalData.parentName},
+Pendaftaran putra/putri Anda, *${credentialsModalData.studentName}*, untuk program *${credentialsModalData.packageName}* telah diverifikasi dan resmi terdaftar di kelas *${credentialsModalData.className}*.
+
+*Akses Portal Siswa:*
+• NIS: ${credentialsModalData.studentNis}
+• Email: ${credentialsModalData.studentEmail}
+• Kata Sandi: ${credentialsModalData.studentPassword}
+• Tautan Masuk: https://tadulakocendekia.sch.id/masuk
+
+*Akses Portal Orang Tua / Wali:*
+• Email: ${credentialsModalData.parentEmail}
+• Kata Sandi: ${credentialsModalData.parentPassword}
+• Tautan Masuk: https://tadulakocendekia.sch.id/masuk
+
+Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Tadulako Cendekia.`
+
+    navigator.clipboard.writeText(text)
+    setIsTemplateCopied(true)
+    setTimeout(() => setIsTemplateCopied(false), 2500)
   }
 
   // Open rejection modal
@@ -121,6 +254,7 @@ function AdminPendaftaranPage() {
     await rejectRegistration({
       regId: rejectionTarget.id,
       reason: rejectionReason.trim(),
+      reg: rejectionTarget,
     })
     setRejectionTarget(null)
   }
@@ -210,7 +344,7 @@ function AdminPendaftaranPage() {
                 {reg.studentName}
               </span>
               <span className="font-mono text-xs text-[#6B6B6B] tabular-nums">
-                {reg.id}
+                {reg.registrationNumber || reg.id}
               </span>
             </div>
             <p className="text-xs text-[#6B6B6B] mt-0.5">
@@ -303,9 +437,20 @@ function AdminPendaftaranPage() {
         if (reg.status === 'terverifikasi') {
           const assigned = classes.find((c) => c.id === reg.assignedClassId)
           return (
-            <span className="font-semibold text-xs text-[#1F6B45]">
-              {assigned ? `Rombel: ${assigned.name}` : 'Terverifikasi'}
-            </span>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="font-semibold text-xs text-[#166534]">
+                {assigned ? `Rombel: ${assigned.name}` : 'Terverifikasi'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleViewCredentials(reg)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] hover:bg-[#F6F6F6] hover:text-[#000000] hover:border-[#000000] transition-colors cursor-pointer"
+                title="Lihat Kredensial Akun"
+              >
+                <KeyRound className="w-3 h-3 text-[#555555]" />
+                <span>Kredensial</span>
+              </button>
+            </div>
           )
         }
 
@@ -489,16 +634,26 @@ function AdminPendaftaranPage() {
                     </label>
                     <SearchableSelect
                       value={selectedClassId}
-                      onChange={(val) => setSelectedClassId(val)}
+                      onChange={(val) => {
+                        setSelectedClassId(val)
+                        setApprovalError(null)
+                      }}
                       options={classes
                         .filter(
                           (c) => c.courseCode === approvalTarget.packageCode
                         )
-                        .map((cls) => ({
-                          value: cls.id,
-                          label: cls.name,
-                          sublabel: `(Terisi ${cls.studentCount}/${cls.capacity} kursi · Tutor: ${cls.tutorName})`,
-                        }))}
+                        .map((cls) => {
+                          const isFull =
+                            cls.studentCount >= 12 ||
+                            cls.studentCount >= (cls.capacity || 12)
+                          return {
+                            value: cls.id,
+                            label: cls.name,
+                            sublabel: isFull
+                              ? `(PENUH ${cls.studentCount}/12 siswa · Tutor: ${cls.tutorName})`
+                              : `(Terisi ${cls.studentCount}/${cls.capacity || 12} kursi · Tutor: ${cls.tutorName})`,
+                          }
+                        })}
                       placeholder="Pilih rombel / kelas..."
                       searchPlaceholder="Cari kelas atau tutor..."
                       required
@@ -508,6 +663,39 @@ function AdminPendaftaranPage() {
                     </p>
                   </div>
 
+                  {(() => {
+                    const selectedClass = classes.find((c) => c.id === selectedClassId)
+                    const isFull = selectedClass
+                      ? selectedClass.studentCount >= 12 ||
+                        selectedClass.studentCount >= (selectedClass.capacity || 12)
+                      : false
+
+                    if (isFull) {
+                      return (
+                        <div className="flex items-start gap-2.5 p-3 bg-[#FDF2F4] border border-[#F1AEBA] rounded-[10px] text-xs text-[#A81E46]">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#CB2957]" />
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-[#8C1535]">Rombel Telah Penuh</p>
+                            <p className="text-[11px] text-[#A81E46] leading-relaxed">
+                              Rombel {selectedClass?.name} telah terisi penuh ({selectedClass?.studentCount}/12 siswa). Plotting pendaftaran dicegah sesuai batas maksimal 12 siswa per rombel. Silakan pilih rombel lain.
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    if (approvalError) {
+                      return (
+                        <div className="flex items-start gap-2.5 p-3 bg-[#FDF2F4] border border-[#F1AEBA] rounded-[10px] text-xs text-[#A81E46]">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#CB2957]" />
+                          <p className="text-xs text-[#8C1535] leading-relaxed">{approvalError}</p>
+                        </div>
+                      )
+                    }
+
+                    return null
+                  })()}
+
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
@@ -516,13 +704,29 @@ function AdminPendaftaranPage() {
                     >
                       Batal
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmApproval}
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
-                    >
-                      Konfirmasi Persetujuan
-                    </button>
+                    {(() => {
+                      const selectedClass = classes.find((c) => c.id === selectedClassId)
+                      const isFull = selectedClass
+                        ? selectedClass.studentCount >= 12 ||
+                          selectedClass.studentCount >= (selectedClass.capacity || 12)
+                        : false
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleApproveRegistration}
+                          disabled={isFull}
+                          className={cn(
+                            "px-4 py-2 text-xs font-semibold rounded-[8px] transition-colors cursor-pointer",
+                            isFull
+                              ? "bg-[#D2D2D2] text-[#777777] cursor-not-allowed"
+                              : "text-[#FFFFFF] bg-[#000000] hover:bg-[#262626]"
+                          )}
+                        >
+                          Konfirmasi Persetujuan
+                        </button>
+                      )
+                    })()}
                   </div>
                 </div>
               )}
@@ -832,6 +1036,146 @@ function AdminPendaftaranPage() {
                   </button>
                 </div>
               </form>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* MODAL 4: Dialog Kredensial Persetujuan Siswa & Wali */}
+      <Dialog.Root
+        open={Boolean(credentialsModalData)}
+        onOpenChange={(open) => !open && setCredentialsModalData(null)}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between border-b border-[#D2D2D2] pb-3.5">
+                <div>
+                  <Dialog.Title className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-[#CB2957]" />
+                    <span>Kredensial Akses Akun Siswa & Wali</span>
+                  </Dialog.Title>
+                  <p className="text-xs text-[#555555] mt-0.5">
+                    Pendaftaran resmi disetujui. Kirimkan detail akun login berikut kepada siswa dan orang tua murid.
+                  </p>
+                </div>
+                <Dialog.Close
+                  render={
+                    <button
+                      type="button"
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      onClick={() => setCredentialsModalData(null)}
+                      aria-label="Tutup dialog kredensial"
+                    />
+                  }
+                >
+                  <X className="w-4 h-4" />
+                </Dialog.Close>
+              </div>
+
+              {credentialsModalData && (
+                <div className="space-y-4 text-xs">
+                  {/* Card 1: Akun Siswa */}
+                  <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
+                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-[#000000]" />
+                        <span>Akun Portal Siswa</span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-[#166534]">
+                        {credentialsModalData.className}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Nama Siswa:</span>
+                        <strong className="text-[#000000] font-medium">{credentialsModalData.studentName}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Nomor Induk Siswa (NIS):</span>
+                        <span className="font-mono text-[#000000] font-semibold">{credentialsModalData.studentNis}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Email Login:</span>
+                        <span className="font-mono text-[#000000]">{credentialsModalData.studentEmail}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Kata Sandi Sementara:</span>
+                        <span className="font-mono text-[#CB2957] font-bold">{credentialsModalData.studentPassword}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Akun Wali */}
+                  <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
+                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-[#000000]" />
+                        <span>Akun Portal Orang Tua / Wali</span>
+                      </span>
+                      <span className="text-[11px] text-[#555555] font-mono">
+                        WA: {credentialsModalData.parentPhone}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Nama Wali:</span>
+                        <strong className="text-[#000000] font-medium">{credentialsModalData.parentName}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Email Login:</span>
+                        <span className="font-mono text-[#000000]">{credentialsModalData.parentEmail}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Kata Sandi Sementara:</span>
+                        <span className="font-mono text-[#CB2957] font-bold">{credentialsModalData.parentPassword}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#555555] block text-[11px]">Hak Pemantauan:</span>
+                        <span className="text-[#000000]">Presensi Real-Time, Rapor & Tagihan</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp Copy Template Box */}
+                  <div className="p-3.5 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2] text-[11px] text-[#555555] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span>
+                      Salin format pesan siap kirim untuk disampaikan langsung kepada orang tua siswa melalui WhatsApp.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyWhatsAppTemplate}
+                      className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[6px] transition-colors cursor-pointer"
+                    >
+                      {isTemplateCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-[#166534]" />
+                          <span>Format Disalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Salin Format WhatsApp</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
+                    <button
+                      type="button"
+                      onClick={() => setCredentialsModalData(null)}
+                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer"
+                    >
+                      Tutup & Selesai
+                    </button>
+                  </div>
+                </div>
+              )}
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

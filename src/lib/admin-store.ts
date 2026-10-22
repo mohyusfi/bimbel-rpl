@@ -1,7 +1,10 @@
+import { supabase } from './supabase/client'
+
 export type PackageCode = 'UTBK' | 'SMA' | 'SMP' | 'SD'
 
 export interface Registration {
   id: string
+  registrationNumber?: string
   studentName: string
   studentEmail: string
   studentPhone: string
@@ -9,7 +12,7 @@ export interface Registration {
   packageCode: PackageCode
   packageName: string
   parentName: string
-  parentEmail: string
+  parentEmail?: string
   parentPhone: string
   parentJob?: string
   parentAddress?: string
@@ -117,6 +120,9 @@ export interface Invoice {
   paymentMethod?: string
   verifiedAt?: string
   verifiedBy?: string
+  description?: string
+  storage_path?: string
+  receiptUrl?: string
 }
 
 export type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpa'
@@ -127,6 +133,7 @@ export interface AttendanceEntry {
   nis: string
   status: AttendanceStatus
   note?: string
+  notes?: string
 }
 
 export interface AttendanceSession {
@@ -161,6 +168,8 @@ export interface LearningMaterial {
   fileType: 'PDF' | 'PPTX'
   fileSize: string
   fileUrl: string
+  storage_path?: string
+  storagePath?: string
   uploadedAt: string
 }
 
@@ -202,13 +211,28 @@ export interface Announcement {
   isPinned: boolean
 }
 
+export type NotificationType =
+  | 'attendance'
+  | 'billing'
+  | 'academic'
+  | 'announcement'
+  | 'registration'
+  | 'general'
+  | 'payment'
+  | 'schedule'
+
 export interface AdminNotification {
   id: string
+  userId?: string
   title: string
   message: string
   timestamp: string
   isRead: boolean
-  type: 'registration' | 'payment' | 'schedule' | 'general'
+  type: NotificationType
+  linkUrl?: string
+  metadata?: Record<string, any>
+  data?: Record<string, any>
+  createdAt?: string
 }
 
 // Initial Data
@@ -375,6 +399,15 @@ const INITIAL_CLASSES: ClassGroup[] = [
     capacity: 10,
     studentCount: 7,
     tutorName: 'Kak Rizky Pratama, S.Kom',
+  },
+  {
+    id: 'cls-full',
+    name: 'UTBK Kuota Penuh',
+    courseCode: 'UTBK',
+    courseName: 'Intensif UTBK-SNBT',
+    capacity: 12,
+    studentCount: 12,
+    tutorName: 'Pak Hendra Wijaya, M.Pd',
   },
 ]
 
@@ -1001,27 +1034,44 @@ function loadInitialState(): AdminState {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
-        const learningMaterials = rawMaterials.map((m) => {
-          if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
-            return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
-          }
-          if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
-            return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
-          }
-          return m
-        })
+        // Auto-purge legacy mock data (IDs like 'rm-1', 'cls-1', 'tut-1', 'stu-1')
+        const hasLegacyMock =
+          parsed.rooms?.some((r: any) => typeof r.id === 'string' && r.id.startsWith('rm-')) ||
+          parsed.classes?.some((c: any) => typeof c.id === 'string' && c.id.startsWith('cls-')) ||
+          parsed.students?.some((s: any) => typeof s.id === 'string' && s.id.startsWith('stu-'))
 
-        return {
-          ...parsed,
-          attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
-          learningMaterials,
-          gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
-          parents: parsed.parents || INITIAL_PARENTS,
-          selectedChildId: parsed.selectedChildId || 'stu-1',
-          activeTutorId: parsed.activeTutorId || 'tut-1',
-          activeStudentId: parsed.activeStudentId || 'stu-1',
-          activeParentId: parsed.activeParentId || 'par-1',
+        if (hasLegacyMock) {
+          console.info('🧹 Auto-purging legacy mock data from localStorage...')
+          localStorage.removeItem(STORAGE_KEY)
+        } else {
+          const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
+          const learningMaterials = rawMaterials.map((m) => {
+            if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
+              return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
+            }
+            if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
+              return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
+            }
+            return m
+          })
+
+          return {
+            ...parsed,
+            registrations: parsed.registrations || [],
+            students: parsed.students || [],
+            tutors: parsed.tutors || [],
+            rooms: parsed.rooms || [],
+            courses: parsed.courses || [],
+            classes: parsed.classes || [],
+            attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
+            learningMaterials,
+            gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
+            parents: parsed.parents || INITIAL_PARENTS,
+            selectedChildId: parsed.selectedChildId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+            activeTutorId: parsed.activeTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
+            activeStudentId: parsed.activeStudentId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+            activeParentId: parsed.activeParentId || 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
+          }
         }
       }
     } catch (e) {
@@ -1030,30 +1080,42 @@ function loadInitialState(): AdminState {
   }
 
   return {
-    registrations: INITIAL_REGISTRATIONS,
-    students: INITIAL_STUDENTS,
-    tutors: INITIAL_TUTORS,
-    subjects: INITIAL_SUBJECTS,
-    rooms: INITIAL_ROOMS,
-    courses: INITIAL_COURSES,
-    classes: INITIAL_CLASSES,
-    schedules: INITIAL_SCHEDULES,
-    invoices: INITIAL_INVOICES,
-    announcements: INITIAL_ANNOUNCEMENTS,
-    notifications: INITIAL_NOTIFICATIONS,
-    attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
-    learningMaterials: INITIAL_MATERIALS,
-    gradeRecords: INITIAL_GRADES,
-    parents: INITIAL_PARENTS,
-    selectedChildId: 'stu-1',
-    activeTutorId: 'tut-1',
-    activeStudentId: 'stu-1',
-    activeParentId: 'par-1',
+    registrations: [],
+    students: [],
+    tutors: INITIAL_TUTORS.map((t) => ({ ...t })),
+    subjects: INITIAL_SUBJECTS.map((s) => ({ ...s })),
+    rooms: INITIAL_ROOMS.map((r) => ({ ...r })),
+    courses: INITIAL_COURSES.map((c) => ({ ...c })),
+    classes: INITIAL_CLASSES.map((c) => ({ ...c })),
+    schedules: [],
+    invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
+    announcements: INITIAL_ANNOUNCEMENTS.map((a) => ({ ...a })),
+    notifications: INITIAL_NOTIFICATIONS.map((n) => ({ ...n })),
+    attendanceSessions: INITIAL_ATTENDANCE_SESSIONS.map((a) => ({ ...a })),
+    learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
+    gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
+    parents: INITIAL_PARENTS.map((p) => ({ ...p })),
+    selectedChildId: 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+    activeTutorId: '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
+    activeStudentId: 'd992d9fc-6f5b-434f-998b-358e54a754b7',
+    activeParentId: 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
   }
 }
 
 let state: AdminState = loadInitialState()
 const listeners = new Set<() => void>()
+
+let idCounter = 0
+function generateUniqueId(prefix: string): string {
+  idCounter += 1
+  return `${prefix}-${Date.now().toString().slice(-4)}-${idCounter}`
+}
+
+function clampCapacity(capacity: unknown, defaultCap = 12): number {
+  const num = Number(capacity)
+  if (isNaN(num)) return defaultCap
+  return Math.min(12, Math.max(1, num))
+}
 
 function saveAndNotify() {
   if (typeof window !== 'undefined') {
@@ -1080,21 +1142,21 @@ export const adminStore = {
 
   resetToDefault() {
     state = {
-      registrations: INITIAL_REGISTRATIONS,
-      students: INITIAL_STUDENTS,
-      tutors: INITIAL_TUTORS,
-      subjects: INITIAL_SUBJECTS,
-      rooms: INITIAL_ROOMS,
-      courses: INITIAL_COURSES,
-      classes: INITIAL_CLASSES,
-      schedules: INITIAL_SCHEDULES,
-      invoices: INITIAL_INVOICES,
-      announcements: INITIAL_ANNOUNCEMENTS,
-      notifications: INITIAL_NOTIFICATIONS,
-      attendanceSessions: INITIAL_ATTENDANCE_SESSIONS,
-      learningMaterials: INITIAL_MATERIALS,
-      gradeRecords: INITIAL_GRADES,
-      parents: INITIAL_PARENTS,
+      registrations: INITIAL_REGISTRATIONS.map((r) => ({ ...r })),
+      students: INITIAL_STUDENTS.map((s) => ({ ...s })),
+      tutors: INITIAL_TUTORS.map((t) => ({ ...t })),
+      subjects: INITIAL_SUBJECTS.map((s) => ({ ...s })),
+      rooms: INITIAL_ROOMS.map((r) => ({ ...r })),
+      courses: INITIAL_COURSES.map((c) => ({ ...c })),
+      classes: INITIAL_CLASSES.map((c) => ({ ...c })),
+      schedules: INITIAL_SCHEDULES.map((s) => ({ ...s })),
+      invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
+      announcements: INITIAL_ANNOUNCEMENTS.map((a) => ({ ...a })),
+      notifications: INITIAL_NOTIFICATIONS.map((n) => ({ ...n })),
+      attendanceSessions: INITIAL_ATTENDANCE_SESSIONS.map((a) => ({ ...a })),
+      learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
+      gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
+      parents: INITIAL_PARENTS.map((p) => ({ ...p })),
       selectedChildId: 'stu-1',
       activeTutorId: 'tut-1',
       activeStudentId: 'stu-1',
@@ -1104,10 +1166,17 @@ export const adminStore = {
   },
 
   // REGISTRATIONS
-  addRegistration(input: Omit<Registration, 'id' | 'createdAt' | 'status'>) {
+  addRegistration(input: Omit<Registration, 'id' | 'createdAt' | 'status'> & { registrationNumber?: string }) {
+    const regNum =
+      input.registrationNumber ||
+      `REG-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(
+        state.registrations.length + 1
+      ).padStart(4, '0')}`
+
     const newReg: Registration = {
       ...input,
-      id: `reg-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('reg'),
+      registrationNumber: regNum,
       createdAt: new Date().toISOString(),
       status: 'menunggu',
     }
@@ -1130,23 +1199,35 @@ export const adminStore = {
     return newReg
   },
 
-  approveRegistration(regId: string, classId: string) {
-    const reg = state.registrations.find((r) => r.id === regId)
-    if (!reg) return false
+  approveRegistration(regId: string, classId: string, fallbackReg?: Registration) {
+    let reg = state.registrations.find((r) => r.id === regId || r.registrationNumber === regId)
+    if (!reg && fallbackReg) {
+      reg = { ...fallbackReg, id: regId }
+      state.registrations = [reg, ...state.registrations]
+    }
+    if (!reg) return null
 
     const targetClass = state.classes.find((c) => c.id === classId)
-    if (!targetClass) return false
+    if (!targetClass) return null
+
+    // Validasi kapasitas kelas maksimal 12 siswa (CONTEXT.md)
+    const maxCapacity = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCapacity) {
+      throw new Error(
+        `Rombel ${targetClass.name} sudah penuh (${targetClass.studentCount}/${maxCapacity} siswa). Batas maksimal adalah 12 siswa.`
+      )
+    }
 
     // Update status pendaftaran
     reg.status = 'terverifikasi'
     reg.assignedClassId = classId
 
     // Tambah ke tabel siswa aktif jika belum ada
-    const studentExists = state.students.some((s) => s.email === reg.studentEmail)
-    if (!studentExists) {
+    let studentRecord = state.students.find((s) => s.email === reg.studentEmail)
+    if (!studentRecord) {
       const nisNumber = (state.students.length + 1).toString().padStart(3, '0')
-      const newStudent: Student = {
-        id: `stu-${Date.now().toString().slice(-4)}`,
+      studentRecord = {
+        id: generateUniqueId('stu'),
         nis: `TC-2026-${nisNumber}`,
         name: reg.studentName,
         email: reg.studentEmail,
@@ -1167,10 +1248,34 @@ export const adminStore = {
         }).format(new Date()),
         status: 'aktif',
       }
-      state.students = [newStudent, ...state.students]
+      state.students = [studentRecord, ...state.students]
 
       // Increment jumlah siswa di kelas
       targetClass.studentCount += 1
+    }
+
+    // Hubungkan atau daftarkan profil orang tua
+    let parentRecord = state.parents.find(
+      (p) =>
+        (reg.parentEmail && p.email.toLowerCase() === reg.parentEmail.toLowerCase()) ||
+        p.phone.replace(/[^0-9]/g, '') === reg.parentPhone.replace(/[^0-9]/g, '')
+    )
+
+    if (parentRecord) {
+      if (!parentRecord.studentIds.includes(studentRecord.id)) {
+        parentRecord.studentIds = [...parentRecord.studentIds, studentRecord.id]
+      }
+    } else {
+      parentRecord = {
+        id: generateUniqueId('par'),
+        name: reg.parentName,
+        email: reg.parentEmail || `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+        phone: reg.parentPhone,
+        job: reg.parentJob || 'Wali Murid',
+        address: reg.parentAddress || 'Kota Palu',
+        studentIds: [studentRecord.id],
+      }
+      state.parents = [parentRecord, ...state.parents]
     }
 
     // Tambah notifikasi
@@ -1187,11 +1292,31 @@ export const adminStore = {
     ]
 
     saveAndNotify()
-    return true
+
+    return {
+      success: true,
+      student: studentRecord,
+      parent: parentRecord,
+      credentials: {
+        studentNis: studentRecord.nis,
+        studentName: studentRecord.name,
+        studentEmail: studentRecord.email,
+        studentPassword: 'siswa2026',
+        className: targetClass.name,
+        parentName: parentRecord.name,
+        parentEmail: parentRecord.email,
+        parentPhone: parentRecord.phone,
+        parentPassword: 'wali2026',
+      },
+    }
   },
 
-  rejectRegistration(regId: string, reason: string) {
-    const reg = state.registrations.find((r) => r.id === regId)
+  rejectRegistration(regId: string, reason: string, fallbackReg?: Registration) {
+    let reg = state.registrations.find((r) => r.id === regId || r.registrationNumber === regId)
+    if (!reg && fallbackReg) {
+      reg = { ...fallbackReg, id: regId }
+      state.registrations = [reg, ...state.registrations]
+    }
     if (!reg) return false
 
     reg.status = 'ditolak'
@@ -1203,10 +1328,18 @@ export const adminStore = {
 
   // STUDENTS
   addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) {
+    const cls = state.classes.find((c) => c.id === input.classId)
+    if (cls) {
+      const maxCap = Math.min(12, cls.capacity || 12)
+      if (cls.studentCount >= maxCap) {
+        throw new Error(`Rombel ${cls.name} sudah penuh (${cls.studentCount}/${maxCap} siswa).`)
+      }
+    }
+
     const nisNumber = (state.students.length + 1).toString().padStart(3, '0')
     const newStudent: Student = {
       ...input,
-      id: `stu-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('stu'),
       nis: `TC-2026-${nisNumber}`,
       joinDate: new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
@@ -1218,7 +1351,6 @@ export const adminStore = {
 
     state.students = [newStudent, ...state.students]
 
-    const cls = state.classes.find((c) => c.id === input.classId)
     if (cls) cls.studentCount += 1
 
     saveAndNotify()
@@ -1234,11 +1366,42 @@ export const adminStore = {
     return true
   },
 
+  assignStudentToClass(studentId: string, targetClassId: string) {
+    const student = state.students.find((s) => s.id === studentId)
+    if (!student) throw new Error('Siswa tidak ditemukan.')
+
+    const targetClass = state.classes.find((c) => c.id === targetClassId)
+    if (!targetClass) throw new Error('Rombel tujuan tidak ditemukan.')
+
+    if (student.classId === targetClassId) {
+      return student
+    }
+
+    const maxCap = Math.min(12, targetClass.capacity || 12)
+    if (targetClass.studentCount >= maxCap) {
+      throw new Error(
+        `Rombel ${targetClass.name} sudah penuh (${targetClass.studentCount}/${maxCap} siswa). Batas maksimal adalah 12 siswa.`
+      )
+    }
+
+    const oldClass = state.classes.find((c) => c.id === student.classId)
+    if (oldClass && oldClass.studentCount > 0) {
+      oldClass.studentCount -= 1
+    }
+
+    targetClass.studentCount += 1
+    student.classId = targetClass.id
+    student.className = targetClass.name
+
+    saveAndNotify()
+    return student
+  },
+
   // TUTORS
   addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) {
     const newTutor: Tutor = {
       ...input,
-      id: `tut-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('tut'),
       weeklySessionsCount: 0,
       status: 'aktif',
     }
@@ -1260,7 +1423,7 @@ export const adminStore = {
   addSubject(input: Omit<Subject, 'id' | 'tutorCount'>) {
     const newSubj: Subject = {
       ...input,
-      id: `sbj-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('sbj'),
       tutorCount: 1,
     }
     state.subjects = [...state.subjects, newSubj]
@@ -1269,15 +1432,31 @@ export const adminStore = {
   },
 
   // ROOMS
-  addRoom(input: Omit<Room, 'id' | 'isActive'>) {
+  addRoom(input: Omit<Room, 'id' | 'isActive'> & { id?: string }) {
+    const capacity = clampCapacity(input.capacity, 12)
     const newRoom: Room = {
       ...input,
-      id: `rm-${Date.now().toString().slice(-4)}`,
+      capacity,
+      id: input.id || generateUniqueId('rm'),
       isActive: true,
     }
     state.rooms = [...state.rooms, newRoom]
     saveAndNotify()
     return newRoom
+  },
+
+  updateRoom(id: string, updates: Partial<Omit<Room, 'id'>>) {
+    const index = state.rooms.findIndex((r) => r.id === id)
+    if (index === -1) return false
+
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.capacity !== undefined) {
+      sanitizedUpdates.capacity = clampCapacity(sanitizedUpdates.capacity, 12)
+    }
+
+    state.rooms[index] = { ...state.rooms[index], ...sanitizedUpdates }
+    saveAndNotify()
+    return state.rooms[index]
   },
 
   toggleRoomActive(id: string) {
@@ -1293,16 +1472,23 @@ export const adminStore = {
     const index = state.courses.findIndex((c) => c.id === id)
     if (index === -1) return false
 
-    state.courses[index] = { ...state.courses[index], ...updates }
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.maxStudents !== undefined) {
+      sanitizedUpdates.maxStudents = clampCapacity(sanitizedUpdates.maxStudents, 12)
+    }
+
+    state.courses[index] = { ...state.courses[index], ...sanitizedUpdates }
     saveAndNotify()
     return true
   },
 
   // CLASSES
   addClass(input: Omit<ClassGroup, 'id' | 'studentCount'>) {
+    const capacity = clampCapacity(input.capacity, 12)
     const newClass: ClassGroup = {
       ...input,
-      id: `cls-${Date.now().toString().slice(-4)}`,
+      capacity,
+      id: generateUniqueId('cls'),
       studentCount: 0,
     }
     state.classes = [...state.classes, newClass]
@@ -1314,12 +1500,27 @@ export const adminStore = {
     return newClass
   },
 
+  updateClass(id: string, updates: Partial<Omit<ClassGroup, 'id'>>) {
+    const index = state.classes.findIndex((c) => c.id === id)
+    if (index === -1) return false
+
+    const sanitizedUpdates = { ...updates }
+    if (sanitizedUpdates.capacity !== undefined) {
+      sanitizedUpdates.capacity = clampCapacity(sanitizedUpdates.capacity, 12)
+    }
+
+    state.classes[index] = { ...state.classes[index], ...sanitizedUpdates }
+    saveAndNotify()
+    return state.classes[index]
+  },
+
   // SCHEDULES & CONFLICT DETECTION (SCHED-02)
   addSchedule(input: Omit<Schedule, 'id'>) {
     const conflict = detectScheduleConflicts(input, state.schedules, state.rooms)
     if (conflict.hasConflict) {
       throw new Error(
-        conflict.timeError ||
+        conflict.errorMessage ||
+          conflict.timeError ||
           (conflict.roomConflict
             ? `Bentrok Ruangan: ${conflict.roomConflict.roomName} sudah digunakan oleh ${conflict.roomConflict.className} (${conflict.roomConflict.startTime}–${conflict.roomConflict.endTime})`
             : conflict.tutorConflict
@@ -1330,7 +1531,7 @@ export const adminStore = {
 
     const newSchedule: Schedule = {
       ...input,
-      id: `sch-${Date.now().toString().slice(-4)}`,
+      id: generateUniqueId('sch'),
     }
 
     state.schedules = [...state.schedules, newSchedule]
@@ -1341,6 +1542,59 @@ export const adminStore = {
 
     saveAndNotify()
     return newSchedule
+  },
+
+  updateSchedule(id: string, input: Partial<Omit<Schedule, 'id'>>) {
+    const index = state.schedules.findIndex((s) => s.id === id)
+    if (index === -1) {
+      throw new Error(`Jadwal dengan ID "${id}" tidak ditemukan`)
+    }
+    const oldSchedule = state.schedules[index]
+
+    const mergedCandidate: ScheduleCandidate = {
+      id,
+      roomId: input.roomId ?? oldSchedule.roomId,
+      tutorId: input.tutorId ?? oldSchedule.tutorId,
+      dayOfWeek: input.dayOfWeek ?? oldSchedule.dayOfWeek,
+      startTime: input.startTime ?? oldSchedule.startTime,
+      endTime: input.endTime ?? oldSchedule.endTime,
+    }
+
+    const conflict = detectScheduleConflicts(mergedCandidate, state.schedules, state.rooms)
+    if (conflict.hasConflict) {
+      throw new Error(
+        conflict.errorMessage ||
+          conflict.timeError ||
+          (conflict.roomConflict
+            ? `Bentrok Ruangan: ${conflict.roomConflict.roomName} sudah digunakan oleh ${conflict.roomConflict.className} (${conflict.roomConflict.startTime}–${conflict.roomConflict.endTime})`
+            : conflict.tutorConflict
+              ? `Bentrok Tutor: ${conflict.tutorConflict.tutorName} sudah mengajar ${conflict.tutorConflict.className} (${conflict.tutorConflict.startTime}–${conflict.tutorConflict.endTime})`
+              : 'Jadwal bentrok dengan jadwal lain')
+      )
+    }
+
+    if (input.tutorId && oldSchedule.tutorId !== input.tutorId) {
+      const oldTutor = state.tutors.find((t) => t.id === oldSchedule.tutorId)
+      if (oldTutor && oldTutor.weeklySessionsCount > 0) oldTutor.weeklySessionsCount -= 1
+      const newTutor = state.tutors.find((t) => t.id === input.tutorId)
+      if (newTutor) newTutor.weeklySessionsCount += 1
+    }
+
+    const targetClass = input.classId ? state.classes.find((c) => c.id === input.classId) : undefined
+    const targetTutor = input.tutorId ? state.tutors.find((t) => t.id === input.tutorId) : undefined
+    const targetRoom = input.roomId ? state.rooms.find((r) => r.id === input.roomId) : undefined
+
+    const updated: Schedule = {
+      ...oldSchedule,
+      ...input,
+      id,
+      className: input.className ?? (targetClass ? targetClass.name : oldSchedule.className),
+      tutorName: input.tutorName ?? (targetTutor ? targetTutor.name : oldSchedule.tutorName),
+      roomName: input.roomName ?? (targetRoom ? targetRoom.name : oldSchedule.roomName),
+    }
+    state.schedules[index] = updated
+    saveAndNotify()
+    return updated
   },
 
   deleteSchedule(id: string) {
@@ -1355,7 +1609,15 @@ export const adminStore = {
   },
 
   // INVOICES & VERIFICATION (BILL-01 s/d BILL-03)
-  createInvoice(input: Omit<Invoice, 'id' | 'status'>) {
+  createInvoice(input: {
+    studentId: string
+    studentName: string
+    nis: string
+    programName: string
+    amount: number
+    dueDate: string
+    description?: string
+  }) {
     const invId = `INV-2026-${(state.invoices.length + 306).toString().padStart(4, '0')}`
     const newInvoice: Invoice = {
       ...input,
@@ -1382,14 +1644,34 @@ export const adminStore = {
     }).format(new Date()) + ' WITA'
     inv.verifiedBy = 'Hj. Nuraini, S.Pd'
 
+    const student = state.students.find(
+      (s) => s.id === inv.studentId || s.name === inv.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
+
     state.notifications = [
       {
         id: `notif-${Date.now()}`,
-        title: 'Pembayaran SPP Diverifikasi',
-        message: `Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
+        userId: student?.id || inv.studentId,
+        title: 'Pembayaran SPP Terverifikasi Lunas',
+        message: `Pembayaran SPP ${inv.id} Terverifikasi Lunas. Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
         timestamp: 'Baru saja',
         isRead: false,
-        type: 'payment',
+        type: 'billing',
+        linkUrl: '/parent/tagihan',
+        metadata: {
+          invoiceId: inv.id,
+          receiptNumber: inv.receiptNumber,
+          studentId: inv.studentId,
+          studentName: inv.studentName,
+          parentId: parent?.id,
+          parentName: parent?.name,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
       },
       ...state.notifications,
     ]
@@ -1405,6 +1687,38 @@ export const adminStore = {
     inv.status = 'ditolak'
     inv.rejectedReason = reason
 
+    const student = state.students.find(
+      (s) => s.id === inv.studentId || s.name === inv.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
+
+    state.notifications = [
+      {
+        id: `notif-${Date.now()}`,
+        userId: student?.id || inv.studentId,
+        title: 'Bukti Pembayaran SPP Ditolak',
+        message: `Bukti Pembayaran SPP Ditolak untuk tagihan ${inv.id} (${inv.studentName} - ${inv.programName}). Alasan: ${reason}`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'billing',
+        linkUrl: '/parent/tagihan',
+        metadata: {
+          invoiceId: inv.id,
+          studentId: inv.studentId,
+          studentName: inv.studentName,
+          parentId: parent?.id,
+          parentName: parent?.name,
+          rejectedReason: reason,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
+      },
+      ...state.notifications,
+    ]
+
     saveAndNotify()
     return true
   },
@@ -1416,6 +1730,8 @@ export const adminStore = {
     paymentMethod: string
     submittedByRole: 'student' | 'parent'
     submittedByName: string
+    storage_path?: string
+    receiptUrl?: string
   }) {
     const inv = state.invoices.find((i) => i.id === input.invoiceId)
     if (!inv) return false
@@ -1428,6 +1744,8 @@ export const adminStore = {
     inv.submittedByName = input.submittedByName
     inv.submittedAt = new Date().toISOString()
     inv.rejectedReason = undefined
+    if (input.storage_path) inv.storage_path = input.storage_path
+    if (input.receiptUrl) inv.receiptUrl = input.receiptUrl
 
     state.notifications = [
       {
@@ -1446,6 +1764,57 @@ export const adminStore = {
   },
 
   // SESSIONS & ATTENDANCE
+  createSessionFromSchedule(
+    scheduleId: string,
+    sessionDate: string,
+    topic: string = ''
+  ): AttendanceSession {
+    const schedule = state.schedules.find((s) => s.id === scheduleId)
+    if (!schedule) {
+      throw new Error(`Jadwal bimbingan dengan ID "${scheduleId}" tidak ditemukan.`)
+    }
+
+    // Cek apakah sesi aktual untuk jadwal dan tanggal ini sudah pernah dibuat (pencegahan duplikasi sesi)
+    const existing = state.attendanceSessions.find(
+      (s) => s.scheduleId === scheduleId && s.sessionDate === sessionDate
+    )
+    if (existing) {
+      return existing
+    }
+
+    // Ambil siswa yang terdaftar pada kelas rombel bersangkutan
+    const enrolledStudents = state.students.filter((s) => s.classId === schedule.classId)
+    const initialEntries: AttendanceEntry[] = enrolledStudents.map((s) => ({
+      studentId: s.id,
+      studentName: s.name,
+      nis: s.nis,
+      status: 'hadir',
+    }))
+
+    const newSession: AttendanceSession = {
+      id: `ses-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      scheduleId: schedule.id,
+      classId: schedule.classId,
+      className: schedule.className,
+      subjectName: schedule.subjectName,
+      tutorId: schedule.tutorId,
+      tutorName: schedule.tutorName,
+      roomId: schedule.roomId,
+      roomName: schedule.roomName,
+      sessionDate,
+      dayOfWeek: schedule.dayOfWeek,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      topic,
+      isCompleted: false,
+      entries: initialEntries,
+    }
+
+    state.attendanceSessions = [newSession, ...state.attendanceSessions]
+    saveAndNotify()
+    return newSession
+  },
+
   saveSessionAttendance(
     sessionId: string,
     topic: string,
@@ -1454,6 +1823,17 @@ export const adminStore = {
     const session = state.attendanceSessions.find((s) => s.id === sessionId)
     if (!session) return false
 
+    // Pencegahan duplikasi presensi siswa pada sesi yang sama
+    const seenStudentIds = new Set<string>()
+    for (const entry of entries) {
+      if (seenStudentIds.has(entry.studentId)) {
+        throw new Error(
+          `Pencegahan duplikasi presensi: Siswa "${entry.studentName || entry.studentId}" memiliki lebih dari satu entri presensi pada sesi yang sama.`
+        )
+      }
+      seenStudentIds.add(entry.studentId)
+    }
+
     session.topic = topic
     session.entries = entries
     session.isCompleted = true
@@ -1461,14 +1841,34 @@ export const adminStore = {
     const alpaEntries = entries.filter((e) => e.status === 'alpa')
     if (alpaEntries.length > 0) {
       alpaEntries.forEach((alpa) => {
+        const student = state.students.find(
+          (s) => s.id === alpa.studentId || s.name === alpa.studentName
+        )
+        const parent = state.parents.find(
+          (p) =>
+            (student ? p.studentIds.includes(student.id) : false) ||
+            p.name === student?.parentName
+        )
+
         state.notifications = [
           {
             id: `notif-${Date.now()}-${alpa.studentId}`,
+            userId: student?.id || alpa.studentId,
             title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-            message: `Siswa ${alpa.studentName} tercatat Alpa pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+            message: `Ketidakhadiran (Alpa): Siswa ${alpa.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
             timestamp: 'Baru saja',
             isRead: false,
-            type: 'schedule',
+            type: 'attendance',
+            linkUrl: '/student/presensi',
+            metadata: {
+              studentId: alpa.studentId,
+              studentName: alpa.studentName,
+              parentId: parent?.id,
+              parentName: parent?.name || student?.parentName,
+              sessionId: session.id,
+              sessionName: session.subjectName,
+              targetRoles: ['student', 'parent', 'admin'],
+            },
           },
           ...state.notifications,
         ]
@@ -1479,10 +1879,65 @@ export const adminStore = {
     return true
   },
 
+  recordStudentAttendance(sessionId: string, entry: AttendanceEntry) {
+    const session = state.attendanceSessions.find((s) => s.id === sessionId)
+    if (!session) {
+      throw new Error(`Sesi dengan ID "${sessionId}" tidak ditemukan.`)
+    }
+
+    const existingIndex = session.entries.findIndex((e) => e.studentId === entry.studentId)
+    if (existingIndex >= 0) {
+      // Perbarui status presensi siswa yang sudah ada tanpa membuat entri ganda
+      session.entries[existingIndex] = { ...session.entries[existingIndex], ...entry }
+    } else {
+      session.entries.push(entry)
+    }
+
+    if (entry.status === 'alpa') {
+      const student = state.students.find(
+        (s) => s.id === entry.studentId || s.name === entry.studentName
+      )
+      const parent = state.parents.find(
+        (p) =>
+          (student ? p.studentIds.includes(student.id) : false) ||
+          p.name === student?.parentName
+      )
+
+      state.notifications = [
+        {
+          id: `notif-${Date.now()}-${entry.studentId}`,
+          userId: student?.id || entry.studentId,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Ketidakhadiran (Alpa): Siswa ${entry.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+          timestamp: 'Baru saja',
+          isRead: false,
+          type: 'attendance',
+          linkUrl: '/student/presensi',
+          metadata: {
+            studentId: entry.studentId,
+            studentName: entry.studentName,
+            parentId: parent?.id,
+            parentName: parent?.name || student?.parentName,
+            sessionId: session.id,
+            sessionName: session.subjectName,
+            targetRoles: ['student', 'parent', 'admin'],
+          },
+        },
+        ...state.notifications,
+      ]
+    }
+
+    saveAndNotify()
+    return session
+  },
+
   // LEARNING MATERIALS
   addLearningMaterial(input: Omit<LearningMaterial, 'id' | 'uploadedAt'>) {
+    const storagePath = input.storage_path || input.storagePath
     const newMaterial: LearningMaterial = {
       ...input,
+      storage_path: storagePath,
+      storagePath: storagePath,
       id: `mat-${Date.now().toString().slice(-4)}`,
       uploadedAt: new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
@@ -1515,26 +1970,73 @@ export const adminStore = {
   },
 
   // GRADE RECORDS
-  addGradeRecord(input: Omit<GradeRecord, 'id' | 'assessmentDate'>) {
+  addGradeRecord(
+    input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & {
+      classAverage?: number
+      assessmentDate?: string
+    }
+  ) {
     const newGrade: GradeRecord = {
       ...input,
-      id: `grd-${Date.now().toString().slice(-4)}`,
-      assessmentDate: new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      }).format(new Date()),
+      id: (input as any).id || `grd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      classAverage: input.classAverage ?? input.score,
+      assessmentDate:
+        input.assessmentDate ||
+        new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date()),
     }
     state.gradeRecords = [newGrade, ...state.gradeRecords]
+
+    // Calculate classAverage for all records in the same class and assessment
+    const matchingRecords = state.gradeRecords.filter(
+      (g) => g.classId === newGrade.classId && g.assessmentTitle === newGrade.assessmentTitle
+    )
+    const totalScore = matchingRecords.reduce((sum, g) => sum + g.score, 0)
+    const classAverage = matchingRecords.length > 0
+      ? Math.round(totalScore / matchingRecords.length)
+      : newGrade.score
+
+    // Synchronize calculated classAverage across all records of that assessment in that class
+    state.gradeRecords = state.gradeRecords.map((g) => {
+      if (g.classId === newGrade.classId && g.assessmentTitle === newGrade.assessmentTitle) {
+        return { ...g, classAverage }
+      }
+      return g
+    })
+    newGrade.classAverage = classAverage
+
+    const student = state.students.find(
+      (s) => s.id === newGrade.studentId || s.name === newGrade.studentName
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.name === student?.parentName
+    )
 
     state.notifications = [
       {
         id: `notif-${Date.now()}`,
+        userId: newGrade.studentId,
         title: 'Nilai Evaluasi Rapor Baru',
         message: `Nilai ${newGrade.assessmentTitle} (${newGrade.score}/100) telah diinput untuk siswa ${newGrade.studentName}.`,
         timestamp: 'Baru saja',
         isRead: false,
-        type: 'general',
+        type: 'academic',
+        linkUrl: '/student/rapor',
+        metadata: {
+          gradeId: newGrade.id,
+          studentId: newGrade.studentId,
+          studentName: newGrade.studentName,
+          parentId: parent?.id,
+          classId: newGrade.classId,
+          score: newGrade.score,
+          assessmentTitle: newGrade.assessmentTitle,
+          targetRoles: ['student', 'parent', 'admin'],
+        },
       },
       ...state.notifications,
     ]
@@ -1546,9 +2048,36 @@ export const adminStore = {
   updateGradeRecord(id: string, updates: Partial<GradeRecord>) {
     const index = state.gradeRecords.findIndex((g) => g.id === id)
     if (index === -1) return null
-    state.gradeRecords[index] = { ...state.gradeRecords[index], ...updates }
+
+    const oldRecord = state.gradeRecords[index]
+    const updatedRecord: GradeRecord = { ...oldRecord, ...updates }
+    state.gradeRecords[index] = updatedRecord
+
+    const syncClassAverage = (classId: string, assessmentTitle: string) => {
+      const matching = state.gradeRecords.filter(
+        (g) => g.classId === classId && g.assessmentTitle === assessmentTitle
+      )
+      if (matching.length === 0) return
+      const totalScore = matching.reduce((sum, g) => sum + g.score, 0)
+      const classAverage = Math.round(totalScore / matching.length)
+      state.gradeRecords = state.gradeRecords.map((g) => {
+        if (g.classId === classId && g.assessmentTitle === assessmentTitle) {
+          return { ...g, classAverage }
+        }
+        return g
+      })
+    }
+
+    // Synchronize for target assessment and class
+    syncClassAverage(updatedRecord.classId, updatedRecord.assessmentTitle)
+
+    // If classId or assessmentTitle changed, also resync old group
+    if (oldRecord.classId !== updatedRecord.classId || oldRecord.assessmentTitle !== updatedRecord.assessmentTitle) {
+      syncClassAverage(oldRecord.classId, oldRecord.assessmentTitle)
+    }
+
     saveAndNotify()
-    return state.gradeRecords[index]
+    return state.gradeRecords.find((g) => g.id === id) ?? updatedRecord
   },
 
   // SESSIONS & PROFILES
@@ -1567,6 +2096,21 @@ export const adminStore = {
     saveAndNotify()
   },
 
+  setActiveParentId(parentId: string) {
+    state.activeParentId = parentId
+    saveAndNotify()
+  },
+
+  addParent(input: Omit<ParentProfile, 'id'>) {
+    const newParent: ParentProfile = {
+      ...input,
+      id: `par-${Date.now().toString().slice(-4)}`,
+    }
+    state.parents = [newParent, ...state.parents]
+    saveAndNotify()
+    return newParent
+  },
+
   // ANNOUNCEMENTS
   addAnnouncement(input: Omit<Announcement, 'id' | 'publishedDate' | 'author'>) {
     const newAnn: Announcement = {
@@ -1581,6 +2125,7 @@ export const adminStore = {
     }
     state.announcements = [newAnn, ...state.announcements]
     saveAndNotify()
+    this.broadcastAnnouncement(newAnn)
     return newAnn
   },
 
@@ -1591,8 +2136,155 @@ export const adminStore = {
   },
 
   // NOTIFICATIONS
-  markAllNotificationsRead() {
-    state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
+  addNotification(
+    input: Omit<AdminNotification, 'id' | 'timestamp' | 'isRead'> & {
+      id?: string
+      timestamp?: string
+      isRead?: boolean
+    }
+  ) {
+    const notifId =
+      input.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+    const existing = state.notifications.find((n) => n.id === notifId)
+    if (existing) return existing
+
+    const newNotif: AdminNotification = {
+      id: notifId,
+      title: input.title,
+      message: input.message,
+      timestamp: input.timestamp || 'Baru saja',
+      isRead: input.isRead ?? false,
+      type: input.type,
+      userId: input.userId,
+      linkUrl: input.linkUrl,
+      metadata: input.metadata || input.data,
+      data: input.data || input.metadata,
+    }
+    state.notifications = [newNotif, ...state.notifications]
+    saveAndNotify()
+    return newNotif
+  },
+
+  broadcastAnnouncement(ann: Announcement) {
+    const target = ann.targetAudience
+    const recipients: Array<{ userId: string; role: string }> = []
+
+    if (target === 'Semua' || target === 'Siswa') {
+      state.students
+        .filter((s) => s.status === 'aktif')
+        .forEach((s) => recipients.push({ userId: s.id, role: 'student' }))
+    }
+
+    if (target === 'Semua' || target === 'Orang Tua') {
+      state.parents.forEach((p) => recipients.push({ userId: p.id, role: 'parent' }))
+    }
+
+    if (target === 'Semua' || target === 'Tutor') {
+      state.tutors
+        .filter((t) => t.status === 'aktif')
+        .forEach((t) => recipients.push({ userId: t.id, role: 'tutor' }))
+    }
+
+    const newNotifs: AdminNotification[] = []
+
+    for (const r of recipients) {
+      newNotifs.push({
+        id: `notif-ann-${ann.id}-${r.userId}`,
+        userId: r.userId,
+        title: `Pengumuman Bimbel: ${ann.title}`,
+        message:
+          ann.content.length > 140
+            ? `${ann.content.substring(0, 137)}...`
+            : ann.content,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'announcement',
+        linkUrl: '/admin/pengumuman',
+        metadata: {
+          announcementId: ann.id,
+          targetAudience: ann.targetAudience,
+          recipientRole: r.role,
+        },
+        data: ann,
+      })
+    }
+
+    // Always push notification for general/admin broadcast
+    const generalNotif: AdminNotification = {
+      id: `notif-ann-${ann.id}`,
+      title: `Pengumuman: ${ann.title}`,
+      message:
+        ann.content.length > 140
+          ? `${ann.content.substring(0, 137)}...`
+          : ann.content,
+      type: 'announcement',
+      timestamp: 'Baru saja',
+      isRead: false,
+      linkUrl: '/admin/pengumuman',
+      metadata: {
+        announcementId: ann.id,
+        targetAudience: ann.targetAudience,
+      },
+      data: ann,
+    }
+    newNotifs.push(generalNotif)
+
+    state.notifications = [...newNotifs, ...state.notifications]
+    saveAndNotify()
+
+    try {
+      if (typeof supabase !== 'undefined' && supabase) {
+        const channel = supabase.channel('broadcast:announcements')
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel
+              .send({
+                type: 'broadcast',
+                event: 'announcement',
+                payload: {
+                  ...generalNotif,
+                  targetAudience: ann.targetAudience,
+                },
+              })
+              .then(() => {
+                setTimeout(() => {
+                  try {
+                    supabase.removeChannel(channel)
+                  } catch {
+                    // ignore cleanup error
+                  }
+                }, 1000)
+              })
+              .catch((err) => {
+                console.warn('Realtime broadcast error:', err)
+                try {
+                  supabase.removeChannel(channel)
+                } catch {
+                  // ignore
+                }
+              })
+          }
+        })
+      }
+    } catch (err) {
+      console.warn('Realtime channel error:', err)
+    }
+
+    return newNotifs
+  },
+
+  markAllNotificationsRead(userId?: string) {
+    if (userId) {
+      state.notifications = state.notifications.map((n) =>
+        n.userId === userId ||
+        n.metadata?.studentId === userId ||
+        n.metadata?.parentId === userId
+          ? { ...n, isRead: true }
+          : n
+      )
+    } else {
+      state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
+    }
     saveAndNotify()
   },
 
@@ -1600,14 +2292,90 @@ export const adminStore = {
     const notif = state.notifications.find((n) => n.id === id)
     if (notif) notif.isRead = true
     saveAndNotify()
+    return notif
+  },
+
+  getNotifications(userId?: string) {
+    if (!userId) return state.notifications
+    return state.notifications.filter(
+      (n) =>
+        n.userId === userId ||
+        n.metadata?.studentId === userId ||
+        n.metadata?.parentId === userId
+    )
+  },
+
+  approvePaymentProof(invoiceId: string) {
+    return this.verifyInvoice(invoiceId)
+  },
+
+  notifyAttendanceAlpa(sessionId: string, studentId: string) {
+    const session = state.attendanceSessions.find((s) => s.id === sessionId)
+    const student = state.students.find(
+      (s) => s.id === studentId || s.name === studentId
+    )
+    const parent = state.parents.find(
+      (p) =>
+        (student ? p.studentIds.includes(student.id) : false) ||
+        p.studentIds.includes(studentId) ||
+        p.name === student?.parentName
+    )
+
+    const createdNotifs: AdminNotification[] = []
+    const now = new Date().toISOString()
+    const subj = session?.subjectName || 'Bimbingan Belajar'
+
+    // Student notification
+    if (student) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: student.id,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Ketidakhadiran (Alpa): Anda tidak hadir pada sesi ${subj}.`,
+          type: 'attendance',
+          createdAt: now,
+          metadata: {
+            sessionId,
+            studentId: student.id,
+            targetRoles: ['student'],
+          },
+        })
+      )
+    }
+
+    // Parent notification
+    if (parent) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: parent.id,
+          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+          message: `Ketidakhadiran (Alpa): Putra/Putri Anda (${student?.name || 'Siswa'}) tidak hadir pada sesi ${subj}.`,
+          type: 'attendance',
+          createdAt: now,
+          metadata: {
+            sessionId,
+            studentId: student?.id,
+            parentId: parent.id,
+            targetRoles: ['parent'],
+          },
+        })
+      )
+    }
+
+    return createdNotifs
   },
 }
 
 // Conflict Detection Engine (SCHED-02 Pure Function)
 export interface ScheduleCandidate {
   id?: string
+  classId?: string
+  className?: string
+  subjectName?: string
   roomId: string
+  roomName?: string
   tutorId: string
+  tutorName?: string
   dayOfWeek: string
   startTime: string
   endTime: string
@@ -1618,6 +2386,7 @@ export interface ConflictCheckResult {
   timeError?: string
   roomConflict?: Schedule
   tutorConflict?: Schedule
+  errorMessage?: string
   suggestedRooms?: Room[]
 }
 
@@ -1626,19 +2395,23 @@ export function detectScheduleConflicts(
   schedules: Schedule[],
   allRooms: Room[]
 ): ConflictCheckResult {
-  // 1. Validasi urutan waktu
+  // 1. Validasi urutan waktu: endTime > startTime
   if (!candidate.startTime || !candidate.endTime) {
     return { hasConflict: false }
   }
 
   if (candidate.endTime <= candidate.startTime) {
+    const timeError = 'Jam selesai bimbingan harus lebih besar daripada jam mulai.'
     return {
       hasConflict: true,
-      timeError: 'Jam selesai bimbingan harus lebih besar daripada jam mulai.',
+      timeError,
+      errorMessage: timeError,
     }
   }
 
   // 2. Evaluasi bentrok ruangan & tutor
+  // Bentrok Ruangan: (Ruangan_A == Ruangan_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)
+  // Bentrok Tutor: (Tutor_A == Tutor_B) && (Hari_A == Hari_B) && (Mulai_A < Selesai_B) && (Selesai_A > Mulai_B)
   let roomConflict: Schedule | undefined
   let tutorConflict: Schedule | undefined
 
@@ -1654,16 +2427,28 @@ export function detectScheduleConflicts(
       candidate.startTime < existing.endTime && candidate.endTime > existing.startTime
 
     if (timeOverlap) {
-      if (existing.roomId === candidate.roomId) {
+      if (candidate.roomId && existing.roomId === candidate.roomId && !roomConflict) {
         roomConflict = existing
       }
-      if (existing.tutorId === candidate.tutorId) {
+      if (candidate.tutorId && existing.tutorId === candidate.tutorId && !tutorConflict) {
         tutorConflict = existing
       }
     }
   }
 
   const hasConflict = Boolean(roomConflict || tutorConflict)
+
+  // Pesan error deskriptif yang memuat nama ruangan/tutor, nama kelas, dan rentang jam bentrok
+  let errorMessage: string | undefined
+  if (roomConflict && tutorConflict) {
+    const rName = roomConflict.roomName || allRooms.find((r) => r.id === roomConflict?.roomId)?.name || 'Ruangan'
+    errorMessage = `Bentrok Ruangan & Tutor: Ruangan "${rName}" sudah digunakan oleh kelas "${roomConflict.className}" (${roomConflict.startTime}–${roomConflict.endTime}) dan Tutor "${tutorConflict.tutorName}" sudah mengajar kelas "${tutorConflict.className}" (${tutorConflict.startTime}–${tutorConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  } else if (roomConflict) {
+    const rName = roomConflict.roomName || allRooms.find((r) => r.id === roomConflict?.roomId)?.name || 'Ruangan'
+    errorMessage = `Bentrok Ruangan: Ruangan "${rName}" sudah digunakan oleh kelas "${roomConflict.className}" (${roomConflict.startTime}–${roomConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  } else if (tutorConflict) {
+    errorMessage = `Bentrok Tutor: Tutor "${tutorConflict.tutorName}" sudah mengajar kelas "${tutorConflict.className}" (${tutorConflict.startTime}–${tutorConflict.endTime}) pada hari ${candidate.dayOfWeek}.`
+  }
 
   // 3. Jika bentrok ruangan, cari ruangan alternatif yang kosong di jam itu
   let suggestedRooms: Room[] | undefined
@@ -1688,8 +2473,65 @@ export function detectScheduleConflicts(
 
   return {
     hasConflict,
+    timeError: candidate.endTime <= candidate.startTime ? 'Jam selesai bimbingan harus lebih besar daripada jam mulai.' : undefined,
     roomConflict,
     tutorConflict,
+    errorMessage,
     suggestedRooms,
+  }
+}
+
+/**
+ * Formula kalkulasi persentase kehadiran: Math.round((hadirCount / totalCount) * 100)
+ */
+export function calculateAttendancePercentage(hadirCount: number, totalCount: number): number {
+  if (totalCount <= 0) return 0
+  return Math.round((hadirCount / totalCount) * 100)
+}
+
+export interface StudentAttendanceSummary {
+  studentId: string
+  hadirCount: number
+  sakitCount: number
+  izinCount: number
+  alpaCount: number
+  totalSessions: number
+  percentage: number
+}
+
+/**
+ * Rekapitulasi kehadiran seorang siswa dari kumpulan sesi bimbingan
+ */
+export function getStudentAttendanceSummary(
+  studentId: string,
+  sessions: AttendanceSession[]
+): StudentAttendanceSummary {
+  let hadirCount = 0
+  let sakitCount = 0
+  let izinCount = 0
+  let alpaCount = 0
+  let totalSessions = 0
+
+  for (const session of sessions) {
+    const entry = session.entries.find((e) => e.studentId === studentId)
+    if (entry) {
+      totalSessions++
+      if (entry.status === 'hadir') hadirCount++
+      else if (entry.status === 'sakit') sakitCount++
+      else if (entry.status === 'izin') izinCount++
+      else if (entry.status === 'alpa') alpaCount++
+    }
+  }
+
+  const percentage = calculateAttendancePercentage(hadirCount, totalSessions)
+
+  return {
+    studentId,
+    hadirCount,
+    sakitCount,
+    izinCount,
+    alpaCount,
+    totalSessions,
+    percentage,
   }
 }

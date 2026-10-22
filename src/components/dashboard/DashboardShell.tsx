@@ -12,10 +12,20 @@ import {
   ArrowRightLeft,
   PanelLeft,
   PanelLeftClose,
+  LogOut,
+  UserX,
+  Calendar,
+  CreditCard,
+  Receipt,
+  GraduationCap,
+  Megaphone,
+  UserCheck,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { SidebarBrand } from './SidebarBrand'
-import { useAdminNotifications, useAdminMutations } from '~/hooks/use-admin-data'
+import { authStore } from '~/lib/auth-store'
+import { useAuth } from '~/hooks/use-auth'
+import { useRealtimeNotifications } from '~/hooks/use-realtime-notifications'
 import type { AdminNotification } from '~/lib/admin-store'
 
 export interface DashboardNavItem {
@@ -45,6 +55,27 @@ export interface DashboardShellProps {
   children: React.ReactNode
 }
 
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'attendance':
+      return <UserX className="w-4 h-4 text-[#A81E46]" />
+    case 'schedule':
+      return <Calendar className="w-4 h-4 text-[#292524]" />
+    case 'billing':
+      return <CreditCard className="w-4 h-4 text-[#2563EB]" />
+    case 'payment':
+      return <Receipt className="w-4 h-4 text-[#2563EB]" />
+    case 'academic':
+      return <GraduationCap className="w-4 h-4 text-[#16A34A]" />
+    case 'announcement':
+      return <Megaphone className="w-4 h-4 text-[#D97706]" />
+    case 'registration':
+      return <UserCheck className="w-4 h-4 text-[#0284C7]" />
+    default:
+      return <Bell className="w-4 h-4 text-[#555555]" />
+  }
+}
+
 export function DashboardShell({
   role,
   portalName,
@@ -67,6 +98,13 @@ export function DashboardShell({
   })
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false)
   const [notifFilter, setNotifFilter] = React.useState<string>('ALL')
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false)
+
+  const handleLogout = React.useCallback(() => {
+    authStore.logout()
+    setIsLogoutConfirmOpen(false)
+    navigate({ to: '/masuk' as any })
+  }, [navigate])
 
   const toggleSidebar = React.useCallback(() => {
     setIsSidebarCollapsed((prev) => {
@@ -83,10 +121,16 @@ export function DashboardShell({
   }, [])
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { data: notifications = [] } = useAdminNotifications()
-  const { markAllNotificationsRead, markNotificationRead } = useAdminMutations()
+  const { profile, user } = useAuth()
+  const currentUserId = profile?.id || user?.id
 
-  const unreadNotifsCount = notifications.filter((n) => !n.isRead).length
+  const {
+    notifications,
+    unreadCount: unreadNotifsCount,
+    markAsRead,
+    markAllAsRead,
+    isConnected: isRealtimeConnected,
+  } = useRealtimeNotifications({ userId: currentUserId })
 
   const allItems = React.useMemo(
     () => navGroups.flatMap((g) => g.items),
@@ -106,12 +150,26 @@ export function DashboardShell({
       category: 'Utama',
     }
 
-  const filteredNotifications = notifications.filter((notif) => {
-    if (notifFilter === 'UNREAD') return !notif.isRead
-    if (notifFilter === 'registration') return notif.type === 'registration'
-    if (notifFilter === 'payment') return notif.type === 'payment'
-    return true
-  })
+  const filteredNotifications = React.useMemo(() => {
+    return notifications.filter((notif) => {
+      if (notifFilter === 'UNREAD') return !notif.isRead
+      if (notifFilter === 'attendance')
+        return notif.type === 'attendance' || notif.type === 'schedule'
+      if (notifFilter === 'billing')
+        return notif.type === 'billing' || notif.type === 'payment'
+      if (notifFilter === 'academic') return notif.type === 'academic'
+      if (notifFilter === 'announcement') return notif.type === 'announcement'
+      return true
+    })
+  }, [notifications, notifFilter])
+
+  const handleNotificationClick = (notif: AdminNotification) => {
+    markAsRead(notif.id)
+    setIsNotifDrawerOpen(false)
+    if (notif.linkUrl) {
+      navigate({ to: notif.linkUrl as any })
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#E3E3E3] flex justify-center print:bg-transparent">
@@ -240,13 +298,26 @@ export function DashboardShell({
             </span>
           </div>
 
-          <Link
-            to="/masuk"
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF] border border-transparent hover:border-[#D2D2D2] rounded-[8px] transition-colors"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Ganti Portal (Demo)</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-1.5">
+            <Link
+              to="/masuk"
+              className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] transition-colors"
+              title="Ganti Portal Role (Demo)"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+              <span>Ganti Role</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsLogoutConfirmOpen(true)}
+              className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#901B14] hover:text-[#FFFFFF] hover:bg-[#901B14] border border-[#D2D2D2] hover:border-[#901B14] rounded-[8px] transition-colors cursor-pointer"
+              title="Keluar dari Akun"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Keluar</span>
+            </button>
+          </div>
         </div>
         </div>
       </aside>
@@ -345,17 +416,26 @@ export function DashboardShell({
                             {unreadNotifsCount} baru
                           </span>
                         )}
+                        {isRealtimeConnected && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#16A34A]"
+                            title="Supabase Realtime Terhubung"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
+                            <span className="hidden sm:inline">Live</span>
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
                         {unreadNotifsCount > 0 && (
                           <button
                             type="button"
-                            onClick={() => markAllNotificationsRead()}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] hover:bg-[#000000] hover:text-[#FFFFFF] rounded-[6px] transition-colors cursor-pointer"
+                            onClick={() => markAllAsRead()}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] hover:bg-[#000000] hover:text-[#FFFFFF] rounded-[6px] transition-colors cursor-pointer"
                           >
                             <CheckCheck className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Tandai Dibaca</span>
+                            <span className="hidden sm:inline">Tandai Semua Dibaca</span>
                           </button>
                         )}
                         <Dialog.Close
@@ -372,31 +452,67 @@ export function DashboardShell({
                       </div>
                     </div>
 
+                    {/* Filter Tabs: 'Semua', 'Belum Dibaca', 'Presensi', 'SPP', 'Akademik', 'Pengumuman' */}
+                    <div className="px-5 py-2 border-b border-[#D2D2D2] bg-[#FFFFFF] flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
+                      {[
+                        { id: 'ALL', label: 'Semua' },
+                        { id: 'UNREAD', label: 'Belum Dibaca' },
+                        { id: 'attendance', label: 'Presensi' },
+                        { id: 'billing', label: 'SPP' },
+                        { id: 'academic', label: 'Akademik' },
+                        { id: 'announcement', label: 'Pengumuman' },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setNotifFilter(tab.id)}
+                          className={cn(
+                            'px-2.5 py-1 text-xs font-medium rounded-[6px] whitespace-nowrap transition-colors cursor-pointer',
+                            notifFilter === tab.id
+                              ? 'bg-[#000000] text-[#FFFFFF] font-semibold'
+                              : 'text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6]'
+                          )}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="flex-1 overflow-y-auto divide-y divide-[#D2D2D2]">
                       {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((notif) => (
                           <div
                             key={notif.id}
-                            onClick={() => {
-                              markNotificationRead(notif.id)
-                              setIsNotifDrawerOpen(false)
-                            }}
+                            onClick={() => handleNotificationClick(notif)}
                             className={cn(
-                              'p-4 text-xs cursor-pointer transition-colors hover:bg-[#F6F6F6] space-y-1',
-                              !notif.isRead && 'bg-[#FBEAEF]/30 border-l-[3px] border-l-[#CB2957]'
+                              'p-4 text-xs cursor-pointer transition-colors hover:bg-[#F6F6F6] flex items-start gap-3',
+                              !notif.isRead &&
+                                'bg-[#FBEAEF]/30 border-l-[3px] border-l-[#CB2957]'
                             )}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <p className={cn('text-sm', !notif.isRead ? 'font-bold text-[#000000]' : 'font-semibold text-[#292524]')}>
-                                {notif.title}
-                              </p>
-                              <span className="text-[11px] text-[#555555] tabular-nums">
-                                {notif.timestamp}
-                              </span>
+                            <div className="shrink-0 mt-0.5">
+                              {getNotificationIcon(notif.type)}
                             </div>
-                            <p className="text-xs text-[#555555] leading-relaxed">
-                              {notif.message}
-                            </p>
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <p
+                                  className={cn(
+                                    'text-xs leading-snug',
+                                    !notif.isRead
+                                      ? 'font-bold text-[#000000]'
+                                      : 'font-semibold text-[#292524]'
+                                  )}
+                                >
+                                  {notif.title}
+                                </p>
+                                <span className="text-[11px] text-[#555555] tabular-nums shrink-0 font-mono">
+                                  {notif.timestamp}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#555555] leading-relaxed">
+                                {notif.message}
+                              </p>
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -405,6 +521,65 @@ export function DashboardShell({
                           <p className="font-semibold text-[#000000]">Tidak ada notifikasi</p>
                         </div>
                       )}
+                    </div>
+                  </Dialog.Popup>
+                </Dialog.Viewport>
+              </Dialog.Portal>
+            </Dialog.Root>
+
+            {/* Modal Dialog Konfirmasi Logout */}
+            <Dialog.Root
+              open={isLogoutConfirmOpen}
+              onOpenChange={(open) => !open && setIsLogoutConfirmOpen(false)}
+            >
+              <Dialog.Portal>
+                <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
+                <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+                  <Dialog.Popup className="w-full max-w-sm bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 shadow-xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
+                      <Dialog.Title className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
+                        <LogOut className="w-4 h-4 text-[#901B14]" />
+                        <span>Konfirmasi Keluar</span>
+                      </Dialog.Title>
+                      <Dialog.Close
+                        render={
+                          <button
+                            type="button"
+                            className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                            onClick={() => setIsLogoutConfirmOpen(false)}
+                            aria-label="Tutup dialog"
+                          />
+                        }
+                      >
+                        <X className="w-4 h-4" />
+                      </Dialog.Close>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-[#555555] leading-relaxed">
+                      <p>
+                        Apakah Anda yakin ingin mengakhiri sesi masuk untuk akun{' '}
+                        <strong className="text-[#000000]">{currentUser.name}</strong>?
+                      </p>
+                      <p>
+                        Anda akan dialihkan ke halaman masuk dan dapat masuk kembali kapan saja.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
+                      <button
+                        type="button"
+                        onClick={() => setIsLogoutConfirmOpen(false)}
+                        className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#901B14] hover:bg-[#721510] rounded-[8px] transition-colors cursor-pointer"
+                      >
+                        Ya, Keluar
+                      </button>
                     </div>
                   </Dialog.Popup>
                 </Dialog.Viewport>

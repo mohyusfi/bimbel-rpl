@@ -26,10 +26,14 @@ function StudentNilaiPage() {
   const avgScore =
     totalAssessments > 0
       ? Math.round(grades.reduce((sum, g) => sum + g.score, 0) / totalAssessments)
-      : 88
+      : 0
   const highestScore =
-    totalAssessments > 0 ? Math.max(...grades.map((g) => g.score)) : 92
+    totalAssessments > 0 ? Math.max(...grades.map((g) => g.score)) : 0
   const positiveEvaluations = grades.filter((g) => g.score >= 80).length
+  const bestRecord =
+    totalAssessments > 0
+      ? grades.reduce((max, g) => (g.score > max.score ? g : max), grades[0])
+      : null
 
   // DataTable columns for grade records
   const columns: ColumnDef<GradeRecord>[] = [
@@ -119,11 +123,9 @@ function StudentNilaiPage() {
             Rekapitulasi nilai try out, kuis mingguan, serta catatan evaluasi kualitatif dari tutor pembimbing.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-xs">
-            <GraduationCap className="w-3.5 h-3.5 text-[#CB2957]" />
-            <span className="font-semibold text-[#000000]">{student?.className || 'UTBK Intensif A'}</span>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-[#555555] self-start sm:self-auto shrink-0">
+          <GraduationCap className="w-4 h-4 text-[#CB2957]" />
+          <span className="font-semibold text-[#000000]">{student?.className || 'UTBK Intensif A'}</span>
         </div>
       </div>
 
@@ -137,8 +139,12 @@ function StudentNilaiPage() {
           icon={Award}
           footer={
             <div className="flex items-center justify-between">
-              <span className="font-medium text-[#292524]">Di atas rata-rata kelas</span>
-              <span className="text-[11px] text-[#555555]">Konsisten</span>
+              <span className="font-medium text-[#292524]">
+                {totalAssessments > 0 ? 'Pencapaian evaluasi' : 'Belum ada evaluasi'}
+              </span>
+              <span className="text-[11px] text-[#555555]">
+                {totalAssessments > 0 ? 'Konsisten' : '—'}
+              </span>
             </div>
           }
         />
@@ -151,8 +157,12 @@ function StudentNilaiPage() {
           icon={Sparkles}
           footer={
             <div className="flex items-center justify-between">
-              <span className="font-medium text-[#292524]">Fisika & Matematika</span>
-              <span className="text-[11px] text-[#555555]">Predikat A</span>
+              <span className="font-medium text-[#292524]">
+                {bestRecord ? bestRecord.subjectName : 'Belum ada nilai'}
+              </span>
+              <span className="text-[11px] text-[#555555]">
+                {highestScore >= 85 ? 'Predikat A' : highestScore >= 70 ? 'Predikat B' : '—'}
+              </span>
             </div>
           }
         />
@@ -199,6 +209,7 @@ function StudentNilaiPage() {
           columns={columns}
           data={grades}
           searchPlaceholder="Cari judul ujian, mata pelajaran, atau tutor..."
+          emptyState="Belum ada riwayat nilai evaluasi yang tersimpan."
           renderMobileCard={(row) => (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between border-b border-[#D2D2D2]/50 pb-2">

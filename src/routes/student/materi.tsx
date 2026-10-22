@@ -10,8 +10,9 @@ import {
   X,
   Sparkles,
 } from 'lucide-react'
-import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import { useStudentDashboardData, useClassMaterials } from '~/hooks/use-admin-data'
 import type { LearningMaterial } from '~/lib/admin-store'
+import { downloadMaterialFile } from '~/lib/download-material'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/materi')({
@@ -22,7 +23,8 @@ export const Route = createFileRoute('/student/materi')({
 const CATEGORIES = ['Semua', 'Modul Teori', 'Lembar Tugas', 'Bank Soal'] as const
 
 function StudentMateriPage() {
-  const { student, materials } = useStudentDashboardData()
+  const { student } = useStudentDashboardData()
+  const { data: materials = [] } = useClassMaterials(student?.classId)
 
   const [selectedCategory, setSelectedCategory] = React.useState<string>('Semua')
   const [searchQuery, setSearchQuery] = React.useState<string>('')
@@ -44,19 +46,19 @@ function StudentMateriPage() {
     return matchesCategory && matchesSearch
   })
 
-  const handleDownloadDirect = (material: LearningMaterial) => {
-    setDownloadNotification(`Berkas "${material.title}" sedang diunduh.`)
-    const link = document.createElement('a')
-    link.href = material.fileUrl
-    link.setAttribute('download', material.title)
-    document.body.appendChild(link)
-    link.click()
-    setTimeout(() => {
-      document.body.removeChild(link)
-    }, 100)
-    setTimeout(() => {
-      setDownloadNotification(null)
-    }, 3500)
+  const handleDownloadDirect = async (material: LearningMaterial) => {
+    setDownloadNotification(`Mengunduh berkas "${material.title}"...`)
+    try {
+      await downloadMaterialFile(material)
+      setDownloadNotification(`Berkas "${material.title}" berhasil diunduh.`)
+    } catch (err) {
+      console.error('Gagal mengunduh berkas:', err)
+      setDownloadNotification(`Gagal mengunduh berkas "${material.title}".`)
+    } finally {
+      setTimeout(() => {
+        setDownloadNotification(null)
+      }, 3500)
+    }
   }
 
   return (
@@ -74,11 +76,9 @@ function StudentMateriPage() {
             Unduh materi bimbingan, rangkuman teori, dan bank soal latihan kelas {student?.className || 'UTBK Intensif A'}.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-xs">
-            <BookOpen className="w-3.5 h-3.5 text-[#CB2957]" />
-            <span className="font-semibold text-[#000000]">{materials.length} Dokumen Tersedia</span>
-          </div>
+        <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0 text-xs text-[#555555]">
+          <BookOpen className="w-3.5 h-3.5 text-[#CB2957]" />
+          <span className="font-semibold text-[#000000]">{materials.length} Dokumen Tersedia</span>
         </div>
       </div>
 

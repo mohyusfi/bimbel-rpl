@@ -22,6 +22,7 @@ import { Route as AdminPendaftaranRouteImport } from './routes/admin/pendaftaran
 import { Route as AdminPengumumanRouteImport } from './routes/admin/pengumuman'
 import { Route as AdminRuanganRouteImport } from './routes/admin/ruangan'
 import { Route as AdminSiswaRouteImport } from './routes/admin/siswa'
+import { Route as AdminStafRouteImport } from './routes/admin/staf'
 import { Route as AdminTutorRouteImport } from './routes/admin/tutor'
 import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as ParentKehadiranRouteImport } from './routes/parent/kehadiran'
@@ -103,6 +104,11 @@ const AdminRuanganRoute = AdminRuanganRouteImport.update({
 const AdminSiswaRoute = AdminSiswaRouteImport.update({
   id: '/siswa',
   path: '/siswa',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStafRoute = AdminStafRouteImport.update({
+  id: '/staf',
+  path: '/staf',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTutorRoute = AdminTutorRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/admin/pengumuman': typeof AdminPengumumanRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/admin/pengumuman': typeof AdminPengumumanRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/admin/pengumuman': typeof AdminPengumumanRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
+  '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/admin/pengumuman'
     | '/admin/ruangan'
     | '/admin/siswa'
+    | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
     | '/parent/rapor'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/admin/pengumuman'
     | '/admin/ruangan'
     | '/admin/siswa'
+    | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
     | '/parent/rapor'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/admin/pengumuman'
     | '/admin/ruangan'
     | '/admin/siswa'
+    | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
     | '/parent/rapor'
@@ -480,6 +492,13 @@ declare module '@tanstack/react-router' {
       path: '/siswa'
       fullPath: '/admin/siswa'
       preLoaderRoute: typeof AdminSiswaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/staf': {
+      id: '/admin/staf'
+      path: '/staf'
+      fullPath: '/admin/staf'
+      preLoaderRoute: typeof AdminStafRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/tutor': {
@@ -611,6 +630,7 @@ interface AdminRouteChildren {
   AdminPengumumanRoute: typeof AdminPengumumanRoute
   AdminRuanganRoute: typeof AdminRuanganRoute
   AdminSiswaRoute: typeof AdminSiswaRoute
+  AdminStafRoute: typeof AdminStafRoute
   AdminTutorRoute: typeof AdminTutorRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -622,6 +642,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPengumumanRoute: AdminPengumumanRoute,
   AdminRuanganRoute: AdminRuanganRoute,
   AdminSiswaRoute: AdminSiswaRoute,
+  AdminStafRoute: AdminStafRoute,
   AdminTutorRoute: AdminTutorRoute,
   AdminIndexRoute: AdminIndexRoute,
 }

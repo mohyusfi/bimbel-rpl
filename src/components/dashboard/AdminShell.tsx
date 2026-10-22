@@ -8,8 +8,10 @@ import {
   Building2,
   CreditCard,
   Megaphone,
+  ShieldAlert,
 } from 'lucide-react'
 import { useAdminSummary } from '~/hooks/use-admin-data'
+import { useAuth } from '~/hooks/use-auth'
 import { DashboardShell, type DashboardNavGroup } from './DashboardShell'
 
 interface AdminShellProps {
@@ -18,6 +20,7 @@ interface AdminShellProps {
 
 export function AdminShell({ children }: AdminShellProps) {
   const { pendingRegistrationsCount, pendingInvoicesCount } = useAdminSummary()
+  const { userDisplayName, userRoleTitle, userInitials, isSuperAdmin } = useAuth()
 
   const navGroups: DashboardNavGroup[] = [
     {
@@ -88,15 +91,30 @@ export function AdminShell({ children }: AdminShellProps) {
     },
   ]
 
+  // Menu khusus Pimpinan Lembaga / Super Admin
+  if (isSuperAdmin) {
+    navGroups.push({
+      title: 'Sistem & Kepegawaian',
+      items: [
+        {
+          label: 'Kelola Staf Admin',
+          href: '/admin/staf',
+          icon: ShieldAlert,
+          category: 'Sistem',
+        },
+      ],
+    })
+  }
+
   return (
     <DashboardShell
       role="admin"
       portalName="Portal Administrasi"
       navGroups={navGroups}
       currentUser={{
-        name: 'Siti Nurhaliza, S.Pd',
-        roleTitle: 'Kepala Tata Usaha',
-        initials: 'SN',
+        name: userDisplayName || 'Hj. Nuraini, S.Pd',
+        roleTitle: userRoleTitle || 'Kepala Tata Usaha',
+        initials: userInitials || 'NU',
       }}
     >
       {children}

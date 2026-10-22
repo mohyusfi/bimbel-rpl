@@ -7,6 +7,7 @@ import {
   Calendar,
   AlertTriangle,
   Trash2,
+  Pencil,
   X,
   Sparkles,
   Plus,
@@ -48,7 +49,7 @@ function AdminJadwalPage() {
   const { data: rooms = [] } = useAdminRooms()
   const { data: subjects = [] } = useAdminSubjects()
 
-  const { addSchedule, deleteSchedule, addClass } = useAdminMutations()
+  const { addSchedule, updateSchedule, deleteSchedule, addClass } = useAdminMutations()
 
   // View state
   const [activeView, setActiveView] = React.useState<
@@ -62,8 +63,9 @@ function AdminJadwalPage() {
   const [selectedTutorFilter, setSelectedTutorFilter] =
     React.useState<string>('ALL')
 
-  // Schedule Modal
+  // Schedule Modal & Edit state
   const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false)
+  const [editingSchedule, setEditingSchedule] = React.useState<Schedule | null>(null)
   const [scheduleForm, setScheduleForm] = React.useState({
     classId: '',
     subjectName: '',
@@ -87,13 +89,14 @@ function AdminJadwalPage() {
   // Delete confirmation state
   const [scheduleToDelete, setScheduleToDelete] = React.useState<Schedule | null>(null)
 
-  // Set default initial values for schedule modal when opened
+  // Set default initial values for schedule modal when opened (Create mode)
   const handleOpenScheduleModal = () => {
     const firstClass = classes[0]
     const firstTutor = tutors[0]
     const firstRoom = rooms[0]
     const firstSubject = subjects[0]
 
+    setEditingSchedule(null)
     setScheduleForm({
       classId: firstClass?.id || '',
       subjectName: firstSubject?.name || 'Fisika UTBK',
@@ -106,10 +109,46 @@ function AdminJadwalPage() {
     setIsScheduleModalOpen(true)
   }
 
-  // Real-Time Conflict Detection (SCHED-02)
+  // Open modal in Edit mode
+  const handleOpenEditSchedule = (sch: Schedule) => {
+    setEditingSchedule(sch)
+    setScheduleForm({
+      classId: sch.classId,
+      subjectName: sch.subjectName,
+      tutorId: sch.tutorId,
+      roomId: sch.roomId,
+      dayOfWeek: sch.dayOfWeek,
+      startTime: sch.startTime,
+      endTime: sch.endTime,
+    })
+    setIsScheduleModalOpen(true)
+  }
+
+  // Real-Time Conflict Detection (SCHED-02 Pure Evaluation)
   const conflictResult = !isScheduleModalOpen
     ? { hasConflict: false }
-    : detectScheduleConflicts(scheduleForm, schedules, rooms)
+    : detectScheduleConflicts(
+        { ...scheduleForm, id: editingSchedule?.id },
+        schedules,
+        rooms
+      )
+
+  // Validation state for submit button
+  const isTimeInvalid = Boolean(
+    !scheduleForm.startTime ||
+      !scheduleForm.endTime ||
+      scheduleForm.startTime >= scheduleForm.endTime
+  )
+
+  const isFormIncomplete = Boolean(
+    !scheduleForm.classId ||
+      !scheduleForm.subjectName.trim() ||
+      !scheduleForm.tutorId ||
+      !scheduleForm.roomId ||
+      isTimeInvalid
+  )
+
+  const isSubmitDisabled = conflictResult.hasConflict || isFormIncomplete
 
   // Conflict Simulation button: Instant demo of 2-layer conflict
   const handleTriggerConflictSimulation = () => {
@@ -117,6 +156,7 @@ function AdminJadwalPage() {
     const firstTutor = tutors.find((t) => t.id === 'tut-2') || tutors[0]
     const firstRoom = rooms.find((r) => r.id === 'rm-1') || rooms[0]
 
+    setEditingSchedule(null)
     setScheduleForm({
       classId: firstClass?.id || '',
       subjectName: 'Simulasi Bentrok 2-Lapis',
@@ -153,7 +193,7 @@ function AdminJadwalPage() {
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (conflictResult.hasConflict) return
+    if (isSubmitDisabled) return
 
     const targetClass = classes.find((c) => c.id === scheduleForm.classId)
     const targetTutor = tutors.find((t) => t.id === scheduleForm.tutorId)
@@ -161,20 +201,30 @@ function AdminJadwalPage() {
 
     if (!targetClass || !targetTutor || !targetRoom) return
 
+    const payload = {
+      classId: targetClass.id,
+      className: targetClass.name,
+      subjectName: scheduleForm.subjectName.trim(),
+      tutorId: targetTutor.id,
+      tutorName: targetTutor.name,
+      roomId: targetRoom.id,
+      roomName: targetRoom.name,
+      dayOfWeek: scheduleForm.dayOfWeek,
+      startTime: scheduleForm.startTime,
+      endTime: scheduleForm.endTime,
+    }
+
     try {
-      await addSchedule({
-        classId: targetClass.id,
-        className: targetClass.name,
-        subjectName: scheduleForm.subjectName,
-        tutorId: targetTutor.id,
-        tutorName: targetTutor.name,
-        roomId: targetRoom.id,
-        roomName: targetRoom.name,
-        dayOfWeek: scheduleForm.dayOfWeek,
-        startTime: scheduleForm.startTime,
-        endTime: scheduleForm.endTime,
-      })
+      if (editingSchedule) {
+        await updateSchedule({
+          id: editingSchedule.id,
+          updates: payload,
+        })
+      } else {
+        await addSchedule(payload)
+      }
       setIsScheduleModalOpen(false)
+      setEditingSchedule(null)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan jadwal'
       alert(message)
@@ -283,14 +333,26 @@ function AdminJadwalPage() {
       id: 'actions',
       header: 'Aksi',
       cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={() => setScheduleToDelete(row.original)}
-          className="p-1.5 text-[#555555] hover:text-[#B3261E] hover:bg-[#F6E7E3] rounded-[6px] transition-colors cursor-pointer"
-          title="Hapus sesi"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 justify-end">
+          <button
+            type="button"
+            onClick={() => handleOpenEditSchedule(row.original)}
+            className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[6px] transition-colors cursor-pointer"
+            title="Edit jadwal sesi"
+            aria-label="Edit jadwal sesi"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setScheduleToDelete(row.original)}
+            className="p-1.5 text-[#555555] hover:text-[#B3261E] hover:bg-[#F6E7E3] rounded-[6px] transition-colors cursor-pointer"
+            title="Hapus sesi"
+            aria-label="Hapus sesi"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ]
@@ -519,12 +581,34 @@ function AdminJadwalPage() {
                         className="pt-3 first:pt-0 space-y-2"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-bold text-[13px] text-[#000000] leading-snug">
-                            {sch.className}
-                          </span>
-                          <span className="font-mono text-xs text-[#555555] tabular-nums whitespace-nowrap leading-tight">
-                            {sch.startTime}–{sch.endTime}
-                          </span>
+                          <div>
+                            <span className="font-bold text-[13px] text-[#000000] leading-snug block">
+                              {sch.className}
+                            </span>
+                            <span className="font-mono text-xs text-[#555555] tabular-nums whitespace-nowrap leading-tight mt-0.5 block">
+                              {sch.startTime}–{sch.endTime} WITA
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditSchedule(sch)}
+                              className="p-1 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[4px] transition-colors cursor-pointer"
+                              title="Edit sesi"
+                              aria-label="Edit sesi"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setScheduleToDelete(sch)}
+                              className="p-1 text-[#555555] hover:text-[#B3261E] hover:bg-[#F6E7E3] rounded-[4px] transition-colors cursor-pointer"
+                              title="Hapus sesi"
+                              aria-label="Hapus sesi"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         <p className="text-xs font-medium text-[#555555]">
@@ -644,7 +728,12 @@ function AdminJadwalPage() {
       {/* DIALOG 1: Tetapkan Jadwal Baru (dengan SCHED-02 Conflict Engine) */}
       <Dialog.Root
         open={isScheduleModalOpen}
-        onOpenChange={(open) => !open && setIsScheduleModalOpen(false)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsScheduleModalOpen(false)
+            setEditingSchedule(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -654,16 +743,19 @@ function AdminJadwalPage() {
               <div className="flex items-start justify-between border-b border-[#E5E5E5] pb-4">
                 <div>
                   <Dialog.Title className="font-display font-bold text-lg text-[#000000] tracking-tight">
-                    Tetapkan Jadwal Bimbingan Baru
+                    {editingSchedule ? 'Ubah Jadwal Bimbingan' : 'Tetapkan Jadwal Bimbingan Baru'}
                   </Dialog.Title>
                   <p className="text-xs text-[#555555] mt-1">
-                    Atur kelas, pengajar, ruangan, dan waktu sesi. Sistem otomatis mengevaluasi bentrok jadwal secara real-time.
+                    {editingSchedule
+                      ? 'Perbarui kelas, pengajar, ruangan, atau waktu sesi bimbingan. Sistem otomatis mengevaluasi bentrok jadwal secara real-time.'
+                      : 'Atur kelas, pengajar, ruangan, dan waktu sesi. Sistem otomatis mengevaluasi bentrok jadwal secara real-time.'}
                   </p>
                 </div>
                 <Dialog.Close
                   render={
                     <button
                       type="button"
+                      onClick={() => setEditingSchedule(null)}
                       className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[8px] transition-colors cursor-pointer"
                       aria-label="Tutup dialog"
                     />
@@ -684,8 +776,9 @@ function AdminJadwalPage() {
                   </div>
 
                   {conflictResult.timeError && (
-                    <div className="p-3 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[8px] text-xs font-medium text-[#A1301C]">
-                      {conflictResult.timeError}
+                    <div className="p-3 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[8px] text-xs font-medium text-[#A1301C] flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-[#A1301C] shrink-0" />
+                      <span>{conflictResult.timeError}</span>
                     </div>
                   )}
 
@@ -694,7 +787,7 @@ function AdminJadwalPage() {
                       <div className="p-3.5 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[10px] space-y-2.5 flex flex-col justify-between">
                         <div>
                           <div className="flex items-center gap-1.5 text-[#A1301C] font-semibold text-xs mb-1">
-                            <DoorClosed className="w-3.5 h-3.5 shrink-0" />
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[#A1301C]" />
                             <span>Bentrok Ruang: {conflictResult.roomConflict.roomName}</span>
                           </div>
                           <p className="text-xs text-[#555555] leading-relaxed">
@@ -737,7 +830,7 @@ function AdminJadwalPage() {
                       <div className="p-3.5 bg-[#FFFFFF] border border-[#E8B4AA] rounded-[10px] space-y-2.5 flex flex-col justify-between">
                         <div>
                           <div className="flex items-center gap-1.5 text-[#A1301C] font-semibold text-xs mb-1">
-                            <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[#A1301C]" />
                             <span>Bentrok Pengajar: {conflictResult.tutorConflict.tutorName}</span>
                           </div>
                           <p className="text-xs text-[#555555] leading-relaxed">
@@ -950,10 +1043,13 @@ function AdminJadwalPage() {
                 {/* MODAL FOOTER */}
                 <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-[#E5E5E5]">
                   <p className="text-xs text-[#666666]">
-                    {conflictResult.hasConflict ? (
+                    {isSubmitDisabled ? (
                       <span className="text-[#A1301C] font-medium flex items-center gap-1.5">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        Harap selesaikan bentrok sebelum menyimpan jadwal.
+                        {conflictResult.timeError ||
+                          (conflictResult.hasConflict
+                            ? 'Harap selesaikan bentrok sebelum menyimpan jadwal.'
+                            : 'Lengkapi seluruh data bimbingan dengan benar.')}
                       </span>
                     ) : (
                       'Pastikan seluruh detail bimbingan sudah benar.'
@@ -962,17 +1058,20 @@ function AdminJadwalPage() {
                   <div className="flex items-center justify-end gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => setIsScheduleModalOpen(false)}
+                      onClick={() => {
+                        setIsScheduleModalOpen(false)
+                        setEditingSchedule(null)
+                      }}
                       className="px-4 py-2.5 text-sm font-semibold text-[#333333] hover:text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      disabled={conflictResult.hasConflict}
-                      className="px-5 py-2.5 text-sm font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      disabled={isSubmitDisabled}
+                      className="px-5 py-2.5 text-sm font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none transition-colors cursor-pointer"
                     >
-                      Simpan Jadwal Bimbingan
+                      {editingSchedule ? 'Simpan Perubahan' : 'Simpan Jadwal Bimbingan'}
                     </button>
                   </div>
                 </div>

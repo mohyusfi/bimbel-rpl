@@ -48,22 +48,16 @@ function ParentAttendancePage() {
       date: session.sessionDate,
       timeRange: `${session.startTime}–${session.endTime} WITA`,
       subjectName: session.subjectName,
-      topic: session.topic,
+      topic: session.topic || session.subjectName,
       roomName: session.roomName,
       tutorName: session.tutorName,
-      status: entry?.status || 'hadir',
+      status: session.isCompleted ? (entry?.status || 'hadir') : 'terjadwal',
       note: entry?.note,
     }
   })
 
-  // Summary counters
-  const hadirCount = allRows.filter((r) => r.status === 'hadir').length
-  const sakitCount = allRows.filter((r) => r.status === 'sakit').length
-  const izinCount = allRows.filter((r) => r.status === 'izin').length
-  const alpaCount = allRows.filter((r) => r.status === 'alpa').length
-  const totalCount = allRows.length
-  const attendanceRate =
-    totalCount > 0 ? Math.round((hadirCount / totalCount) * 100) : 100
+  // Summary counters from unified childData
+  const { hadirCount, sakitCount, izinCount, alpaCount, totalCompleted, attendanceRate } = childData
 
   // Filtered rows for DataTable
   const filteredRows =
@@ -182,11 +176,12 @@ function ParentAttendancePage() {
         className="h-9 px-3 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
         aria-label="Filter status presensi"
       >
-        <option value="ALL">Semua Status Kehadiran</option>
-        <option value="hadir">Hanya Hadir</option>
-        <option value="sakit">Hanya Sakit</option>
-        <option value="izin">Hanya Izin</option>
-        <option value="alpa">Hanya Alpa</option>
+        <option value="ALL">Semua Sesi ({allRows.length})</option>
+        <option value="hadir">Hadir ({hadirCount})</option>
+        <option value="sakit">Sakit ({sakitCount})</option>
+        <option value="izin">Izin ({izinCount})</option>
+        <option value="alpa">Alpa ({alpaCount})</option>
+        <option value="terjadwal">Sesi Terjadwal</option>
       </select>
     </div>
   )
@@ -219,7 +214,7 @@ function ParentAttendancePage() {
               {attendanceRate}%
             </span>
             <p className="text-[11px] text-[#555555] mt-0.5">
-              {hadirCount} dari {totalCount} sesi
+              {hadirCount} dari {totalCompleted} sesi terlaksana
             </p>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useParentDashboardData } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
+import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import type { GradeRecord } from '~/lib/admin-store'
 import { cn } from '~/lib/utils'
 
@@ -38,6 +39,12 @@ function ParentReportPage() {
           grades.reduce((sum, g) => sum + g.classAverage, 0) / grades.length
         )
       : 75
+  const diffAvg = avgGrade - overallClassAvg
+  const isAboveClassAvg = diffAvg >= 0
+  const bestAssessment =
+    grades.length > 0
+      ? grades.reduce((max, g) => (g.score > max.score ? g : max), grades[0])
+      : null
 
   // Filtered grades for table
   const filteredGrades =
@@ -249,63 +256,83 @@ function ParentReportPage() {
       </div>
 
       {/* KPI Highlights: Rata-rata Anak, Rata-rata Kelas, Nilai Tertinggi, Total Ujian */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#555555]">Rata-rata Anak</span>
-            <TrendingUp className="w-4 h-4 text-[#CB2957]" />
-          </div>
-          <div className="mt-2">
-            <span className="font-display font-extrabold text-2xl text-[#000000] tabular-nums">
-              {avgGrade}
-            </span>
-            <span className="text-xs text-[#555555]"> / 100</span>
-            <p className="text-[11px] text-[#166534] font-semibold mt-0.5">
-              +{avgGrade - overallClassAvg} poin di atas rata-rata
-            </p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SummaryMetricCard
+          title="Rata-rata Anak"
+          value={totalEvaluations > 0 ? avgGrade : 0}
+          unit="/ 100"
+          description="Rata-rata seluruh evaluasi belajar"
+          icon={TrendingUp}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">
+                {totalEvaluations > 0
+                  ? isAboveClassAvg
+                    ? `+${diffAvg} vs kelas`
+                    : `${diffAvg} vs kelas`
+                  : 'Belum ada data'}
+              </span>
+              <span className="text-[11px] text-[#555555]">
+                {totalEvaluations > 0
+                  ? isAboveClassAvg
+                    ? 'Di atas rata-rata'
+                    : 'Perlu bimbingan'
+                  : '—'}
+              </span>
+            </div>
+          }
+        />
 
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#555555]">Rata-rata Kelas</span>
-            <GraduationCap className="w-4 h-4 text-[#000000]" />
-          </div>
-          <div className="mt-2">
-            <span className="font-display font-extrabold text-2xl text-[#000000] tabular-nums">
-              {overallClassAvg}
-            </span>
-            <span className="text-xs text-[#555555]"> / 100</span>
-            <p className="text-[11px] text-[#555555] mt-0.5">Standar kelompok</p>
-          </div>
-        </div>
+        <SummaryMetricCard
+          title="Rata-rata Kelas"
+          value={overallClassAvg}
+          unit="/ 100"
+          description="Standar kelompok rombel belajar"
+          icon={GraduationCap}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">Benchmark rombel</span>
+              <span className="text-[11px] text-[#555555]">
+                {student?.className || 'Rombel'}
+              </span>
+            </div>
+          }
+        />
 
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#555555]">Nilai Tertinggi</span>
-            <Award className="w-4 h-4 text-[#CB2957]" />
-          </div>
-          <div className="mt-2">
-            <span className="font-display font-extrabold text-2xl text-[#000000] tabular-nums">
-              {highestGrade}
-            </span>
-            <span className="text-xs text-[#555555]"> / 100</span>
-            <p className="text-[11px] text-[#555555] mt-0.5">Fisika UTBK</p>
-          </div>
-        </div>
+        <SummaryMetricCard
+          title="Nilai Tertinggi"
+          value={totalEvaluations > 0 ? highestGrade : 0}
+          unit="/ 100"
+          description={
+            bestAssessment
+              ? `Skor terbaik: ${bestAssessment.subjectName}`
+              : 'Belum ada data evaluasi'
+          }
+          icon={Award}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">
+                {bestAssessment ? bestAssessment.assessmentTitle : 'Try out & kuis'}
+              </span>
+              <span className="text-[11px] text-[#555555]">
+                {highestGrade >= 85 ? 'Predikat A' : highestGrade >= 70 ? 'Predikat B' : '—'}
+              </span>
+            </div>
+          }
+        />
 
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#555555]">Total Evaluasi</span>
-            <BookOpen className="w-4 h-4 text-[#000000]" />
-          </div>
-          <div className="mt-2">
-            <span className="font-display font-extrabold text-2xl text-[#000000] tabular-nums">
-              {totalEvaluations}
-            </span>
-            <p className="text-[11px] text-[#555555] mt-0.5">Kuis & simulasi try out</p>
-          </div>
-        </div>
+        <SummaryMetricCard
+          title="Total Evaluasi"
+          value={`${totalEvaluations} Ujian`}
+          description="Kuis harian & simulasi try out"
+          icon={BookOpen}
+          footer={
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#292524]">Tercatat di rapor</span>
+              <span className="text-[11px] text-[#555555]">Semester berjalan</span>
+            </div>
+          }
+        />
       </div>
 
       {/* Visual SVG Grade Trend Chart */}
@@ -333,104 +360,110 @@ function ParentReportPage() {
         </div>
 
         {/* SVG Container */}
-        <div className="w-full overflow-x-auto">
-          <div className="min-w-[500px]">
-            <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="w-full h-auto overflow-visible font-sans select-none"
-              aria-label="Grafik tren nilai siswa"
-            >
-              {/* Horizontal Reference Lines (0, 25, 50, 75, 100) */}
-              {[0, 25, 50, 75, 100].map((score) => {
-                const y = getY(score)
-                return (
-                  <g key={score}>
-                    <line
-                      x1={paddingX}
-                      y1={y}
-                      x2={chartWidth - paddingX}
-                      y2={y}
-                      stroke="#E5E5E5"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={paddingX - 8}
-                      y={y + 3.5}
-                      textAnchor="end"
-                      className="text-[10px] fill-[#888888] font-mono tabular-nums"
-                    >
-                      {score}
-                    </text>
-                  </g>
-                )
-              })}
+        {chartGrades.length === 0 ? (
+          <div className="py-12 text-center text-xs text-[#555555]">
+            Belum ada data evaluasi untuk menampilkan grafik perkembangan nilai.
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[500px]">
+              <svg
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                className="w-full h-auto overflow-visible font-sans select-none"
+                aria-label="Grafik tren nilai siswa"
+              >
+                {/* Horizontal Reference Lines (0, 25, 50, 75, 100) */}
+                {[0, 25, 50, 75, 100].map((score) => {
+                  const y = getY(score)
+                  return (
+                    <g key={score}>
+                      <line
+                        x1={paddingX}
+                        y1={y}
+                        x2={chartWidth - paddingX}
+                        y2={y}
+                        stroke="#E5E5E5"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={paddingX - 8}
+                        y={y + 3.5}
+                        textAnchor="end"
+                        className="text-[10px] fill-[#888888] font-mono tabular-nums"
+                      >
+                        {score}
+                      </text>
+                    </g>
+                  )
+                })}
 
-              {/* Class Average Dashed Line */}
-              {classPath && (
-                <path
-                  d={classPath}
-                  fill="none"
-                  stroke="#555555"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
-                />
-              )}
+                {/* Class Average Dashed Line */}
+                {classPath && (
+                  <path
+                    d={classPath}
+                    fill="none"
+                    stroke="#555555"
+                    strokeWidth="2"
+                    strokeDasharray="4 4"
+                  />
+                )}
 
-              {/* Student Score Line (Crimson) */}
-              {studentPath && (
-                <path
-                  d={studentPath}
-                  fill="none"
-                  stroke="#CB2957"
-                  strokeWidth="2.5"
-                />
-              )}
+                {/* Student Score Line (Crimson) */}
+                {studentPath && (
+                  <path
+                    d={studentPath}
+                    fill="none"
+                    stroke="#CB2957"
+                    strokeWidth="2.5"
+                  />
+                )}
 
-              {/* Class Average Point Circles */}
-              {classPoints.map((pt, i) => (
-                <circle
-                  key={`avg-${i}`}
-                  cx={pt.x}
-                  cy={pt.y}
-                  r="3.5"
-                  fill="#FFFFFF"
-                  stroke="#555555"
-                  strokeWidth="1.5"
-                />
-              ))}
-
-              {/* Student Score Point Circles & Value Labels */}
-              {studentPoints.map((pt, i) => (
-                <g key={`stu-${i}`}>
+                {/* Class Average Point Circles */}
+                {classPoints.map((pt, i) => (
                   <circle
+                    key={`avg-${i}`}
                     cx={pt.x}
                     cy={pt.y}
-                    r="5"
-                    fill="#CB2957"
-                    stroke="#FFFFFF"
-                    strokeWidth="2"
+                    r="3.5"
+                    fill="#FFFFFF"
+                    stroke="#555555"
+                    strokeWidth="1.5"
                   />
-                  <text
-                    x={pt.x}
-                    y={pt.y - 9}
-                    textAnchor="middle"
-                    className="text-[11px] font-bold fill-[#000000] tabular-nums"
-                  >
-                    {pt.score}
-                  </text>
-                  <text
-                    x={pt.x}
-                    y={chartHeight - 6}
-                    textAnchor="middle"
-                    className="text-[10px] fill-[#555555] font-medium"
-                  >
-                    {pt.date}
-                  </text>
-                </g>
-              ))}
-            </svg>
+                ))}
+
+                {/* Student Score Point Circles & Value Labels */}
+                {studentPoints.map((pt, i) => (
+                  <g key={`stu-${i}`}>
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r="5"
+                      fill="#CB2957"
+                      stroke="#FFFFFF"
+                      strokeWidth="2"
+                    />
+                    <text
+                      x={pt.x}
+                      y={pt.y - 9}
+                      textAnchor="middle"
+                      className="text-[11px] font-bold fill-[#000000] tabular-nums"
+                    >
+                      {pt.score}
+                    </text>
+                    <text
+                      x={pt.x}
+                      y={chartHeight - 6}
+                      textAnchor="middle"
+                      className="text-[10px] fill-[#555555] font-medium"
+                    >
+                      {pt.date}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Cards of Qualitative Tutor Feedback */}
@@ -442,45 +475,51 @@ function ParentReportPage() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {grades.map((grd) => (
-            <div
-              key={grd.id}
-              className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#CB2957]">
-                      {grd.subjectName}
-                    </span>
-                    <h3 className="font-display font-bold text-sm text-[#000000] mt-0.5">
-                      {grd.assessmentTitle}
-                    </h3>
+        {grades.length === 0 ? (
+          <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 text-center text-xs text-[#555555]">
+            Belum ada catatan kualitatif dari tutor untuk siswa ini.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {grades.map((grd) => (
+              <div
+                key={grd.id}
+                className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#CB2957]">
+                        {grd.subjectName}
+                      </span>
+                      <h3 className="font-display font-bold text-sm text-[#000000] mt-0.5">
+                        {grd.assessmentTitle}
+                      </h3>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-display font-extrabold text-lg text-[#000000] tabular-nums">
+                        {grd.score}
+                      </span>
+                      <span className="text-xs text-[#555555]"> / 100</span>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="font-display font-extrabold text-lg text-[#000000] tabular-nums">
-                      {grd.score}
-                    </span>
-                    <span className="text-xs text-[#555555]"> / 100</span>
+
+                  <div className="p-3 bg-[#F6F6F6] rounded-[8px] text-xs italic text-[#292524] leading-relaxed">
+                    &ldquo;{grd.tutorFeedback}&rdquo;
                   </div>
                 </div>
 
-                <div className="p-3 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2]/60 text-xs italic text-[#292524] leading-relaxed">
-                  &ldquo;{grd.tutorFeedback}&rdquo;
+                <div className="pt-3 border-t border-[#D2D2D2]/60 flex items-center justify-between text-[11px] text-[#555555]">
+                  <div className="flex items-center gap-1.5 font-medium text-[#292524]">
+                    <UserCheck className="w-3.5 h-3.5 text-[#555555]" />
+                    <span>{grd.tutorName}</span>
+                  </div>
+                  <span className="tabular-nums">{grd.assessmentDate}</span>
                 </div>
               </div>
-
-              <div className="pt-3 border-t border-[#D2D2D2]/60 flex items-center justify-between text-[11px] text-[#555555]">
-                <div className="flex items-center gap-1.5 font-medium text-[#292524]">
-                  <UserCheck className="w-3.5 h-3.5 text-[#555555]" />
-                  <span>{grd.tutorName}</span>
-                </div>
-                <span className="tabular-nums">{grd.assessmentDate}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* DataTable of Evaluation Grades */}

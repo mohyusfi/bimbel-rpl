@@ -12,31 +12,60 @@ import {
   ArrowRight,
   Sparkles,
   X,
+  AlertCircle,
+  XCircle,
+  Calendar,
+  Filter,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useStudentDashboardData } from '~/hooks/use-admin-data'
 import type { Schedule, LearningMaterial } from '~/lib/admin-store'
+import { downloadMaterialFile } from '~/lib/download-material'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { DataTable } from '~/components/ui/data-table'
-import { StatusBadge } from '~/components/ui/status-badge'
+import { StatusBadge, type BadgeStatus } from '~/components/ui/status-badge'
+import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/')({
   ssr: false,
   component: StudentDashboardPage,
 })
 
+interface StudentSessionRow {
+  id: string
+  sessionId: string
+  date: string
+  dayOfWeek: string
+  timeRange: string
+  subjectName: string
+  topic: string
+  roomName: string
+  tutorName: string
+  status: BadgeStatus
+  isCompleted: boolean
+  note?: string
+}
+
 function StudentDashboardPage() {
   const {
     student,
     classSchedules,
+    sessions,
     attendanceRate,
     totalSessions,
+    totalCompleted,
     attendedSessions,
+    hadirCount,
+    sakitCount,
+    izinCount,
+    alpaCount,
     avgGrade,
     materials,
     invoices,
   } = useStudentDashboardData()
 
+  const [activeTab, setActiveTab] = React.useState<'kalender' | 'mingguan'>('kalender')
+  const [sessionFilter, setSessionFilter] = React.useState<string>('ALL')
   const [downloadNotice, setDownloadNotice] = React.useState<string | null>(null)
 
   // Status SPP Terkini
@@ -49,21 +78,121 @@ function StudentDashboardPage() {
       ? 'Menunggu'
       : 'Lunas'
 
-  const handleDownload = (material: LearningMaterial) => {
+  const handleDownload = async (material: LearningMaterial) => {
     setDownloadNotice(`Mengunduh berkas "${material.title}"...`)
-    const link = document.createElement('a')
-    link.href = '#'
-    link.setAttribute('download', material.title)
-    document.body.appendChild(link)
-    setTimeout(() => {
-      document.body.removeChild(link)
-    }, 100)
-    setTimeout(() => {
-      setDownloadNotice(null)
-    }, 3500)
+    try {
+      await downloadMaterialFile(material)
+      setDownloadNotice(`Berkas "${material.title}" berhasil diunduh.`)
+    } catch (err) {
+      console.error('Gagal mengunduh berkas:', err)
+      setDownloadNotice(`Gagal mengunduh berkas "${material.title}".`)
+    } finally {
+      setTimeout(() => {
+        setDownloadNotice(null)
+      }, 3500)
+    }
   }
 
-  // DataTable columns for weekly schedules
+  // Transform actual attendance sessions for current student
+  const actualSessionRows: StudentSessionRow[] = React.useMemo(() => {
+    return sessions.map((session) => {
+      const entry = session.entries.find((e) => e.studentId === student?.id)
+      return {
+        id: session.id,
+        sessionId: session.id,
+        date: session.sessionDate,
+        dayOfWeek: session.dayOfWeek,
+        timeRange: `${session.startTime}–${session.endTime} WITA`,
+        subjectName: session.subjectName,
+        topic: session.topic || session.subjectName,
+        roomName: session.roomName,
+        tutorName: session.tutorName,
+        status: session.isCompleted ? (entry?.status || 'hadir') : 'terjadwal',
+        isCompleted: session.isCompleted,
+        note: entry?.note,
+      }
+    })
+  }, [sessions, student?.id])
+
+  // Filtered actual sessions
+  const filteredActualSessions = React.useMemo(() => {
+    if (sessionFilter === 'ALL') return actualSessionRows
+    return actualSessionRows.filter((row) => row.status === sessionFilter)
+  }, [actualSessionRows, sessionFilter])
+
+  // Columns for actual calendar sessions
+  const sessionColumns: ColumnDef<StudentSessionRow>[] = [
+    {
+      accessorKey: 'date',
+      header: 'Tanggal & Sesi',
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <span className="font-semibold text-xs text-[#000000] block">
+            {row.original.dayOfWeek}, {row.original.date}
+          </span>
+          <span className="tabular-nums font-mono text-[11px] text-[#555555] flex items-center gap-1">
+            <Clock className="w-3 h-3 text-[#555555]" />
+            <span>{row.original.timeRange}</span>
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'subjectName',
+      header: 'Mata Pelajaran & Topik',
+      cell: ({ row }) => (
+        <div className="space-y-0.5 max-w-sm">
+          <span className="font-semibold text-xs text-[#000000] block">
+            {row.original.subjectName}
+          </span>
+          <span className="text-[11px] text-[#555555] line-clamp-1">
+            {row.original.topic}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'tutorName',
+      header: 'Tutor & Ruangan',
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          <span className="font-medium text-xs text-[#292524] block">
+            {row.original.tutorName}
+          </span>
+          <span className="text-[11px] text-[#555555] block">
+            {row.original.roomName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'note',
+      header: 'Catatan Evaluasi Tutor',
+      cell: ({ row }) => (
+        <div className="text-xs text-[#555555] max-w-xs">
+          {row.original.note ? (
+            <span className="italic text-[#292524]">
+              &ldquo;{row.original.note}&rdquo;
+            </span>
+          ) : (
+            <span className="text-[#555555]">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status Presensi',
+      cell: ({ row }) => (
+        <StatusBadge
+          status={row.original.status}
+          label={!row.original.isCompleted ? 'Terjadwal' : undefined}
+        />
+      ),
+    },
+  ]
+
+  // DataTable columns for weekly recurring schedules
   const scheduleColumns: ColumnDef<Schedule>[] = [
     {
       accessorKey: 'dayOfWeek',
@@ -110,7 +239,7 @@ function StudentDashboardPage() {
       id: 'status',
       header: 'Status',
       cell: () => (
-        <StatusBadge status="terjadwal" label="Terjadwal" />
+        <StatusBadge status="terjadwal" label="Terjadwal Rutin" />
       ),
     },
   ]
@@ -127,10 +256,10 @@ function StudentDashboardPage() {
             Ruang Belajar Mandiri
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-[#000000]">
-            Selamat Datang, {student?.name || 'Muhammad Rafly'}
+            Selamat Datang, {student?.name || 'Siswa'}
           </h1>
           <p className="text-xs sm:text-sm text-[#555555] mt-1 leading-relaxed">
-            Akses jadwal belajar bimbingan, unduh materi modul digital, dan pantau progres akademik secara terpadu.
+            Akses jadwal belajar bimbingan, pantau riwayat presensi sesi aktual, dan unduh materi modul digital.
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
@@ -164,11 +293,10 @@ function StudentDashboardPage() {
         <SummaryMetricCard
           title="Tingkat Kehadiran"
           value={`${attendanceRate}%`}
-          description={`${attendedSessions} dari ${totalSessions || 25} sesi bimbingan dihadiri`}
+          description={`${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`}
           icon={CheckCircle2}
           footer={
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-[#292524]">Kehadiran aktif</span>
+            <div className="flex items-center justify-end">
               <span className="text-[11px] text-[#555555]">Target min. 85%</span>
             </div>
           }
@@ -225,55 +353,203 @@ function StudentDashboardPage() {
         />
       </div>
 
-      {/* 3. Sesi Bimbingan Minggu Ini using DataTable */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
+      {/* 3. Detail Rekap Presensi Siswa: 4 Status Counters */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-3.5 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold font-display text-[#000000]">
-              Sesi Bimbingan Minggu Ini
-            </h2>
-            <p className="text-xs text-[#555555] mt-0.5">
-              Jadwal tatap muka bimbingan kelas {student?.className || 'UTBK Intensif A'} di unit Tadulako Cendekia.
-            </p>
+            <span className="text-[11px] font-semibold text-[#166534] block">
+              Hadir
+            </span>
+            <div className="font-display font-bold text-xl text-[#166534] tabular-nums mt-0.5">
+              {hadirCount}
+            </div>
+            <span className="text-[10px] text-[#555555]">Pertemuan aktif</span>
           </div>
-          <Link
-            to="/student/jadwal"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#000000] hover:text-[#CB2957] transition-colors"
-          >
-            <span>Lihat jadwal lengkap</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <CheckCircle2 className="w-5 h-5 text-[#166534] opacity-80" />
         </div>
 
-        <DataTable
-          columns={scheduleColumns}
-          data={classSchedules}
-          searchPlaceholder="Cari mapel, tutor, atau hari..."
-          filterSlot={
-            <div className="inline-flex items-center gap-1.5 text-xs text-[#555555]">
-              <Clock className="w-3.5 h-3.5 text-[#555555]" />
-              <span>Zona WITA (UTC+8)</span>
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-3.5 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-semibold text-[#8C5806] block">
+              Sakit
+            </span>
+            <div className="font-display font-bold text-xl text-[#8C5806] tabular-nums mt-0.5">
+              {sakitCount}
             </div>
-          }
-          renderMobileCard={(row) => (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-sm text-[#000000]">
-                  {row.dayOfWeek}, {row.startTime}–{row.endTime} WITA
-                </span>
-                <StatusBadge status="terjadwal" label="Terjadwal" />
-              </div>
-              <p className="font-medium text-sm text-[#292524]">{row.subjectName}</p>
-              <div className="flex items-center justify-between text-xs text-[#555555] pt-1">
-                <span>{row.tutorName}</span>
-                <span>{row.roomName}</span>
-              </div>
+            <span className="text-[10px] text-[#555555]">Surat izin sakit</span>
+          </div>
+          <AlertCircle className="w-5 h-5 text-[#8C5806] opacity-80" />
+        </div>
+
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-3.5 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-semibold text-[#3A5A80] block">
+              Izin
+            </span>
+            <div className="font-display font-bold text-xl text-[#3A5A80] tabular-nums mt-0.5">
+              {izinCount}
             </div>
-          )}
-        />
+            <span className="text-[10px] text-[#555555]">Izin terkonfirmasi</span>
+          </div>
+          <Clock className="w-5 h-5 text-[#3A5A80] opacity-80" />
+        </div>
+
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-3.5 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-semibold text-[#901B14] block">
+              Alpa
+            </span>
+            <div className="font-display font-bold text-xl text-[#901B14] tabular-nums mt-0.5">
+              {alpaCount}
+            </div>
+            <span className="text-[10px] text-[#555555]">Tanpa keterangan</span>
+          </div>
+          <XCircle className="w-5 h-5 text-[#901B14] opacity-80" />
+        </div>
       </div>
 
-      {/* 4. Modul Digital Terbaru List */}
+      {/* 4. Sesi Bimbingan & Presensi Aktual using DataTable */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold font-display text-[#000000]">
+              {activeTab === 'kalender'
+                ? 'Sesi Bimbingan & Presensi Aktual'
+                : 'Jadwal Mingguan Bimbingan'}
+            </h2>
+            <p className="text-xs text-[#555555] mt-0.5">
+              {activeTab === 'kalender'
+                ? `Rekap kehadiran tatap muka kelas ${student?.className || 'UTBK Intensif A'} per sesi kalender.`
+                : `Jadwal rutin mingguan kelas ${student?.className || 'UTBK Intensif A'} di unit Tadulako Cendekia.`}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            {/* View Tab Switcher */}
+            <div className="flex items-center gap-1 bg-[#F6F6F6] p-1 rounded-[8px] border border-[#D2D2D2]">
+              <button
+                type="button"
+                onClick={() => setActiveTab('kalender')}
+                className={cn(
+                  'px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-all cursor-pointer',
+                  activeTab === 'kalender'
+                    ? 'bg-[#000000] text-[#FFFFFF]'
+                    : 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]'
+                )}
+              >
+                Sesi Kalender ({actualSessionRows.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('mingguan')}
+                className={cn(
+                  'px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-all cursor-pointer',
+                  activeTab === 'mingguan'
+                    ? 'bg-[#000000] text-[#FFFFFF]'
+                    : 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]'
+                )}
+              >
+                Jadwal Mingguan ({classSchedules.length})
+              </button>
+            </div>
+
+            <Link
+              to="/student/jadwal"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#000000] hover:text-[#CB2957] transition-colors ml-1"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {activeTab === 'kalender' ? (
+          <DataTable
+            columns={sessionColumns}
+            data={filteredActualSessions}
+            searchPlaceholder="Cari mapel, materi bahasan, atau tutor..."
+            filterSlot={
+              <div className="flex items-center gap-2">
+                <Filter className="w-3.5 h-3.5 text-[#555555]" />
+                <select
+                  value={sessionFilter}
+                  onChange={(e) => setSessionFilter(e.target.value)}
+                  className="h-9 px-3 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                  aria-label="Filter status presensi"
+                >
+                  <option value="ALL">Semua Sesi ({actualSessionRows.length})</option>
+                  <option value="hadir">Hadir ({hadirCount})</option>
+                  <option value="sakit">Sakit ({sakitCount})</option>
+                  <option value="izin">Izin ({izinCount})</option>
+                  <option value="alpa">Alpa ({alpaCount})</option>
+                  <option value="terjadwal">Sesi Terjadwal</option>
+                </select>
+              </div>
+            }
+            renderMobileCard={(row) => (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="font-bold text-xs text-[#000000]">
+                      {row.dayOfWeek}, {row.date}
+                    </span>
+                    <span className="text-[11px] text-[#555555] block tabular-nums font-mono">
+                      {row.timeRange}
+                    </span>
+                  </div>
+                  <StatusBadge status={row.status} />
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-xs text-[#000000]">{row.subjectName}</p>
+                  <p className="text-xs text-[#555555]">{row.topic}</p>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-[#555555] pt-1.5 border-t border-[#D2D2D2]/60">
+                  <span>Tutor: {row.tutorName}</span>
+                  <span>{row.roomName}</span>
+                </div>
+
+                {row.note && (
+                  <div className="p-2 bg-[#F6F6F6] rounded-[6px] text-xs italic text-[#292524]">
+                    &ldquo;{row.note}&rdquo;
+                  </div>
+                )}
+              </div>
+            )}
+            emptyState="Belum ada rekaman sesi bimbingan yang sesuai kriteria."
+          />
+        ) : (
+          <DataTable
+            columns={scheduleColumns}
+            data={classSchedules}
+            searchPlaceholder="Cari mapel, tutor, atau hari..."
+            filterSlot={
+              <div className="inline-flex items-center gap-1.5 text-xs text-[#555555]">
+                <Clock className="w-3.5 h-3.5 text-[#555555]" />
+                <span>Zona WITA (UTC+8)</span>
+              </div>
+            }
+            renderMobileCard={(row) => (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-[#000000]">
+                    {row.dayOfWeek}, {row.startTime}–{row.endTime} WITA
+                  </span>
+                  <StatusBadge status="terjadwal" label="Terjadwal" />
+                </div>
+                <p className="font-medium text-sm text-[#292524]">{row.subjectName}</p>
+                <div className="flex items-center justify-between text-xs text-[#555555] pt-1">
+                  <span>{row.tutorName}</span>
+                  <span>{row.roomName}</span>
+                </div>
+              </div>
+            )}
+            emptyState="Belum ada jadwal mingguan yang dikonfigurasi untuk rombel ini."
+          />
+        )}
+      </div>
+
+      {/* 5. Modul Digital Terbaru List */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>

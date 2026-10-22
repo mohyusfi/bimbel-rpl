@@ -13,8 +13,13 @@ import {
   Save,
   ChevronDown,
   Info,
+  Loader2,
 } from 'lucide-react'
-import { useTutorDashboardData, useAdminMutations } from '~/hooks/use-admin-data'
+import {
+  useTutorDashboardData,
+  useAdminMutations,
+  useSessionDetails,
+} from '~/hooks/use-admin-data'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { cn } from '~/lib/utils'
 import type { AttendanceEntry, AttendanceStatus, AttendanceSession } from '~/lib/admin-store'
@@ -25,22 +30,28 @@ export const Route = createFileRoute('/tutor/presensi')({
 })
 
 export function TutorPresensiPage() {
-  const { sessions, students } = useTutorDashboardData()
+  const { tutor, sessions, students } = useTutorDashboardData()
   const { saveSessionAttendance } = useAdminMutations()
 
-  // Selected session state (defaults to first pending or first session)
-  const defaultSessionId = sessions.find((s) => !s.isCompleted)?.id || sessions[0]?.id || ''
+  // Selected session state (defaults to first uncompleted session)
+  const defaultSessionId = React.useMemo(() => {
+    const uncompleted = sessions.find((s) => !s.isCompleted)
+    return uncompleted ? uncompleted.id : sessions[0]?.id || ''
+  }, [sessions])
+
   const [selectedSessionId, setSelectedSessionId] = React.useState<string>(defaultSessionId)
 
-  // Sync if sessions load later or defaultSessionId changes
+  // Sync if sessions load later or selectedSessionId becomes invalid
   React.useEffect(() => {
     if (!selectedSessionId && sessions.length > 0) {
-      const pending = sessions.find((s) => !s.isCompleted)
-      setSelectedSessionId(pending ? pending.id : sessions[0].id)
+      const uncompleted = sessions.find((s) => !s.isCompleted)
+      setSelectedSessionId(uncompleted ? uncompleted.id : sessions[0].id)
     }
   }, [sessions, selectedSessionId])
 
-  const selectedSession = sessions.find((s) => s.id === selectedSessionId) || sessions[0]
+  // Use session detail hook for active session
+  const { data: sessionDetail } = useSessionDetails(selectedSessionId)
+  const selectedSession = sessionDetail || sessions.find((s) => s.id === selectedSessionId) || sessions[0]
 
   // Attendance form state
   const [topic, setTopic] = React.useState<string>('')
@@ -303,6 +314,21 @@ export function TutorPresensiPage() {
             </div>
           </div>
 
+          {/* Peringatan Visual Jika Ada Siswa Berstatus Alpa */}
+          {countAlpa > 0 && (
+            <div className="bg-[#FFFFFF] border-l-4 border-l-[#901B14] border border-[#D2D2D2] rounded-[10px] p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-[#901B14] shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-[#901B14]">
+                  Peringatan: {countAlpa} Siswa Tercatat Alpa (Tanpa Keterangan)
+                </p>
+                <p className="text-xs text-[#555555] leading-relaxed">
+                  Menyimpan presensi dengan siswa berstatus Alpa akan otomatis mengirimkan notifikasi ketidakhadiran ke akun orang tua/wali siswa terkait.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Checklist Table & Student Rows */}
           <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-[#D2D2D2] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -327,64 +353,78 @@ export function TutorPresensiPage() {
 
             {/* List of Students */}
             <div className="divide-y divide-[#D2D2D2]">
-              {entries.map((entry, index) => (
-                <div
-                  key={entry.studentId}
-                  className="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-[#FAFAFA] transition-colors"
-                >
-                  {/* Student Info */}
-                  <div className="flex items-start gap-3 min-w-[220px]">
-                    <span className="text-xs font-mono font-semibold text-[#555555] pt-0.5 w-5 tabular-nums">
-                      {index + 1}.
-                    </span>
-                    <div>
-                      <span className="font-semibold text-xs text-[#000000] block">
-                        {entry.studentName}
+              {entries.map((entry, index) => {
+                const isAlpa = entry.status === 'alpa'
+                return (
+                  <div
+                    key={entry.studentId}
+                    className={cn(
+                      'p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-colors',
+                      isAlpa ? 'bg-[#FFFBFB] border-l-4 border-l-[#901B14]' : 'hover:bg-[#FAFAFA]'
+                    )}
+                  >
+                    {/* Student Info */}
+                    <div className="flex items-start gap-3 min-w-[220px]">
+                      <span className="text-xs font-mono font-semibold text-[#555555] pt-0.5 w-5 tabular-nums">
+                        {index + 1}.
                       </span>
-                      <span className="font-mono text-[11px] text-[#555555]">
-                        {entry.nis}
-                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-[#000000]">
+                            {entry.studentName}
+                          </span>
+                          {isAlpa && (
+                            <span className="text-[11px] font-semibold text-[#901B14] inline-flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-[#901B14]" />
+                              <span>Alpa</span>
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono text-[11px] text-[#555555] block">
+                          {entry.nis}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Segmented Status Buttons (4 options) */}
+                    <div className="flex items-center gap-1 bg-[#F6F6F6] p-1 rounded-[8px] border border-[#D2D2D2] shrink-0 self-start sm:self-auto">
+                      {(['hadir', 'sakit', 'izin', 'alpa'] as const).map((st) => {
+                        const isActive = entry.status === st
+                        return (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => handleStatusChange(entry.studentId, st)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-[6px] text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer',
+                              isActive && st === 'hadir' && 'bg-[#166534] text-[#FFFFFF]',
+                              isActive && st === 'sakit' && 'bg-[#85600F] text-[#FFFFFF]',
+                              isActive && st === 'izin' && 'bg-[#3A5A80] text-[#FFFFFF]',
+                              isActive && st === 'alpa' && 'bg-[#901B14] text-[#FFFFFF]',
+                              !isActive && 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]'
+                            )}
+                          >
+                            {st}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Note Input */}
+                    <div className="w-full lg:max-w-xs">
+                      <input
+                        type="text"
+                        placeholder="Catatan khusus (opsional)..."
+                        value={entry.note || ''}
+                        onChange={(e) =>
+                          handleNoteChange(entry.studentId, e.target.value)
+                        }
+                        className="w-full h-8 px-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] focus:outline-none focus:border-[#000000]"
+                      />
                     </div>
                   </div>
-
-                  {/* Segmented Status Buttons (4 options) */}
-                  <div className="flex items-center gap-1 bg-[#F6F6F6] p-1 rounded-[8px] border border-[#D2D2D2] shrink-0 self-start sm:self-auto">
-                    {(['hadir', 'sakit', 'izin', 'alpa'] as const).map((st) => {
-                      const isActive = entry.status === st
-                      return (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => handleStatusChange(entry.studentId, st)}
-                          className={cn(
-                            'px-3 py-1.5 rounded-[6px] text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer',
-                            isActive && st === 'hadir' && 'bg-[#166534] text-[#FFFFFF]',
-                            isActive && st === 'sakit' && 'bg-[#85600F] text-[#FFFFFF]',
-                            isActive && st === 'izin' && 'bg-[#3A5A80] text-[#FFFFFF]',
-                            isActive && st === 'alpa' && 'bg-[#901B14] text-[#FFFFFF]',
-                            !isActive && 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]'
-                          )}
-                        >
-                          {st}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* Note Input */}
-                  <div className="w-full lg:max-w-xs">
-                    <input
-                      type="text"
-                      placeholder="Catatan khusus (opsional)..."
-                      value={entry.note || ''}
-                      onChange={(e) =>
-                        handleNoteChange(entry.studentId, e.target.value)
-                      }
-                      className="w-full h-8 px-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Bottom Actions Bar */}
@@ -399,8 +439,22 @@ export function TutorPresensiPage() {
                 disabled={isSaving}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#000000] hover:bg-[#222222] disabled:opacity-50 text-[#FFFFFF] font-semibold text-xs px-5 py-2.5 rounded-[8px] transition-colors cursor-pointer"
               >
-                <Save className="w-4 h-4" />
-                <span>{isSaving ? 'Menyimpan...' : 'Simpan Presensi Sesi'}</span>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
+                    <span>Menyimpan Presensi...</span>
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-[#FFFFFF]" />
+                    <span>Presensi Tersimpan!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Simpan Presensi Sesi</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

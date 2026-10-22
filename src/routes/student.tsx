@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { DashboardShell, type DashboardNavGroup } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
+import { useAuth } from '~/hooks/use-auth'
 
 export const Route = createFileRoute('/student')({
   ssr: false,
@@ -61,12 +62,13 @@ const STUDENT_NAV_GROUPS: DashboardNavGroup[] = [
 
 function StudentLayout() {
   const { data: session } = useActiveSession()
-  const student = session?.student
+  const { userDisplayName, userRoleTitle, userInitials, studentProfile } = useAuth()
+  const student = studentProfile || session?.student
 
   const currentUser = {
-    name: student?.name || 'Muhammad Rafly',
-    roleTitle: 'Kelas 12 — UTBK Intensif',
-    initials: 'FR',
+    name: student?.name || userDisplayName || 'Fahri Ramadhan',
+    roleTitle: student?.className || userRoleTitle || 'Kelas 12 — UTBK Intensif',
+    initials: userInitials || 'FR',
   }
 
   return (
