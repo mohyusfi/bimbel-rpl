@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '~/lib/supabase/client'
 import { masterDataService } from '~/server/services/master-data.service'
 import { registrationService } from '~/server/services/registration.service'
+import { scheduleService } from '~/server/services/schedule.service'
 import {
   adminStore,
   type Registration,
@@ -250,7 +251,17 @@ export function useAdminSchedules() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.schedules,
-    queryFn: () => adminStore.getState().schedules,
+    queryFn: async () => {
+      try {
+        const dbSchedules = await scheduleService.getSchedules()
+        if (Array.isArray(dbSchedules)) {
+          return dbSchedules as Schedule[]
+        }
+      } catch (err) {
+        console.warn('⚠️ Gagal mengambil jadwal dari Supabase:', err)
+      }
+      return []
+    },
   })
 }
 
@@ -729,7 +740,19 @@ export function useAdminMutations() {
 
   const addScheduleMutation = useMutation({
     mutationFn: async (input: Omit<Schedule, 'id'>) => {
-      return adminStore.addSchedule(input)
+      const res = await scheduleService.createSchedule({
+        classId: input.classId,
+        subjectName: input.subjectName,
+        tutorId: input.tutorId,
+        roomId: input.roomId,
+        dayOfWeek: input.dayOfWeek,
+        startTime: input.startTime,
+        endTime: input.endTime,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data.schedule
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -738,7 +761,11 @@ export function useAdminMutations() {
 
   const updateScheduleMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
-      return adminStore.updateSchedule(id, updates)
+      const res = await scheduleService.updateSchedule(id, updates)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -747,7 +774,11 @@ export function useAdminMutations() {
 
   const deleteScheduleMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminStore.deleteSchedule(id)
+      const res = await scheduleService.deleteSchedule(id)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return true
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1062,7 +1093,19 @@ export function useAddScheduleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: Omit<Schedule, 'id'>) => {
-      return adminStore.addSchedule(input)
+      const res = await scheduleService.createSchedule({
+        classId: input.classId,
+        subjectName: input.subjectName,
+        tutorId: input.tutorId,
+        roomId: input.roomId,
+        dayOfWeek: input.dayOfWeek,
+        startTime: input.startTime,
+        endTime: input.endTime,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data.schedule
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1074,7 +1117,11 @@ export function useUpdateScheduleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
-      return adminStore.updateSchedule(id, updates)
+      const res = await scheduleService.updateSchedule(id, updates)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1193,15 +1240,35 @@ export function useSubmitPaymentProofMutation() {
 
 export function useAttendanceSessions(tutorId?: string) {
   useAdminDataSync()
-  return useQuery({
+  return useQuery<AttendanceSession[]>({
     queryKey: tutorId ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const) : ADMIN_KEYS.attendance,
-    queryFn: () => {
-      const all = adminStore.getState().attendanceSessions
-      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
-    },
-    initialData: () => {
-      const all = adminStore.getState().attendanceSessions
-      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
+    queryFn: async () => {
+      try {
+        const dbSessions = await scheduleService.getSessions(tutorId)
+        if (Array.isArray(dbSessions)) {
+          return dbSessions.map((s) => ({
+            id: s.id,
+            scheduleId: s.scheduleId || '',
+            classId: s.classId,
+            className: s.className || 'Rombel Kelas',
+            subjectName: s.subjectName || 'Sesi Bimbingan',
+            tutorId: s.tutorId || '',
+            tutorName: s.tutorName || 'Tutor Bimbel',
+            roomId: s.roomId || '',
+            roomName: s.roomName || 'Ruang Belajar',
+            sessionDate: s.sessionDate,
+            dayOfWeek: s.dayOfWeek || 'Senin',
+            startTime: s.startTime || '16:00',
+            endTime: s.endTime || '17:30',
+            topic: s.topic || 'Sesi Bimbingan',
+            isCompleted: s.isCompleted,
+            entries: ((s as any).entries || []) as AttendanceEntry[],
+          }))
+        }
+      } catch (err) {
+        console.warn('⚠️ Gagal mengambil sessions dari Supabase:', err)
+      }
+      return []
     },
   })
 }
