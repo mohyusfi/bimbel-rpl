@@ -63,8 +63,8 @@ export function TutorMateriPage() {
     title: '',
     category: 'Modul Teori',
     fileType: 'PDF' as 'PDF' | 'PPTX',
-    fileSize: '3.7 MB',
-    fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+    fileSize: '',
+    fileUrl: '',
     description: '',
   })
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
@@ -94,8 +94,8 @@ export function TutorMateriPage() {
       title: '',
       category: 'Modul Teori',
       fileType: 'PDF',
-      fileSize: '3.7 MB',
-      fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+      fileSize: '',
+      fileUrl: '',
       description: '',
     })
     setIsUploadModalOpen(true)
@@ -134,17 +134,18 @@ export function TutorMateriPage() {
   // Handle upload submit
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.title.trim()) return
+    if (!form.title.trim()) {
+      setFileError('Judul modul belajar wajib diisi.')
+      return
+    }
+    if (!selectedFile && !form.fileUrl) {
+      setFileError('Silakan pilih berkas dokumen PDF atau presentasi PPTX.')
+      return
+    }
 
     setIsSubmitting(true)
     try {
       const targetClass = classes.find((c) => c.id === form.classId)
-      const finalFileUrl =
-        form.fileUrl && form.fileUrl !== '#'
-          ? form.fileUrl
-          : form.fileType === 'PPTX'
-            ? '/Arsitektur dan Integrasi REST API.pptx'
-            : '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf'
 
       await addLearningMaterial({
         classId: form.classId,
@@ -156,8 +157,8 @@ export function TutorMateriPage() {
         tutorId: tutor?.id || 'tut-1',
         tutorName: tutor?.name || 'Kak Dian Pratiwi, S.Si',
         fileType: form.fileType,
-        fileSize: form.fileSize || '3.7 MB',
-        fileUrl: finalFileUrl,
+        fileSize: form.fileSize || '0 MB',
+        fileUrl: form.fileUrl || '',
         file: selectedFile,
       })
 
@@ -166,7 +167,7 @@ export function TutorMateriPage() {
       setUploadSuccess(true)
       setTimeout(() => setUploadSuccess(false), 4000)
     } catch (err: any) {
-      console.error('Gagal mengunggah materi:', err)
+      console.error('[ERROR] Gagal mengunggah materi:', err)
       setFileError(err?.message || 'Terjadi kesalahan saat mengunggah berkas ke penyimpanan.')
     } finally {
       setIsSubmitting(false)

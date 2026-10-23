@@ -109,3 +109,15 @@ export function validateMaterialFile(file: {
     fileType: formatCheck.fileType,
   }
 }
+
+/**
+ * Memformat ukuran byte ke string terbaca manusia (misal: 3.7 MB)
+ */
+export function formatBytesToReadable(bytes: number): string {
+  if (typeof bytes !== 'number' || isNaN(bytes) || bytes <= 0) return '0 MB'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const val = bytes / Math.pow(k, i)
+  return `${val.toFixed(1)} ${sizes[i]}`
+}

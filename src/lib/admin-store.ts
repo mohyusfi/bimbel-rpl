@@ -1046,16 +1046,15 @@ function loadInitialState(): AdminState {
           console.info('[INFO] Auto-purging legacy mock data from localStorage...')
           localStorage.removeItem(STORAGE_KEY)
         } else {
-          const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
-          const learningMaterials = rawMaterials.map((m) => {
-            if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
-              return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
-            }
-            if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
-              return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
-            }
-            return m
-          })
+          // Auto-purge modul materi dan rapor nilai dari localStorage agar tidak tertinggal data lama
+          if (parsed.learningMaterials || parsed.gradeRecords) {
+            delete parsed.learningMaterials
+            delete parsed.gradeRecords
+            try {
+              const { learningMaterials: _m, gradeRecords: _g, ...cleaned } = parsed
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned))
+            } catch {}
+          }
 
           return {
             ...parsed,
@@ -1066,8 +1065,8 @@ function loadInitialState(): AdminState {
             courses: parsed.courses || [],
             classes: parsed.classes || [],
             attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
-            learningMaterials,
-            gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
+            learningMaterials: [],
+            gradeRecords: [],
             parents: parsed.parents || INITIAL_PARENTS,
             selectedChildId: parsed.selectedChildId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
             activeTutorId: parsed.activeTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
@@ -1122,7 +1121,8 @@ function clampCapacity(capacity: unknown, defaultCap = 12): number {
 function saveAndNotify() {
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      const { learningMaterials: _m, gradeRecords: _g, ...persistentState } = state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentState))
     } catch (e) {
       console.warn('Gagal menyimpan admin state ke localStorage:', e)
     }
