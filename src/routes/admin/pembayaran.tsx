@@ -194,7 +194,7 @@ function AdminPembayaranPage() {
   const handleConfirmVerify = async () => {
     if (!inspectingInvoice) return
     const res = await verifyInvoice(inspectingInvoice.id)
-    const receiptNumber = (res as any)?.receiptNumber || inspectingInvoice.receiptNumber || 'KWT-202610-0001'
+    const receiptNumber = res?.receiptNumber || inspectingInvoice.receiptNumber || 'KWT-202610-0001'
     const updated: Invoice = {
       ...inspectingInvoice,
       status: 'lunas' as const,
@@ -236,7 +236,7 @@ function AdminPembayaranPage() {
                 {inv.studentName}
               </span>
               <span className="font-mono text-xs text-[#6B6B6B] tabular-nums">
-                {(inv as any).invoiceNumber || inv.id}
+                {inv.invoiceNumber || inv.id}
               </span>
             </div>
             <p className="text-xs text-[#6B6B6B] mt-0.5">
@@ -499,7 +499,7 @@ function AdminPembayaranPage() {
                   <div className="p-3.5 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs font-bold text-[#000000]">
-                        {(inspectingInvoice as any).invoiceNumber || inspectingInvoice.id}
+                        {inspectingInvoice.invoiceNumber || inspectingInvoice.id}
                       </span>
                       <StatusBadge
                         status={inspectingInvoice.status}

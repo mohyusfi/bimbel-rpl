@@ -104,7 +104,9 @@ export interface Schedule {
 
 export interface Invoice {
   id: string
+  invoiceNumber?: string
   studentId: string
+  parentId?: string | null
   studentName: string
   nis: string
   programName: string
@@ -124,6 +126,27 @@ export interface Invoice {
   description?: string
   storage_path?: string
   receiptUrl?: string
+  payments?: Array<{
+    id: string
+    invoiceId: string
+    amount: number
+    amountPaid?: number | null
+    transferReceiptFile?: string | null
+    proofFileUrl?: string | null
+    storagePath?: string | null
+    bankName?: string | null
+    paymentMethod?: string | null
+    submittedAt: string
+    paymentDate?: string | null
+    verifiedAt?: string | null
+    verifiedBy?: string | null
+    receiptNumber?: string | null
+    submittedByRole?: string | null
+    submittedByName?: string | null
+    status: string
+    notes?: string | null
+    createdAt: string
+  }>
 }
 
 export type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpa'

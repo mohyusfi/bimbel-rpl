@@ -186,35 +186,86 @@ export async function resolveParentUUID(parentIdOrLegacy: string): Promise<strin
   return legacyMap[parentIdOrLegacy] || parentIdOrLegacy
 }
 
-function mapRawInvoice(row: any): InvoiceDetail {
-  const student = row.students || {}
-  const profile = student.profiles || {}
+interface RawPaymentRow {
+  id: string
+  invoice_id: string
+  amount: number
+  amount_paid: string | number | null
+  transfer_receipt_file: string | null
+  proof_file_url: string | null
+  storage_path: string | null
+  bank_name: string | null
+  payment_method: string | null
+  submitted_at: string | null
+  payment_date: string | null
+  verified_at: string | null
+  verified_by: string | null
+  receipt_number: string | null
+  submitted_by_role: string | null
+  submitted_by_name: string | null
+  status: string
+  notes: string | null
+  created_at: string
+  profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null
+}
+
+interface RawStudentRow {
+  id?: string | null
+  nis?: string | null
+  parent_id?: string | null
+  profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null
+}
+
+interface RawInvoiceRow {
+  id: string
+  student_id: string
+  invoice_number: string
+  program_name: string
+  description?: string | null
+  amount: number
+  due_date: string
+  status: string
+  rejected_reason?: string | null
+  created_at?: string
+  updated_at?: string
+  students?: RawStudentRow | RawStudentRow[] | null
+  payments?: RawPaymentRow[] | null
+}
+
+function mapRawInvoice(row: RawInvoiceRow): InvoiceDetail {
+  const studentRaw = Array.isArray(row.students) ? row.students[0] : row.students
+  const student = studentRaw || { id: '', nis: null, parent_id: null, profiles: null }
+  const profileRaw = Array.isArray(student.profiles) ? student.profiles[0] : student.profiles
+  const profile = profileRaw || { full_name: null }
   const rawPayments = Array.isArray(row.payments) ? row.payments : []
 
   // Urutkan pembayaran berdasarkan submitted_at menurun (terbaru pertama)
   const sortedPayments: PaymentRecord[] = rawPayments
-    .map((p: any) => ({
-      id: p.id,
-      invoiceId: p.invoice_id,
-      amount: p.amount,
-      amountPaid: p.amount_paid ? Number(p.amount_paid) : null,
-      transferReceiptFile: p.transfer_receipt_file,
-      proofFileUrl: p.proof_file_url,
-      storagePath: p.storage_path,
-      bankName: p.bank_name,
-      paymentMethod: p.payment_method,
-      submittedAt: p.submitted_at || p.created_at,
-      paymentDate: p.payment_date,
-      verifiedAt: p.verified_at,
-      verifiedBy: p.verified_by,
-      verifiedByName: p.profiles?.full_name || null,
-      receiptNumber: p.receipt_number,
-      submittedByRole: p.submitted_by_role,
-      submittedByName: p.submitted_by_name,
-      status: p.status,
-      notes: p.notes,
-      createdAt: p.created_at,
-    }))
+    .map((p: RawPaymentRow) => {
+      const profileVerif = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
+      return {
+        id: p.id,
+        invoiceId: p.invoice_id,
+        amount: p.amount,
+        amountPaid: p.amount_paid ? Number(p.amount_paid) : null,
+        transferReceiptFile: p.transfer_receipt_file,
+        proofFileUrl: p.proof_file_url,
+        storagePath: p.storage_path,
+        bankName: p.bank_name,
+        paymentMethod: p.payment_method,
+        submittedAt: p.submitted_at || p.created_at,
+        paymentDate: p.payment_date,
+        verifiedAt: p.verified_at,
+        verifiedBy: p.verified_by,
+        verifiedByName: profileVerif?.full_name || null,
+        receiptNumber: p.receipt_number,
+        submittedByRole: p.submitted_by_role,
+        submittedByName: p.submitted_by_name,
+        status: p.status,
+        notes: p.notes,
+        createdAt: p.created_at,
+      }
+    })
     .sort((a: PaymentRecord, b: PaymentRecord) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
 
   const latestPayment = sortedPayments[0]
@@ -313,6 +364,19 @@ export const billingService = {
       query = query.eq('student_id', realStudentId)
     }
 
+    if (options?.parentId) {
+      const realParentId = await resolveParentUUID(options.parentId)
+      const { data: children } = await supabase
+        .from('students')
+        .select('id')
+        .eq('parent_id', realParentId)
+      const childIds = (children || []).map((c) => c.id)
+      if (childIds.length === 0) {
+        return []
+      }
+      query = query.in('student_id', childIds)
+    }
+
     if (options?.status && options.status !== 'ALL') {
       if (options.status === 'unpaid') {
         query = query.in('status', ['belum_dibayar', 'ditolak'])
@@ -328,14 +392,7 @@ export const billingService = {
       return []
     }
 
-    let invoices = (data || []).map(mapRawInvoice)
-
-    if (options?.parentId) {
-      const realParentId = await resolveParentUUID(options.parentId)
-      invoices = invoices.filter((inv) => inv.parentId === realParentId)
-    }
-
-    return invoices
+    return (data || []).map(mapRawInvoice)
   },
 
   /**
@@ -440,13 +497,28 @@ export const billingService = {
       return { success: false, error: 'Nominal tagihan harus lebih besar dari 0.' }
     }
 
-    // Hitung sequence unik nomor tagihan berdasarkan total baris
-    const { count } = await supabase
-      .from('invoices')
-      .select('id', { count: 'exact', head: true })
+    // Hitung sequence unik nomor tagihan berdasarkan sequence tertinggi bulan ini
+    const now = new Date()
+    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+    const prefix = `INV-${yearMonth}-`
 
-    const nextSeq = (count || 0) + 1
-    const invoiceNumber = generateInvoiceNumber(nextSeq)
+    const { data: latestInvoices } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .like('invoice_number', `${prefix}%`)
+      .order('invoice_number', { ascending: false })
+      .limit(1)
+
+    let nextSeq = 1
+    if (latestInvoices && latestInvoices.length > 0 && latestInvoices[0].invoice_number) {
+      const parts = latestInvoices[0].invoice_number.split('-')
+      const lastSeq = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1
+      }
+    }
+
+    const invoiceNumber = generateInvoiceNumber(nextSeq, now)
 
     const payload = {
       student_id: realStudentId,
@@ -530,7 +602,10 @@ export const billingService = {
         return { success: false, error: validation.error || 'Format atau ukuran berkas tidak valid.' }
       }
 
-      await ensureAdminSession()
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (!sessionData?.session) {
+        await ensureAdminSession()
+      }
 
       const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const targetPath = `proofs/${invoice.id}/${Date.now()}_${sanitizedName}`
@@ -644,14 +719,28 @@ export const billingService = {
       return { success: false, error: 'Data tagihan tidak ditemukan.' }
     }
 
-    // Dapatkan sequence kwitansi
-    const { count } = await supabase
-      .from('payments')
-      .select('id', { count: 'exact', head: true })
-      .not('receipt_number', 'is', null)
+    // Dapatkan sequence kwitansi berdasarkan sequence tertinggi bulan ini
+    const now = new Date()
+    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+    const prefix = `KWT-${yearMonth}-`
 
-    const nextSeq = (count || 0) + 1
-    const receiptNumber = generateReceiptNumber(nextSeq)
+    const { data: latestReceipts } = await supabase
+      .from('payments')
+      .select('receipt_number')
+      .like('receipt_number', `${prefix}%`)
+      .order('receipt_number', { ascending: false })
+      .limit(1)
+
+    let nextSeq = 1
+    if (latestReceipts && latestReceipts.length > 0 && latestReceipts[0].receipt_number) {
+      const parts = latestReceipts[0].receipt_number.split('-')
+      const lastSeq = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1
+      }
+    }
+
+    const receiptNumber = generateReceiptNumber(nextSeq, now)
     const verifiedAt = new Date().toISOString()
     const verifiedByName = options?.verifiedByName || 'Hj. Nuraini, S.Pd'
 

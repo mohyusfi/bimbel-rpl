@@ -1453,6 +1453,7 @@ export function useAttendanceSessions(tutorId?: string, classId?: string) {
             endTime: s.endTime || '17:30',
             topic: s.topic || 'Sesi Bimbingan',
             isCompleted: s.isCompleted,
+            completedAt: (s as any).completedAt || (s as any).createdAt || undefined,
             entries: ((s as { entries?: AttendanceEntry[] }).entries || []),
           }))
         }
@@ -1490,6 +1491,7 @@ export function useSessionDetails(sessionId: string) {
             endTime: found.endTime || '17:30',
             topic: found.topic || 'Sesi Bimbingan',
             isCompleted: found.isCompleted,
+            completedAt: (found as any).completedAt || (found as any).createdAt || undefined,
             entries: ((found as { entries?: AttendanceEntry[] }).entries || []),
           }
         }
@@ -1679,8 +1681,13 @@ export function useStudentDashboardData(targetStudentId?: string) {
     (m) => currentStudent?.classId && m.classId === currentStudent.classId
   )
 
-  // Invoices
-  const studentInvoices = invoices.filter((i) => i.studentId === studentId)
+  // Invoices (cocokkan UUID database dan ID legacy)
+  const studentInvoices = invoices.filter(
+    (i) =>
+      i.studentId === studentId ||
+      (currentStudent && i.studentId === currentStudent.id) ||
+      (currentStudent && i.studentName === currentStudent.name)
+  )
 
   return {
     student: currentStudent,

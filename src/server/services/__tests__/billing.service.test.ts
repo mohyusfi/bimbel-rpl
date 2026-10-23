@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import { billingService } from '../billing.service'
 
 describe('BillingService — TDD & Supabase Integration (Tiket 06)', { timeout: 20000 }, () => {
@@ -123,11 +123,11 @@ describe('BillingService — TDD & Supabase Integration (Tiket 06)', { timeout: 
     })
 
     // Bersihkan tagihan uji
-    afterAllCleanup: async () => {
+    afterAll(async () => {
       if (createdInvoiceId) {
         await billingService.deleteInvoice(createdInvoiceId)
       }
-    }
+    })
   })
 
   // =========================================================================
