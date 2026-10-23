@@ -40,6 +40,7 @@ import { Route as TutorNilaiRouteImport } from './routes/tutor/nilai'
 import { Route as TutorPresensiRouteImport } from './routes/tutor/presensi'
 import { Route as AdminSiswaStudentIdRouteImport } from './routes/admin/siswa_.$studentId'
 import { Route as StudentPreviewMaterialIdRouteImport } from './routes/student/preview.$materialId'
+import { Route as TutorPresensiSessionIdRouteImport } from './routes/tutor/presensi_.$sessionId'
 import { Route as TutorPreviewMaterialIdRouteImport } from './routes/tutor/preview.$materialId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -198,6 +199,11 @@ const StudentPreviewMaterialIdRoute =
     path: '/preview/$materialId',
     getParentRoute: () => StudentRoute,
   } as any)
+const TutorPresensiSessionIdRoute = TutorPresensiSessionIdRouteImport.update({
+  id: '/presensi_/$sessionId',
+  path: '/presensi/$sessionId',
+  getParentRoute: () => TutorRoute,
+} as any)
 const TutorPreviewMaterialIdRoute = TutorPreviewMaterialIdRouteImport.update({
   id: '/preview/$materialId',
   path: '/preview/$materialId',
@@ -236,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/tutor/': typeof TutorIndexRoute
   '/admin/siswa/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
+  '/tutor/presensi/$sessionId': typeof TutorPresensiSessionIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
 export interface FileRoutesByTo {
@@ -266,6 +273,7 @@ export interface FileRoutesByTo {
   '/tutor': typeof TutorIndexRoute
   '/admin/siswa/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
+  '/tutor/presensi/$sessionId': typeof TutorPresensiSessionIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
 export interface FileRoutesById {
@@ -301,6 +309,7 @@ export interface FileRoutesById {
   '/tutor/': typeof TutorIndexRoute
   '/admin/siswa_/$studentId': typeof AdminSiswaStudentIdRoute
   '/student/preview/$materialId': typeof StudentPreviewMaterialIdRoute
+  '/tutor/presensi_/$sessionId': typeof TutorPresensiSessionIdRoute
   '/tutor/preview/$materialId': typeof TutorPreviewMaterialIdRoute
 }
 export interface FileRouteTypes {
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/tutor/'
     | '/admin/siswa/$studentId'
     | '/student/preview/$materialId'
+    | '/tutor/presensi/$sessionId'
     | '/tutor/preview/$materialId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/tutor'
     | '/admin/siswa/$studentId'
     | '/student/preview/$materialId'
+    | '/tutor/presensi/$sessionId'
     | '/tutor/preview/$materialId'
   id:
     | '__root__'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/tutor/'
     | '/admin/siswa_/$studentId'
     | '/student/preview/$materialId'
+    | '/tutor/presensi_/$sessionId'
     | '/tutor/preview/$materialId'
   fileRoutesById: FileRoutesById
 }
@@ -632,6 +644,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentPreviewMaterialIdRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/tutor/presensi_/$sessionId': {
+      id: '/tutor/presensi_/$sessionId'
+      path: '/presensi/$sessionId'
+      fullPath: '/tutor/presensi/$sessionId'
+      preLoaderRoute: typeof TutorPresensiSessionIdRouteImport
+      parentRoute: typeof TutorRoute
+    }
     '/tutor/preview/$materialId': {
       id: '/tutor/preview/$materialId'
       path: '/preview/$materialId'
@@ -714,6 +733,7 @@ interface TutorRouteChildren {
   TutorNilaiRoute: typeof TutorNilaiRoute
   TutorPresensiRoute: typeof TutorPresensiRoute
   TutorIndexRoute: typeof TutorIndexRoute
+  TutorPresensiSessionIdRoute: typeof TutorPresensiSessionIdRoute
   TutorPreviewMaterialIdRoute: typeof TutorPreviewMaterialIdRoute
 }
 
@@ -723,6 +743,7 @@ const TutorRouteChildren: TutorRouteChildren = {
   TutorNilaiRoute: TutorNilaiRoute,
   TutorPresensiRoute: TutorPresensiRoute,
   TutorIndexRoute: TutorIndexRoute,
+  TutorPresensiSessionIdRoute: TutorPresensiSessionIdRoute,
   TutorPreviewMaterialIdRoute: TutorPreviewMaterialIdRoute,
 }
 
