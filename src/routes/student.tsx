@@ -10,9 +10,11 @@ import {
 import { DashboardShell, type DashboardNavGroup } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
 import { useAuth } from '~/hooks/use-auth'
+import { createRouteGuard } from '~/lib/route-guard'
 
 export const Route = createFileRoute('/student')({
   ssr: false,
+  beforeLoad: createRouteGuard('student'),
   component: StudentLayout,
 })
 

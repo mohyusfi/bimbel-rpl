@@ -43,7 +43,7 @@ const PACKAGE_NAMES: Record<PackageCode, string> = {
 }
 
 function AdminPendaftaranPage() {
-  const { data: registrations = [] } = useAdminRegistrations()
+  const { data: registrations = [], isLoading: isLoadingRegistrations } = useAdminRegistrations()
   const { data: classes = [] } = useAdminClasses()
   const { approveRegistration, rejectRegistration, addRegistration } =
     useAdminMutations()
@@ -508,6 +508,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
               isSelected={isSelected}
               onClick={() => setStatusFilter(card.status)}
               className="rounded-[14px]"
+              isLoading={isLoadingRegistrations}
               footer={
                 <div className="text-xs">
                   <span>{card.footer}</span>
@@ -525,6 +526,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
         totalCount={registrations.length}
         counterLabel="pendaftar"
         searchPlaceholder="Cari nama calon siswa, sekolah, wali, atau ID..."
+        isLoading={isLoadingRegistrations}
         filterSlot={
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1049,7 +1051,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
           <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <div className="flex items-start justify-between border-b border-[#D2D2D2] pb-3.5">
                 <div>
                   <Dialog.Title className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
@@ -1078,71 +1080,85 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                 <div className="space-y-4 text-xs">
                   {/* Card 1: Akun Siswa */}
                   <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
-                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2] gap-2 flex-wrap">
+                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5 shrink-0">
                         <GraduationCap className="w-3.5 h-3.5 text-[#000000]" />
                         <span>Akun Portal Siswa</span>
                       </span>
-                      <span className="text-[11px] font-semibold text-[#166534]">
+                      <span className="text-[11px] font-semibold text-[#166534] truncate max-w-[200px]">
                         {credentialsModalData.className}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Nama Siswa:</span>
-                        <strong className="text-[#000000] font-medium">{credentialsModalData.studentName}</strong>
+                        <strong className="text-[#000000] font-medium block truncate" title={credentialsModalData.studentName}>
+                          {credentialsModalData.studentName}
+                        </strong>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Nomor Induk Siswa (NIS):</span>
-                        <span className="font-mono text-[#000000] font-semibold">{credentialsModalData.studentNis}</span>
+                        <span className="font-mono text-[#000000] font-semibold block select-all">
+                          {credentialsModalData.studentNis}
+                        </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Email Login:</span>
-                        <span className="font-mono text-[#000000]">{credentialsModalData.studentEmail}</span>
+                        <span className="font-mono text-[#000000] block break-all select-all">
+                          {credentialsModalData.studentEmail}
+                        </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Kata Sandi Sementara:</span>
-                        <span className="font-mono text-[#CB2957] font-bold">{credentialsModalData.studentPassword}</span>
+                        <span className="font-mono text-[#CB2957] font-bold block select-all">
+                          {credentialsModalData.studentPassword}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Card 2: Akun Wali */}
                   <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-2.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2]">
-                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#D2D2D2] gap-2 flex-wrap">
+                      <span className="font-bold text-[#000000] text-xs uppercase tracking-wide flex items-center gap-1.5 shrink-0">
                         <Users className="w-3.5 h-3.5 text-[#000000]" />
                         <span>Akun Portal Orang Tua / Wali</span>
                       </span>
-                      <span className="text-[11px] text-[#555555] font-mono">
+                      <span className="text-[11px] text-[#555555] font-mono shrink-0">
                         WA: {credentialsModalData.parentPhone}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Nama Wali:</span>
-                        <strong className="text-[#000000] font-medium">{credentialsModalData.parentName}</strong>
+                        <strong className="text-[#000000] font-medium block truncate" title={credentialsModalData.parentName}>
+                          {credentialsModalData.parentName}
+                        </strong>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Email Login:</span>
-                        <span className="font-mono text-[#000000]">{credentialsModalData.parentEmail}</span>
+                        <span className="font-mono text-[#000000] block break-all select-all">
+                          {credentialsModalData.parentEmail}
+                        </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Kata Sandi Sementara:</span>
-                        <span className="font-mono text-[#CB2957] font-bold">{credentialsModalData.parentPassword}</span>
+                        <span className="font-mono text-[#CB2957] font-bold block select-all">
+                          {credentialsModalData.parentPassword}
+                        </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Hak Pemantauan:</span>
-                        <span className="text-[#000000]">Presensi Real-Time, Rapor & Tagihan</span>
+                        <span className="text-[#000000] block">Presensi Real-Time, Rapor & Tagihan</span>
                       </div>
                     </div>
                   </div>
 
                   {/* WhatsApp Copy Template Box */}
                   <div className="p-3.5 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2] text-[11px] text-[#555555] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <span>
+                    <span className="min-w-0 leading-relaxed">
                       Salin format pesan siap kirim untuk disampaikan langsung kepada orang tua siswa melalui WhatsApp.
                     </span>
                     <button

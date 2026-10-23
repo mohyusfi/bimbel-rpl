@@ -27,7 +27,7 @@ export const Route = createFileRoute('/student/tagihan')({
 })
 
 function StudentTagihanPage() {
-  const { student, invoices } = useStudentDashboardData()
+  const { student, invoices, isLoading } = useStudentDashboardData()
 
   const [isCopied, setIsCopied] = React.useState(false)
   const [selectedUploadInvoice, setSelectedUploadInvoice] = React.useState<Invoice | null>(null)
@@ -337,6 +337,7 @@ function StudentTagihanPage() {
         <DataTable
           columns={columns}
           data={invoices}
+          isLoading={isLoading}
           searchPlaceholder="Cari nomor invoice, periode, atau program..."
           renderMobileCard={(row) => (
             <div className="space-y-3">

@@ -99,28 +99,61 @@ function LoginPage() {
   const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
 
+  const [adminRoleType, setAdminRoleType] = React.useState<'super_admin' | 'regular_admin'>('super_admin')
   const [selectedRole, setSelectedRole] = React.useState<RoleCard>(ROLES[0])
-  const [emailOrId, setEmailOrId] = React.useState(ROLES[0].demoEmail)
-  const [password, setPassword] = React.useState(ROLES[0].demoPassword)
+  const [emailOrId, setEmailOrId] = React.useState(DEMO_ACCOUNTS.super_admin.email)
+  const [password, setPassword] = React.useState(DEMO_ACCOUNTS.super_admin.defaultPassword)
   const [showPassword, setShowPassword] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [deactivatedNotice, setDeactivatedNotice] = React.useState(false)
+  const [redirectPath, setRedirectPath] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('deactivated') === 'true') {
+        setDeactivatedNotice(true)
+      }
+      const redirectParam = params.get('redirect')
+      if (redirectParam) {
+        setRedirectPath(redirectParam)
+      }
+    }
+  }, [])
 
   const handleRoleCardClick = (roleCard: RoleCard) => {
     setSelectedRole(roleCard)
-    setEmailOrId(roleCard.demoEmail)
-    setPassword(roleCard.demoPassword)
+    if (roleCard.role === 'admin') {
+      const isSuper = adminRoleType === 'super_admin'
+      setEmailOrId(isSuper ? DEMO_ACCOUNTS.super_admin.email : DEMO_ACCOUNTS.admin.email)
+      setPassword(isSuper ? DEMO_ACCOUNTS.super_admin.defaultPassword : DEMO_ACCOUNTS.admin.defaultPassword)
+    } else {
+      setEmailOrId(roleCard.demoEmail)
+      setPassword(roleCard.demoPassword)
+    }
     setErrorMessage(null)
   }
 
   // 1-Click Quick Demo Login
   const handleQuickDemoLogin = async (role: UserRole) => {
     setIsSubmitting(true)
+    const isSuper = role === 'admin' && adminRoleType === 'super_admin'
+    const targetAccount = isSuper
+      ? DEMO_ACCOUNTS.super_admin
+      : role === 'admin'
+      ? DEMO_ACCOUNTS.admin
+      : DEMO_ACCOUNTS[role]
+
     try {
-      const demoAccount = DEMO_ACCOUNTS[role]
-      const loginRes = await authStore.login(demoAccount.email, demoAccount.defaultPassword, role)
+      const loginRes = await authStore.login(targetAccount.email, targetAccount.defaultPassword, targetAccount.role)
       if (loginRes.success && loginRes.href) {
-        navigate({ to: loginRes.href as any })
+        const dest = redirectPath || loginRes.href
+        navigate({ to: dest as any })
+        return
+      }
+      if (!loginRes.success && loginRes.error) {
+        setErrorMessage(loginRes.error)
         return
       }
     } catch (err) {
@@ -129,8 +162,13 @@ function LoginPage() {
       setIsSubmitting(false)
     }
 
-    const result = authStore.quickLogin(role)
-    navigate({ to: result.href as any })
+    const result = authStore.quickLogin(isSuper ? 'super_admin' : role)
+    if (result.success && result.href) {
+      const dest = redirectPath || result.href
+      navigate({ to: dest as any })
+    } else if (result.error) {
+      setErrorMessage(result.error)
+    }
   }
 
   // Interactive Form Login
@@ -142,7 +180,8 @@ function LoginPage() {
     try {
       const result = await authStore.login(emailOrId, password, selectedRole.role)
       if (result.success && result.href) {
-        navigate({ to: result.href as any })
+        const dest = redirectPath || result.href
+        navigate({ to: dest as any })
       } else {
         setErrorMessage(
           result.error ||
@@ -177,11 +216,40 @@ function LoginPage() {
           </p>
         </div>
 
+        {deactivatedNotice && (
+          <div
+            className="p-4 bg-[#F6E7E3] border border-[#901B14]/40 rounded-[4px] flex items-start gap-3 text-xs text-[#901B14] max-w-2xl mx-auto"
+            role="alert"
+          >
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#901B14]" />
+            <div className="space-y-1">
+              <strong className="font-bold text-[#901B14] block">
+                Sesi Dihentikan — Akun Staf Dinonaktifkan
+              </strong>
+              <p className="text-[#901B14]/90 leading-relaxed">
+                Akses login Anda telah dicabut karena akun telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi kantor Tata Usaha untuk informasi dan pemulihan akses.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 4 Role Selection & Quick Demo Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {ROLES.map((item) => {
             const Icon = item.icon
             const isSelected = selectedRole.role === item.role
+            const currentDemoName =
+              item.role === 'admin'
+                ? adminRoleType === 'super_admin'
+                  ? DEMO_ACCOUNTS.super_admin.name
+                  : DEMO_ACCOUNTS.admin.name
+                : item.demoAccount
+            const currentDemoEmail =
+              item.role === 'admin'
+                ? adminRoleType === 'super_admin'
+                  ? DEMO_ACCOUNTS.super_admin.email
+                  : DEMO_ACCOUNTS.admin.email
+                : item.demoEmail
 
             return (
               <div
@@ -225,13 +293,59 @@ function LoginPage() {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-[#D2D2D2] space-y-3">
+                  {item.role === 'admin' && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
+                        Tingkat Akses Demo:
+                      </span>
+                      <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[4px] text-[10px]">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAdminRoleType('super_admin')
+                            if (selectedRole.role === 'admin') {
+                              setEmailOrId(DEMO_ACCOUNTS.super_admin.email)
+                              setPassword(DEMO_ACCOUNTS.super_admin.defaultPassword)
+                            }
+                          }}
+                          className={`py-1 px-1.5 rounded-[2px] font-medium transition-all text-center cursor-pointer ${
+                            adminRoleType === 'super_admin'
+                              ? 'bg-[#000000] text-[#FFFFFF]'
+                              : 'text-[#555555] hover:text-[#000000]'
+                          }`}
+                        >
+                          Super Admin
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAdminRoleType('regular_admin')
+                            if (selectedRole.role === 'admin') {
+                              setEmailOrId(DEMO_ACCOUNTS.admin.email)
+                              setPassword(DEMO_ACCOUNTS.admin.defaultPassword)
+                            }
+                          }}
+                          className={`py-1 px-1.5 rounded-[2px] font-medium transition-all text-center cursor-pointer ${
+                            adminRoleType === 'regular_admin'
+                              ? 'bg-[#000000] text-[#FFFFFF]'
+                              : 'text-[#555555] hover:text-[#000000]'
+                          }`}
+                        >
+                          Staf Tata Usaha
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-[11px] text-[#555555]">
                     Akun Demo:
                     <strong className="block text-[#000000] truncate mt-0.5 font-medium">
-                      {item.demoAccount}
+                      {currentDemoName}
                     </strong>
                     <span className="font-mono text-[10px] text-[#555555] block truncate mt-0.5">
-                      {item.demoEmail}
+                      {currentDemoEmail}
                     </span>
                   </div>
 

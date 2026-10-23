@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as React from 'react'
 import '../styles/globals.css'
 import { ToastProvider, Toaster } from '../components/ui/toast'
+import { NavigationProgressBar } from '../components/ui/navigation-progress-bar'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +53,7 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className={isLanding ? 'landing' : 'font-sans antialiased text-[#000000] bg-[#EEEEEE]'}>
+        <NavigationProgressBar />
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             <Outlet />

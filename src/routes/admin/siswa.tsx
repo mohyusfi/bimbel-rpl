@@ -79,7 +79,7 @@ const PACKAGE_FILTERS: Array<{
 ]
 
 function AdminSiswaPage() {
-  const { data: students = [] } = useAdminStudents()
+  const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
   const { data: classes = [] } = useAdminClasses()
   const { addStudent, updateStudent } = useAdminMutations()
 
@@ -392,6 +392,7 @@ function AdminSiswaPage() {
               isSelected={isSelected}
               onClick={() => setPackageFilter(pkg.code)}
               className="rounded-[14px]"
+              isLoading={isLoadingStudents}
               footer={
                 <div className="text-xs">
                   <span>{pkg.sub}</span>
@@ -409,6 +410,7 @@ function AdminSiswaPage() {
         totalCount={students.length}
         counterLabel="siswa"
         searchPlaceholder="Cari NIS, nama siswa, sekolah, atau nama orang tua..."
+        isLoading={isLoadingStudents}
         filterSlot={
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -20,6 +20,11 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { Skeleton } from './skeleton'
+
+const SKELETON_ROWS_COUNT = 5
+const SKELETON_MOBILE_CARDS_COUNT = 3
+const SKELETON_CELL_WIDTHS = ['w-3/4', 'w-1/2', 'w-2/3', 'w-3/5', 'w-4/5'] as const
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -33,6 +38,7 @@ interface DataTableProps<TData, TValue> {
   className?: string
   totalCount?: number
   counterLabel?: string
+  isLoading?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -46,6 +52,7 @@ export function DataTable<TData, TValue>({
   className,
   totalCount,
   counterLabel,
+  isLoading = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -159,8 +166,20 @@ export function DataTable<TData, TValue>({
 
       {/* Mobile Card List View (if provided) */}
       {renderMobileCard && (
-        <div className="md:hidden divide-y divide-[#D2D2D2]">
-          {table.getRowModel().rows.length > 0 ? (
+        <div className={cn('md:hidden divide-y divide-[#D2D2D2]', isLoading && table.getRowModel().rows.length > 0 && 'opacity-50 transition-opacity pointer-events-none')}>
+          {isLoading && table.getRowModel().rows.length === 0 ? (
+            Array.from({ length: SKELETON_MOBILE_CARDS_COUNT }).map((_, idx) => (
+              <div
+                key={`skeleton-mobile-${idx}`}
+                data-testid="data-table-skeleton-mobile"
+                className="p-4 space-y-2.5"
+              >
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-3.5 w-1/3" />
+              </div>
+            ))
+          ) : table.getRowModel().rows.length > 0 ? (
             table.getRowModel().rows.map((row) => (
               <div
                 key={row.id}
@@ -226,8 +245,27 @@ export function DataTable<TData, TValue>({
             ))}
           </thead>
 
-          <tbody className="divide-y divide-[#D2D2D2]">
-            {table.getRowModel().rows.length > 0 ? (
+          <tbody className={cn('divide-y divide-[#D2D2D2]', isLoading && table.getRowModel().rows.length > 0 && 'opacity-50 transition-opacity pointer-events-none')}>
+            {isLoading && table.getRowModel().rows.length === 0 ? (
+              Array.from({ length: SKELETON_ROWS_COUNT }).map((_, rowIndex) => (
+                <tr
+                  key={`skeleton-row-${rowIndex}`}
+                  data-testid="data-table-skeleton-row"
+                >
+                  {columns.map((_, colIndex) => {
+                    const widthClass = SKELETON_CELL_WIDTHS[(rowIndex + colIndex) % SKELETON_CELL_WIDTHS.length]
+                    return (
+                      <td
+                        key={`skeleton-cell-${colIndex}`}
+                        className="px-5 py-4.5 text-sm text-[#292524] align-middle"
+                      >
+                        <Skeleton className={cn('h-4.5', widthClass)} />
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))
+            ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
@@ -281,15 +319,21 @@ export function DataTable<TData, TValue>({
       {/* Table Footer / Pagination */}
       <div className="px-5 py-3.5 border-t border-[#D2D2D2] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#F6F6F6]/50">
         <div className="text-xs text-[#555555]">
-          Menampilkan{' '}
-          <span className="tabular-nums font-semibold text-[#000000]">
-            {startRow}–{endRow}
-          </span>{' '}
-          dari{' '}
-          <span className="tabular-nums font-semibold text-[#000000]">
-            {totalRows}
-          </span>{' '}
-          baris data
+          {isLoading && table.getRowModel().rows.length === 0 ? (
+            <span className="text-[#6B6B6B]">Memuat data...</span>
+          ) : (
+            <>
+              Menampilkan{' '}
+              <span className="tabular-nums font-semibold text-[#000000]">
+                {startRow}–{endRow}
+              </span>{' '}
+              dari{' '}
+              <span className="tabular-nums font-semibold text-[#000000]">
+                {totalRows}
+              </span>{' '}
+              baris data
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
