@@ -104,7 +104,9 @@ export interface Schedule {
 
 export interface Invoice {
   id: string
+  invoiceNumber?: string
   studentId: string
+  parentId?: string | null
   studentName: string
   nis: string
   programName: string
@@ -124,6 +126,27 @@ export interface Invoice {
   description?: string
   storage_path?: string
   receiptUrl?: string
+  payments?: Array<{
+    id: string
+    invoiceId: string
+    amount: number
+    amountPaid?: number | null
+    transferReceiptFile?: string | null
+    proofFileUrl?: string | null
+    storagePath?: string | null
+    bankName?: string | null
+    paymentMethod?: string | null
+    submittedAt: string
+    paymentDate?: string | null
+    verifiedAt?: string | null
+    verifiedBy?: string | null
+    receiptNumber?: string | null
+    submittedByRole?: string | null
+    submittedByName?: string | null
+    status: string
+    notes?: string | null
+    createdAt: string
+  }>
 }
 
 export type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpa'
@@ -1031,12 +1054,13 @@ function loadInitialState(): AdminState {
           console.info('[INFO] Auto-purging legacy mock data from localStorage...')
           localStorage.removeItem(STORAGE_KEY)
         } else {
-          // Auto-purge modul materi dan rapor nilai dari localStorage agar tidak tertinggal data lama
-          if (parsed.learningMaterials || parsed.gradeRecords) {
+          // Auto-purge modul materi, rapor nilai, dan invoices dari localStorage agar tidak tertinggal data lama
+          if (parsed.learningMaterials || parsed.gradeRecords || parsed.invoices) {
             delete parsed.learningMaterials
             delete parsed.gradeRecords
+            delete parsed.invoices
             try {
-              const { learningMaterials: _m, gradeRecords: _g, ...cleaned } = parsed
+              const { learningMaterials: _m, gradeRecords: _g, invoices: _i, ...cleaned } = parsed
               localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned))
             } catch {}
           }
@@ -1050,6 +1074,7 @@ function loadInitialState(): AdminState {
             courses: parsed.courses || [],
             classes: parsed.classes || [],
             attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
+            invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
             learningMaterials: [],
             gradeRecords: [],
             parents: parsed.parents || INITIAL_PARENTS,
@@ -1106,7 +1131,7 @@ function clampCapacity(capacity: unknown, defaultCap = 12): number {
 function saveAndNotify() {
   if (typeof window !== 'undefined') {
     try {
-      const { learningMaterials: _m, gradeRecords: _g, ...persistentState } = state
+      const { learningMaterials: _m, gradeRecords: _g, invoices: _i, ...persistentState } = state
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentState))
     } catch (e) {
       console.warn('Gagal menyimpan admin state ke localStorage:', e)

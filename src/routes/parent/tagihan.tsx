@@ -28,7 +28,7 @@ export const Route = createFileRoute('/parent/tagihan')({
 })
 
 function ParentBillingPage() {
-  const { parent, selectedChild, childData } = useParentDashboardData()
+  const { parent, selectedChild, children = [], childData } = useParentDashboardData()
   const { student } = childData
   const { data: allInvoices = [] } = useAdminInvoices()
 
@@ -46,10 +46,17 @@ function ParentBillingPage() {
   }
 
   // Get invoices for either selected child or the whole family (all children of this parent)
-  const familyStudentIds = parent?.studentIds || ['stu-1', 'stu-4']
+  const familyStudentIds = new Set([
+    ...children.map((c) => c.id),
+    ...(parent?.studentIds || []),
+  ])
   const relevantInvoices = showAllFamily
-    ? allInvoices.filter((i) => familyStudentIds.includes(i.studentId))
-    : allInvoices.filter((i) => i.studentId === student?.id)
+    ? allInvoices.filter((i) => familyStudentIds.has(i.studentId) || (i.parentId && i.parentId === parent?.id))
+    : allInvoices.filter(
+        (i) =>
+          i.studentId === student?.id ||
+          (student && i.studentName === student.name)
+      )
 
   // Calculations for summary cards
   const unpaidInvoices = relevantInvoices.filter(
@@ -77,7 +84,7 @@ function ParentBillingPage() {
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <p className="font-mono text-xs font-semibold text-[#000000]">
-            {row.original.id}
+            {row.original.invoiceNumber || row.original.id}
           </p>
           <p className="text-[11px] text-[#555555] flex items-center gap-1">
             <Clock className="w-3 h-3 text-[#555555]" />

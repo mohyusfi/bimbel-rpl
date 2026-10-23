@@ -6,6 +6,7 @@ import { registrationService } from '~/server/services/registration.service'
 import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
 import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
+import { billingService } from '~/server/services/billing.service'
 import {
   adminStore,
   type Registration,
@@ -342,7 +343,15 @@ export function useInvoices(studentId?: string) {
     queryKey: studentId
       ? ([...ADMIN_KEYS.invoices, 'student', studentId] as const)
       : ADMIN_KEYS.invoices,
-    queryFn: () => {
+    queryFn: async () => {
+      try {
+        const invoices = await billingService.getInvoices(studentId ? { studentId } : undefined)
+        if (invoices && invoices.length > 0) {
+          return invoices as unknown as Invoice[]
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil invoice dari Supabase:', err)
+      }
       const all = adminStore.getState().invoices
       return studentId ? all.filter((inv) => inv.studentId === studentId) : all
     },
@@ -357,8 +366,14 @@ export function useInvoiceDetails(invoiceId?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.invoices, 'detail', invoiceId] as const,
-    queryFn: () => {
+    queryFn: async () => {
       if (!invoiceId) return null
+      try {
+        const inv = await billingService.getInvoiceById(invoiceId)
+        if (inv) return inv as unknown as Invoice
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil invoice detail dari Supabase:', err)
+      }
       return adminStore.getState().invoices.find((inv) => inv.id === invoiceId) || null
     },
     initialData: () => {
@@ -459,6 +474,8 @@ export interface SubmitPaymentProofInput {
   invoiceId: string
   file?: File | Blob | null
   fileName?: string
+  receiptUrl?: string
+  storagePath?: string
   bankName: string
   paymentMethod: string
   submittedByRole: 'student' | 'parent'
@@ -466,76 +483,34 @@ export interface SubmitPaymentProofInput {
 }
 
 export async function uploadAndSubmitPaymentProof(input: SubmitPaymentProofInput) {
-  let storage_path: string | undefined
-  let receiptUrl: string | undefined
-
-  if (input.file) {
-    const fileObj = input.file
-    const originalName =
-      fileObj instanceof File
-        ? fileObj.name
-        : input.fileName || 'bukti_transfer.jpg'
+  let storage_path = input.storagePath
+  if (!storage_path && input.file) {
+    const originalName = input.fileName || (input.file instanceof File ? input.file.name : 'bukti_transfer.jpg')
     const sanitizedName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const targetPath = `${input.invoiceId}/${Date.now()}-${sanitizedName}`
-    const contentType = fileObj.type || 'image/jpeg'
-    storage_path = targetPath
-
-    try {
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(targetPath, fileObj, {
-          contentType,
-          upsert: true,
-        })
-
-      if (uploadError) {
-        console.warn('Supabase storage receipts upload notice:', uploadError.message)
-      } else {
-        const { data: signedData } = await supabase.storage
-          .from('receipts')
-          .createSignedUrl(targetPath, 60 * 60 * 24 * 7)
-
-        if (signedData?.signedUrl) {
-          receiptUrl = signedData.signedUrl
-        } else {
-          const { data: publicData } = supabase.storage
-            .from('receipts')
-            .getPublicUrl(targetPath)
-          receiptUrl = publicData?.publicUrl
-        }
-      }
-    } catch (err) {
-      console.warn('Gagal mengunggah ke Supabase storage receipts:', err)
-    }
-
-    // Fallback: Read file to data URL / object URL so image is visible locally
-    if (!receiptUrl) {
-      if (typeof FileReader !== 'undefined' && fileObj instanceof Blob) {
-        receiptUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.onerror = () => resolve(URL.createObjectURL(fileObj))
-          reader.readAsDataURL(fileObj)
-        })
-      } else if (typeof window !== 'undefined' && fileObj instanceof Blob) {
-        receiptUrl = URL.createObjectURL(fileObj)
-      }
-    }
+    storage_path = `${input.invoiceId}/${Date.now()}-${sanitizedName}`
   }
 
-  const fileName =
-    input.fileName ||
-    (input.file instanceof File ? input.file.name : 'bukti_transfer.jpg')
+  try {
+    const result = await billingService.submitPaymentProof({
+      ...input,
+      storagePath: storage_path,
+    })
+    if (result.success) {
+      return true
+    }
+  } catch (err) {
+    console.warn('[WARN] Supabase submitPaymentProof fallback:', err)
+  }
 
   return adminStore.submitPaymentProof({
     invoiceId: input.invoiceId,
-    fileName,
-    bankName: input.bankName,
-    paymentMethod: input.paymentMethod,
-    submittedByRole: input.submittedByRole,
-    submittedByName: input.submittedByName,
+    fileName: input.fileName || 'bukti_transfer.jpg',
+    bankName: input.bankName || 'Bank Syariah Indonesia (BSI)',
+    paymentMethod: input.paymentMethod || 'Transfer Bank',
+    submittedByRole: (input.submittedByRole as 'student' | 'parent') || 'student',
+    submittedByName: input.submittedByName || 'Siswa',
     storage_path,
-    receiptUrl,
+    receiptUrl: input.receiptUrl,
   })
 }
 
@@ -883,14 +858,24 @@ export function useAdminMutations() {
   const createInvoiceMutation = useMutation({
     mutationFn: async (input: {
       studentId: string
-      studentName: string
-      nis: string
+      studentName?: string
+      nis?: string
       programName: string
       amount: number
       dueDate: string
       description?: string
     }) => {
-      return adminStore.createInvoice(input)
+      const res = await billingService.createInvoice({
+        studentId: input.studentId,
+        programName: input.programName,
+        amount: input.amount,
+        dueDate: input.dueDate,
+        description: input.description,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -899,7 +884,13 @@ export function useAdminMutations() {
 
   const verifyInvoiceMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      return adminStore.verifyInvoice(invoiceId)
+      const res = await billingService.verifyPayment(invoiceId, {
+        verifiedByName: 'Hj. Nuraini, S.Pd',
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -913,7 +904,11 @@ export function useAdminMutations() {
         | { invoiceId: string; reason: string }
     ) => {
       const id = 'id' in payload ? payload.id : payload.invoiceId
-      return adminStore.rejectInvoice(id, payload.reason)
+      const res = await billingService.rejectPayment(id, payload.reason)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1350,14 +1345,24 @@ export function useCreateInvoiceMutation() {
   return useMutation({
     mutationFn: async (input: {
       studentId: string
-      studentName: string
-      nis: string
+      studentName?: string
+      nis?: string
       programName: string
       amount: number
       dueDate: string
       description?: string
     }) => {
-      return adminStore.createInvoice(input)
+      const res = await billingService.createInvoice({
+        studentId: input.studentId,
+        programName: input.programName,
+        amount: input.amount,
+        dueDate: input.dueDate,
+        description: input.description,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1369,7 +1374,13 @@ export function useVerifyInvoiceMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (invoiceId: string) => {
-      return adminStore.verifyInvoice(invoiceId)
+      const res = await billingService.verifyPayment(invoiceId, {
+        verifiedByName: 'Hj. Nuraini, S.Pd',
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1386,7 +1397,11 @@ export function useRejectInvoiceMutation() {
         | { invoiceId: string; reason: string }
     ) => {
       const id = 'id' in payload ? payload.id : payload.invoiceId
-      return adminStore.rejectInvoice(id, payload.reason)
+      const res = await billingService.rejectPayment(id, payload.reason)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -1438,6 +1453,7 @@ export function useAttendanceSessions(tutorId?: string, classId?: string) {
             endTime: s.endTime || '17:30',
             topic: s.topic || 'Sesi Bimbingan',
             isCompleted: s.isCompleted,
+            completedAt: (s as any).completedAt || (s as any).createdAt || undefined,
             entries: ((s as { entries?: AttendanceEntry[] }).entries || []),
           }))
         }
@@ -1475,6 +1491,7 @@ export function useSessionDetails(sessionId: string) {
             endTime: found.endTime || '17:30',
             topic: found.topic || 'Sesi Bimbingan',
             isCompleted: found.isCompleted,
+            completedAt: (found as any).completedAt || (found as any).createdAt || undefined,
             entries: ((found as { entries?: AttendanceEntry[] }).entries || []),
           }
         }
@@ -1664,8 +1681,13 @@ export function useStudentDashboardData(targetStudentId?: string) {
     (m) => currentStudent?.classId && m.classId === currentStudent.classId
   )
 
-  // Invoices
-  const studentInvoices = invoices.filter((i) => i.studentId === studentId)
+  // Invoices (cocokkan UUID database dan ID legacy)
+  const studentInvoices = invoices.filter(
+    (i) =>
+      i.studentId === studentId ||
+      (currentStudent && i.studentId === currentStudent.id) ||
+      (currentStudent && i.studentName === currentStudent.name)
+  )
 
   return {
     student: currentStudent,

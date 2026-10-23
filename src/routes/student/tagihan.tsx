@@ -65,7 +65,7 @@ function StudentTagihanPage() {
       header: 'No. invoice',
       cell: ({ row }) => (
         <span className="font-mono text-xs text-[#555555] whitespace-nowrap">
-          {row.original.id}
+          {row.original.invoiceNumber || row.original.id}
         </span>
       ),
     },

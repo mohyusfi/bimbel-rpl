@@ -193,14 +193,12 @@ function AdminPembayaranPage() {
   // Handle Verify Invoice
   const handleConfirmVerify = async () => {
     if (!inspectingInvoice) return
-    await verifyInvoice(inspectingInvoice.id)
-    const now = new Date()
-    const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
-    const numberSeq = inspectingInvoice.id.replace(/[^0-9]/g, '').slice(-4).padStart(4, '0') || '0001'
+    const res = await verifyInvoice(inspectingInvoice.id)
+    const receiptNumber = res?.receiptNumber || inspectingInvoice.receiptNumber || 'KWT-202610-0001'
     const updated: Invoice = {
       ...inspectingInvoice,
       status: 'lunas' as const,
-      receiptNumber: `KWT-${yearMonth}-${numberSeq}`,
+      receiptNumber,
       verifiedAt:
         new Intl.DateTimeFormat('id-ID', {
           day: 'numeric',
@@ -208,7 +206,7 @@ function AdminPembayaranPage() {
           year: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
-        }).format(now) + ' WITA',
+        }).format(new Date()) + ' WITA',
       verifiedBy: 'Hj. Nuraini, S.Pd',
     }
     setInspectingInvoice(null)
@@ -238,7 +236,7 @@ function AdminPembayaranPage() {
                 {inv.studentName}
               </span>
               <span className="font-mono text-xs text-[#6B6B6B] tabular-nums">
-                {inv.id}
+                {inv.invoiceNumber || inv.id}
               </span>
             </div>
             <p className="text-xs text-[#6B6B6B] mt-0.5">
@@ -501,7 +499,7 @@ function AdminPembayaranPage() {
                   <div className="p-3.5 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs font-bold text-[#000000]">
-                        {inspectingInvoice.id}
+                        {inspectingInvoice.invoiceNumber || inspectingInvoice.id}
                       </span>
                       <StatusBadge
                         status={inspectingInvoice.status}

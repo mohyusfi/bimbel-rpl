@@ -19,7 +19,16 @@ export function clampCapacity(capacity: unknown, defaultCap = 12): number {
 export async function ensureAdminSession(): Promise<boolean> {
   try {
     const { data: sessionData } = await supabase.auth.getSession()
-    if (sessionData?.session?.user) {
+    const userEmail = sessionData?.session?.user?.email?.toLowerCase() || ''
+    const isAdminEmail =
+      userEmail === 'pimpinan@tadulakocendekia.sch.id' ||
+      userEmail === 'nuraini.tu@tadulakocendekia.sch.id' ||
+      (userEmail.endsWith('@tadulakocendekia.sch.id') &&
+        !userEmail.includes('@siswa.') &&
+        !userEmail.includes('@wali.') &&
+        !userEmail.includes('@tutor.'))
+
+    if (isAdminEmail) {
       return true
     }
 
