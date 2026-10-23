@@ -1,5 +1,7 @@
 import { describe, it, expect, afterAll } from 'vitest'
 import { billingService } from '../billing.service'
+import { supabase } from '~/lib/supabase/client'
+import { ensureAdminSession } from '../master-data.service'
 
 describe('BillingService — TDD & Supabase Integration (Tiket 06)', { timeout: 20000 }, () => {
   const FAHRI_STUDENT_ID = 'd992d9fc-6f5b-434f-998b-358e54a754b7'
@@ -103,6 +105,38 @@ describe('BillingService — TDD & Supabase Integration (Tiket 06)', { timeout: 
       // Verifikasi status invoice terupdate di database
       const inv = await billingService.getInvoiceById(createdInvoiceId)
       expect(inv?.status).toBe('menunggu')
+    })
+
+    it('mengubah status tagihan menjadi menunggu saat diunggah oleh siswa dengan sesi aktif (RLS-safe)', async () => {
+      // 1. Login sebagai Siswa
+      await supabase.auth.signInWithPassword({
+        email: 'fahri.ramadhan@siswa.tadulakocendekia.sch.id',
+        password: 'password123',
+      })
+
+      // 2. Unggah bukti bayar
+      const validFile = new File(['valid png buffer'], 'bukti_siswa.png', { type: 'image/png' })
+      const res = await billingService.submitPaymentProof({
+        invoiceId: createdInvoiceId,
+        file: validFile,
+        fileName: 'bukti_siswa.png',
+        bankName: 'Bank Syariah Indonesia (BSI)',
+        submittedByRole: 'student',
+        submittedByName: 'Fahri Ramadhan',
+      })
+
+      expect(res.success).toBe(true)
+
+      // 3. Pastikan status invoice terbaca sebagai 'menunggu'
+      const inv = await billingService.getInvoiceById(createdInvoiceId)
+      expect(inv?.status).toBe('menunggu')
+
+      // 4. Pastikan sesi siswa tetap terjaga
+      const { data: currentSession } = await supabase.auth.getSession()
+      expect(currentSession.session?.user.email).toBe('fahri.ramadhan@siswa.tadulakocendekia.sch.id')
+
+      // 5. Kembalikan ke sesi admin untuk pengujian verifikasi admin berikutnya
+      await ensureAdminSession()
     })
 
     it('berhasil memverifikasi bukti bayar, mengubah status ke lunas, dan menerbitkan KWT-YYYYMM-XXXX', async () => {

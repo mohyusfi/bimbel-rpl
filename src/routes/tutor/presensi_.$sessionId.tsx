@@ -21,6 +21,7 @@ import {
   useSessionDetails,
 } from '~/hooks/use-admin-data'
 import { cn } from '~/lib/utils'
+import { toast } from '~/components/ui/toast'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 import { isSessionLockedForTutor } from '~/lib/attendance-helpers'
 
@@ -41,9 +42,7 @@ export function TutorPresensiDetailPage() {
   const [topic, setTopic] = React.useState<string>('')
   const [entries, setEntries] = React.useState<AttendanceEntry[]>([])
   const [saveSuccess, setSaveSuccess] = React.useState<boolean>(false)
-  const [hasAlpaNotice, setHasAlpaNotice] = React.useState<boolean>(false)
   const [isSaving, setIsSaving] = React.useState<boolean>(false)
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   // Cek apakah sesi terpilih terkunci (Audit Lock 24h)
   const isLocked = React.useMemo(() => {
@@ -56,8 +55,6 @@ export function TutorPresensiDetailPage() {
     if (session) {
       setTopic(session.topic || '')
       setSaveSuccess(false)
-      setHasAlpaNotice(false)
-      setErrorMessage(null)
 
       if (session.entries && session.entries.length > 0) {
         setEntries(session.entries)
@@ -119,7 +116,6 @@ export function TutorPresensiDetailPage() {
   const handleSave = async () => {
     if (!session || isLocked) return
     setIsSaving(true)
-    setErrorMessage(null)
     try {
       await saveSessionAttendance({
         sessionId: session.id,
@@ -128,15 +124,21 @@ export function TutorPresensiDetailPage() {
       })
 
       const anyAlpa = entries.some((e) => e.status === 'alpa')
-      setHasAlpaNotice(anyAlpa)
       setSaveSuccess(true)
-
       setTimeout(() => {
         setSaveSuccess(false)
-      }, 5000)
+      }, 3000)
+
+      toast.success('Perubahan presensi sesi berhasil disimpan!', {
+        description: anyAlpa
+          ? 'Data rekapitulasi kehadiran siswa telah diperbarui. Peringatan ketidakhadiran (Alpa) otomatis diteruskan ke notifikasi orang tua siswa terkait.'
+          : 'Data rekapitulasi kehadiran siswa telah diperbarui secara langsung ke sistem.',
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal menyimpan presensi'
-      setErrorMessage(msg)
+      toast.error('Gagal menyimpan perubahan presensi', {
+        description: msg,
+      })
     } finally {
       setIsSaving(false)
     }
@@ -497,37 +499,6 @@ export function TutorPresensiDetailPage() {
           )}
         </div>
       </div>
-
-      {/* Notifikasi Error atau Sukses */}
-      {errorMessage && (
-        <div className="p-4 bg-[#FFFFFF] border border-[#901B14] rounded-[10px] space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#901B14]">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Gagal menyimpan perubahan presensi</span>
-          </div>
-          <p className="text-xs text-[#555555] pl-6">{errorMessage}</p>
-        </div>
-      )}
-
-      {saveSuccess && (
-        <div className="p-4 bg-[#FFFFFF] border border-[#166534] rounded-[10px] space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#166534]">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Perubahan presensi sesi berhasil disimpan!</span>
-          </div>
-          <p className="text-xs text-[#555555] pl-6 leading-relaxed">
-            Data rekapitulasi kehadiran siswa telah diperbarui secara langsung ke sistem.
-          </p>
-          {hasAlpaNotice && (
-            <div className="mt-2 pt-2 border-t border-[#D2D2D2] flex items-start gap-2 text-xs text-[#901B14] pl-6">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                Peringatan ketidakhadiran (Alpa) otomatis diteruskan ke notifikasi orang tua siswa terkait.
-              </span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

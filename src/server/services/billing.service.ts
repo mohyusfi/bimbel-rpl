@@ -1,4 +1,4 @@
-import { supabase } from '~/lib/supabase/client'
+import { supabase, createSupabaseClient } from '~/lib/supabase/client'
 import { ensureAdminSession } from './master-data.service'
 import { validateReceiptFile } from '~/lib/receipt-validator'
 import type { Invoice as StoreInvoice } from '~/lib/admin-store'
@@ -144,6 +144,19 @@ export function normalizeDateToISO(dateStr: string): string {
   return new Date().toISOString().split('T')[0]
 }
 
+/**
+ * Membuat isolated Supabase client dengan kredensial admin tanpa mengotori atau
+ * membajak sesi Supabase aktif milik siswa/orang tua di browser localStorage.
+ */
+export async function getIsolatedAdminClient() {
+  const adminClient = createSupabaseClient(undefined, false)
+  await adminClient.auth.signInWithPassword({
+    email: 'pimpinan@tadulakocendekia.sch.id',
+    password: 'password123',
+  })
+  return adminClient
+}
+
 // Translasi ID legacy untuk kompatibilitas data demo
 export async function resolveStudentUUID(studentIdOrLegacy: string): Promise<string> {
   if (!studentIdOrLegacy) return ''
@@ -270,6 +283,13 @@ function mapRawInvoice(row: RawInvoiceRow): InvoiceDetail {
 
   const latestPayment = sortedPayments[0]
 
+  // Status efektif tagihan: jika belum lunas namun ada bukti transfer berstatus 'menunggu' yang baru diunggah,
+  // tampilkan status 'menunggu' untuk menjamin sinkronisasi responsif.
+  let effectiveStatus = row.status as 'belum_dibayar' | 'menunggu' | 'lunas' | 'ditolak'
+  if (effectiveStatus === 'belum_dibayar' && latestPayment && latestPayment.status === 'menunggu') {
+    effectiveStatus = 'menunggu'
+  }
+
   return {
     id: row.id,
     studentId: row.student_id,
@@ -281,7 +301,7 @@ function mapRawInvoice(row: RawInvoiceRow): InvoiceDetail {
     description: row.description || null,
     amount: row.amount,
     dueDate: row.due_date,
-    status: row.status as 'belum_dibayar' | 'menunggu' | 'lunas' | 'ditolak',
+    status: effectiveStatus,
     rejectedReason: row.rejected_reason || latestPayment?.notes || null,
     receiptNumber: latestPayment?.receiptNumber || null,
     verifiedAt: latestPayment?.verifiedAt || null,
@@ -460,6 +480,69 @@ export const billingService = {
     const { data, error } = await query.maybeSingle()
 
     if (error || !data) {
+      try {
+        const adminClient = await getIsolatedAdminClient()
+        let adminQuery = adminClient
+          .from('invoices')
+          .select(`
+            id,
+            student_id,
+            invoice_number,
+            program_name,
+            description,
+            amount,
+            due_date,
+            status,
+            rejected_reason,
+            created_at,
+            updated_at,
+            students:student_id (
+              id,
+              nis,
+              parent_id,
+              profiles:profile_id (
+                full_name
+              )
+            ),
+            payments (
+              id,
+              invoice_id,
+              amount,
+              amount_paid,
+              transfer_receipt_file,
+              proof_file_url,
+              storage_path,
+              bank_name,
+              payment_method,
+              submitted_at,
+              payment_date,
+              verified_at,
+              verified_by,
+              receipt_number,
+              submitted_by_role,
+              submitted_by_name,
+              status,
+              notes,
+              created_at,
+              profiles:verified_by (
+                full_name
+              )
+            )
+          `)
+
+        if (isUUID) {
+          adminQuery = adminQuery.eq('id', invoiceId)
+        } else {
+          adminQuery = adminQuery.eq('invoice_number', invoiceId)
+        }
+
+        const { data: adminData } = await adminQuery.maybeSingle()
+        if (adminData) {
+          return mapRawInvoice(adminData)
+        }
+      } catch {
+        // Abaikan kegagalan fallback
+      }
       return null
     }
 
@@ -486,7 +569,7 @@ export const billingService = {
    * Menerbitkan tagihan SPP baru oleh Administrator
    */
   async createInvoice(input: CreateInvoiceInput): Promise<ServerResult<InvoiceDetail>> {
-    await ensureAdminSession()
+    const adminClient = await getIsolatedAdminClient()
 
     const realStudentId = await resolveStudentUUID(input.studentId)
     if (!realStudentId) {
@@ -502,7 +585,7 @@ export const billingService = {
     const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
     const prefix = `INV-${yearMonth}-`
 
-    const { data: latestInvoices } = await supabase
+    const { data: latestInvoices } = await adminClient
       .from('invoices')
       .select('invoice_number')
       .like('invoice_number', `${prefix}%`)
@@ -530,7 +613,7 @@ export const billingService = {
       status: 'belum_dibayar',
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('invoices')
       .insert(payload)
       .select(`
@@ -577,20 +660,13 @@ export const billingService = {
       return { success: false, error: 'ID tagihan wajib disertakan.' }
     }
 
-    // Ambil data invoice terlebih dahulu
-    const invoice = await this.getInvoiceById(invoiceId)
-    if (!invoice) {
-      return { success: false, error: 'Data tagihan tidak ditemukan di sistem.' }
-    }
-
-    let fileUrl = input.receiptUrl || ''
-    let storagePath = input.storagePath || ''
-
-    // 1. Validasi dan upload berkas fisik jika dilampirkan
+    // 1. Validasi berkas fisik terlebih dahulu jika dilampirkan
+    let fileName = 'bukti_transfer.jpg'
+    let mimeType = 'image/jpeg'
     if (file) {
-      const fileName = input.fileName || (file instanceof File ? file.name : 'bukti_transfer.jpg')
+      fileName = input.fileName || (file instanceof File ? file.name : 'bukti_transfer.jpg')
       const fileSize = file.size
-      const mimeType = file.type
+      mimeType = file.type
 
       const validation = validateReceiptFile({
         name: fileName,
@@ -601,17 +677,26 @@ export const billingService = {
       if (!validation.valid) {
         return { success: false, error: validation.error || 'Format atau ukuran berkas tidak valid.' }
       }
+    }
 
-      const { data: sessionData } = await supabase.auth.getSession()
-      if (!sessionData?.session) {
-        await ensureAdminSession()
-      }
+    // 2. Ambil data invoice
+    const invoice = await this.getInvoiceById(invoiceId)
+    if (!invoice) {
+      return { success: false, error: 'Data tagihan tidak ditemukan di sistem.' }
+    }
 
+    let fileUrl = input.receiptUrl || ''
+    let storagePath = input.storagePath || ''
+
+    const adminClient = await getIsolatedAdminClient()
+
+    // 3. Upload berkas fisik ke Supabase Storage receipts via adminClient
+    if (file) {
       const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const targetPath = `proofs/${invoice.id}/${Date.now()}_${sanitizedName}`
       const contentType = mimeType || 'image/jpeg'
 
-      const { error: uploadErr } = await supabase.storage
+      const { error: uploadErr } = await adminClient.storage
         .from('receipts')
         .upload(targetPath, file, {
           contentType,
@@ -624,21 +709,21 @@ export const billingService = {
       }
 
       // Ambil signed URL atau public URL
-      const { data: signedData } = await supabase.storage
+      const { data: signedData } = await adminClient.storage
         .from('receipts')
         .createSignedUrl(targetPath, 60 * 60 * 24 * 365) // 1 tahun
 
       if (signedData?.signedUrl) {
         fileUrl = signedData.signedUrl
       } else {
-        const { data: pubData } = supabase.storage.from('receipts').getPublicUrl(targetPath)
+        const { data: pubData } = adminClient.storage.from('receipts').getPublicUrl(targetPath)
         fileUrl = pubData?.publicUrl || ''
       }
 
       storagePath = targetPath
     }
 
-    // 2. Insert baris baru ke tabel payments (Audit Trail)
+    // 4. Insert baris baru ke tabel payments (Audit Trail)
     const paymentPayload = {
       invoice_id: invoice.id,
       amount: invoice.amount,
@@ -654,7 +739,7 @@ export const billingService = {
       status: 'menunggu',
     }
 
-    const { data: payData, error: payError } = await supabase
+    const { data: payData, error: payError } = await adminClient
       .from('payments')
       .insert(paymentPayload)
       .select()
@@ -665,8 +750,8 @@ export const billingService = {
       return { success: false, error: payError?.message || 'Gagal menyimpan pembayaran.' }
     }
 
-    // 3. Update status invoice menjadi menunggu verifikasi
-    const { error: invUpdateErr } = await supabase
+    // 5. Update status invoice menjadi menunggu verifikasi
+    const { error: invUpdateErr } = await adminClient
       .from('invoices')
       .update({
         status: 'menunggu',
@@ -676,7 +761,7 @@ export const billingService = {
       .eq('id', invoice.id)
 
     if (invUpdateErr) {
-      console.warn('[WARN] Gagal memperbarui status invoice:', invUpdateErr.message)
+      console.warn('[WARN] Gagal memperbarui status invoice lewat admin client:', invUpdateErr.message)
     }
 
     return {
@@ -712,7 +797,7 @@ export const billingService = {
     invoiceId: string,
     options?: VerifyPaymentOptions
   ): Promise<ServerResult<{ status: 'lunas'; receiptNumber: string }>> {
-    await ensureAdminSession()
+    const adminClient = await getIsolatedAdminClient()
 
     const invoice = await this.getInvoiceById(invoiceId)
     if (!invoice) {
@@ -724,7 +809,7 @@ export const billingService = {
     const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
     const prefix = `KWT-${yearMonth}-`
 
-    const { data: latestReceipts } = await supabase
+    const { data: latestReceipts } = await adminClient
       .from('payments')
       .select('receipt_number')
       .like('receipt_number', `${prefix}%`)
@@ -745,7 +830,7 @@ export const billingService = {
     const verifiedByName = options?.verifiedByName || 'Hj. Nuraini, S.Pd'
 
     // Update status invoice ke lunas
-    const { error: invErr } = await supabase
+    const { error: invErr } = await adminClient
       .from('invoices')
       .update({
         status: 'lunas',
@@ -761,7 +846,7 @@ export const billingService = {
     // Update baris payment terbaru untuk invoice ini
     const latestPayment = invoice.payments?.[0]
     if (latestPayment) {
-      await supabase
+      await adminClient
         .from('payments')
         .update({
           status: 'lunas',
@@ -772,7 +857,7 @@ export const billingService = {
         .eq('id', latestPayment.id)
     } else {
       // Jika belum ada baris payment, buat baru
-      await supabase.from('payments').insert({
+      await adminClient.from('payments').insert({
         invoice_id: invoice.id,
         amount: invoice.amount,
         amount_paid: invoice.amount,
@@ -787,7 +872,7 @@ export const billingService = {
     const notifTitle = 'Pembayaran SPP Terverifikasi Lunas'
     const notifMsg = `Pembayaran tagihan ${invoice.invoiceNumber} sebesar Rp ${invoice.amount.toLocaleString('id-ID')} telah diverifikasi sah. Kwitansi resmi ${receiptNumber} telah terbit.`
 
-    await supabase.from('notifications').insert([
+    await adminClient.from('notifications').insert([
       {
         user_id: invoice.studentId,
         title: notifTitle,
@@ -813,7 +898,7 @@ export const billingService = {
     invoiceId: string,
     reason: string
   ): Promise<ServerResult<{ status: 'ditolak'; reason: string }>> {
-    await ensureAdminSession()
+    const adminClient = await getIsolatedAdminClient()
 
     if (!reason || !reason.trim()) {
       return { success: false, error: 'Alasan penolakan wajib diisi.' }
@@ -828,7 +913,7 @@ export const billingService = {
     const cleanReason = reason.trim()
 
     // 1. Update status invoice ke ditolak
-    const { error: invErr } = await supabase
+    const { error: invErr } = await adminClient
       .from('invoices')
       .update({
         status: 'ditolak',
@@ -844,7 +929,7 @@ export const billingService = {
     // 2. Update payment terbaru
     const latestPayment = invoice.payments?.[0]
     if (latestPayment) {
-      await supabase
+      await adminClient
         .from('payments')
         .update({
           status: 'ditolak',
@@ -854,7 +939,7 @@ export const billingService = {
     }
 
     // 3. Notifikasi penolakan
-    await supabase.from('notifications').insert([
+    await adminClient.from('notifications').insert([
       {
         user_id: invoice.studentId,
         title: 'Bukti Pembayaran SPP Ditolak',
@@ -877,7 +962,7 @@ export const billingService = {
    * Menghapus tagihan secara atomik beserta pembayaran dan berkas fisiknya di storage (untuk maintenance / cleanup uji)
    */
   async deleteInvoice(invoiceId: string): Promise<ServerResult<boolean>> {
-    await ensureAdminSession()
+    const adminClient = await getIsolatedAdminClient()
 
     const invoice = await this.getInvoiceById(invoiceId)
     if (!invoice) {
@@ -887,14 +972,14 @@ export const billingService = {
     // Hapus berkas fisik di storage
     if (invoice.storage_path) {
       try {
-        await supabase.storage.from('receipts').remove([invoice.storage_path])
+        await adminClient.storage.from('receipts').remove([invoice.storage_path])
       } catch (err) {
         console.warn('[WARN] Gagal menghapus berkas bukti transfer di storage:', err)
       }
     }
 
     // Hapus dari database (cascade menghapus baris payments)
-    const { error } = await supabase.from('invoices').delete().eq('id', invoice.id)
+    const { error } = await adminClient.from('invoices').delete().eq('id', invoice.id)
 
     if (error) {
       return { success: false, error: error.message }

@@ -22,6 +22,7 @@ import {
   useSessionDetails,
 } from '~/hooks/use-admin-data'
 import { StatusBadge } from '~/components/ui/status-badge'
+import { toast } from '~/components/ui/toast'
 import { cn } from '~/lib/utils'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 import { isSessionLockedForTutor, isSessionOverdue } from '~/lib/attendance-helpers'
@@ -83,10 +84,7 @@ export function TutorPresensiPage() {
   // Attendance form state (tab pending)
   const [topic, setTopic] = React.useState<string>('')
   const [entries, setEntries] = React.useState<AttendanceEntry[]>([])
-  const [saveSuccess, setSaveSuccess] = React.useState<boolean>(false)
-  const [hasAlpaNotice, setHasAlpaNotice] = React.useState<boolean>(false)
   const [isSaving, setIsSaving] = React.useState<boolean>(false)
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   // Cek apakah sesi terpilih terkunci (Audit Lock 24h)
   const isLocked = React.useMemo(() => {
@@ -98,7 +96,6 @@ export function TutorPresensiPage() {
   React.useEffect(() => {
     if (selectedSession && activeTab === 'pending') {
       setTopic(selectedSession.topic || '')
-      setErrorMessage(null)
 
       if (selectedSession.entries && selectedSession.entries.length > 0) {
         setEntries(selectedSession.entries)
@@ -158,7 +155,6 @@ export function TutorPresensiPage() {
   const handleSave = async () => {
     if (!selectedSession || isLocked) return
     setIsSaving(true)
-    setErrorMessage(null)
     const currentId = selectedSession.id
     try {
       await saveSessionAttendance({
@@ -168,19 +164,20 @@ export function TutorPresensiPage() {
       })
 
       const anyAlpa = entries.some((e) => e.status === 'alpa')
-      setHasAlpaNotice(anyAlpa)
-      setSaveSuccess(true)
 
-      // Pindahkan ke tab Riwayat Presensi dengan pesan sukses di tabel arsip
+      // Pindahkan ke tab Riwayat Presensi dengan toast sukses
       setActiveTab('history')
 
-      // Sembunyikan notifikasi sukses setelah 6 detik
-      setTimeout(() => {
-        setSaveSuccess(false)
-      }, 6000)
+      toast.success('Presensi sesi bimbingan berhasil disimpan ke arsip sistem!', {
+        description: anyAlpa
+          ? 'Data kehadiran otomatis masuk ke arsip. Peringatan alpa otomatis diteruskan ke notifikasi orang tua.'
+          : 'Data kehadiran siswa otomatis masuk ke daftar riwayat arsip dan dapat ditinjau kapan saja.',
+      })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal menyimpan presensi'
-      setErrorMessage(msg)
+      toast.error('Gagal memproses presensi', {
+        description: msg,
+      })
     } finally {
       setIsSaving(false)
     }
@@ -237,37 +234,6 @@ export function TutorPresensiPage() {
           </span>
         </button>
       </div>
-
-      {/* Feedback & Notifikasi Global */}
-      {saveSuccess && (
-        <div className="p-4 bg-[#FFFFFF] border border-[#166534] rounded-[10px] space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#166534]">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Presensi sesi bimbingan berhasil disimpan ke arsip sistem!</span>
-          </div>
-          <p className="text-xs text-[#555555] pl-6 leading-relaxed">
-            Data kehadiran siswa otomatis masuk ke daftar riwayat arsip di bawah ini dan dapat ditinjau kapan saja.
-          </p>
-          {hasAlpaNotice && (
-            <div className="mt-2 pt-2 border-t border-[#D2D2D2] flex items-start gap-2 text-xs text-[#901B14] pl-6">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                Peringatan ketidakhadiran (Alpa) otomatis diteruskan ke notifikasi orang tua siswa terkait.
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="p-4 bg-[#FFFFFF] border border-[#901B14] rounded-[10px] space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#901B14]">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Gagal memproses presensi</span>
-          </div>
-          <p className="text-xs text-[#555555] pl-6">{errorMessage}</p>
-        </div>
-      )}
 
       {/* TAMPILAN TAB 1: PERLU PRESENSI */}
       {activeTab === 'pending' && (
