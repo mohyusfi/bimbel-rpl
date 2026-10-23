@@ -13,7 +13,19 @@ vi.mock('@tanstack/react-router', () => ({
   useRouterState: ({ select }: { select?: (s: { isLoading: boolean }) => boolean }) => {
     return select ? select({ isLoading: mockIsLoading }) : { isLoading: mockIsLoading }
   },
-  Link: ({ children, to, className }: any) => <a href={to} className={className}>{children}</a>,
+  Link: ({
+    children,
+    to,
+    className,
+  }: {
+    children: React.ReactNode
+    to: string
+    className?: string
+  }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
 }))
 
 describe('Skeleton & Navigation Progress Fallback Suite', () => {

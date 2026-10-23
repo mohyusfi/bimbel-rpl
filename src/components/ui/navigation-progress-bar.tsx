@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { useRouterState } from '@tanstack/react-router'
 
+const NAVIGATION_EXIT_DELAY_MS = 250
+
 export function NavigationProgressBar() {
   const isLoading = useRouterState({ select: (s) => s.isLoading })
   const [visible, setVisible] = React.useState(Boolean(isLoading))
@@ -12,7 +14,7 @@ export function NavigationProgressBar() {
     } else {
       timer = setTimeout(() => {
         setVisible(false)
-      }, 250)
+      }, NAVIGATION_EXIT_DELAY_MS)
     }
     return () => {
       if (timer) clearTimeout(timer)

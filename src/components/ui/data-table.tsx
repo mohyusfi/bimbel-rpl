@@ -22,6 +22,10 @@ import {
 import { cn } from '~/lib/utils'
 import { Skeleton } from './skeleton'
 
+const SKELETON_ROWS_COUNT = 5
+const SKELETON_MOBILE_CARDS_COUNT = 3
+const SKELETON_CELL_WIDTHS = ['w-3/4', 'w-1/2', 'w-2/3', 'w-3/5', 'w-4/5'] as const
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -164,7 +168,7 @@ export function DataTable<TData, TValue>({
       {renderMobileCard && (
         <div className={cn('md:hidden divide-y divide-[#D2D2D2]', isLoading && table.getRowModel().rows.length > 0 && 'opacity-50 transition-opacity pointer-events-none')}>
           {isLoading && table.getRowModel().rows.length === 0 ? (
-            Array.from({ length: 3 }).map((_, idx) => (
+            Array.from({ length: SKELETON_MOBILE_CARDS_COUNT }).map((_, idx) => (
               <div
                 key={`skeleton-mobile-${idx}`}
                 data-testid="data-table-skeleton-mobile"
@@ -243,14 +247,13 @@ export function DataTable<TData, TValue>({
 
           <tbody className={cn('divide-y divide-[#D2D2D2]', isLoading && table.getRowModel().rows.length > 0 && 'opacity-50 transition-opacity pointer-events-none')}>
             {isLoading && table.getRowModel().rows.length === 0 ? (
-              Array.from({ length: 5 }).map((_, rowIndex) => (
+              Array.from({ length: SKELETON_ROWS_COUNT }).map((_, rowIndex) => (
                 <tr
                   key={`skeleton-row-${rowIndex}`}
                   data-testid="data-table-skeleton-row"
                 >
                   {columns.map((_, colIndex) => {
-                    const widths = ['w-3/4', 'w-1/2', 'w-2/3', 'w-3/5', 'w-4/5']
-                    const widthClass = widths[(rowIndex + colIndex) % widths.length]
+                    const widthClass = SKELETON_CELL_WIDTHS[(rowIndex + colIndex) % SKELETON_CELL_WIDTHS.length]
                     return (
                       <td
                         key={`skeleton-cell-${colIndex}`}
