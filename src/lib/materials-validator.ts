@@ -12,6 +12,9 @@ export const ALLOWED_MATERIAL_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'application/vnd.ms-powerpoint',
+  'application/wps-office.pptx',
+  'application/x-wps-office.pptx',
+  'application/kspresentation',
 ] as const
 
 export interface MaterialValidationResult {
@@ -36,7 +39,10 @@ export function validateMaterialFormat(
   const isPptx =
     lowerName.endsWith('.pptx') ||
     mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-    mimeType === 'application/vnd.ms-powerpoint'
+    mimeType === 'application/vnd.ms-powerpoint' ||
+    mimeType === 'application/wps-office.pptx' ||
+    mimeType === 'application/x-wps-office.pptx' ||
+    mimeType === 'application/kspresentation'
 
   if (!isPdf && !isPptx) {
     return {
@@ -108,4 +114,16 @@ export function validateMaterialFile(file: {
     valid: true,
     fileType: formatCheck.fileType,
   }
+}
+
+/**
+ * Memformat ukuran byte ke string terbaca manusia (misal: 3.7 MB)
+ */
+export function formatBytesToReadable(bytes: number): string {
+  if (typeof bytes !== 'number' || isNaN(bytes) || bytes <= 0) return '0 MB'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const val = bytes / Math.pow(k, i)
+  return `${val.toFixed(1)} ${sizes[i]}`
 }

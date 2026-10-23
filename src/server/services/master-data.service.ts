@@ -138,12 +138,24 @@ export const masterDataService = {
       return { success: false, error: 'Ruangan tidak ditemukan' }
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('rooms')
       .update({ is_active: !current.is_active })
       .eq('id', id)
       .select()
       .single()
+
+    if (error) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      const retry = await supabase
+        .from('rooms')
+        .update({ is_active: !current.is_active })
+        .eq('id', id)
+        .select()
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error || !data) {
       console.warn('[WARN] Gagal toggle room active di Supabase:', error?.message)

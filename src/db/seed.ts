@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://rtamiwffuaxwzyjkocmj.supabase.co'
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseAnonKey =
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0YW1pd2ZmdWF4d3p5amtvY21qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MTQzNDksImV4cCI6MjEwNzE5MDM0OX0.bOIIpD_R-4lQW_T0MEnBsINYXTpwVjH3ExU9peF8XD0'
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('[ERROR] Supabase URL atau Anon Key tidak ditemukan di environment variable.')
@@ -316,7 +318,209 @@ async function runSeed() {
     }
   }
 
-  console.log('[DONE] [Tiket 01] Database Seeding Master Data Selesai 100% Sukses!')
+  // 6. Link Child Alya Ramadhani to Ahmad Dahlan (Tiket 05 Multi-Child Support)
+  console.log('[SEED] Memverifikasi relasi multi-child parent Ahmad Dahlan...')
+  const ahmadDahlanParentId = '4ef83eaa-2764-4eec-9019-a987a34c4c7b'
+  const alyaStudentId = 'e1a2a3a4-b5b6-c7c8-d9d0-e1e2e3e4e5e7'
+  await supabase
+    .from('students')
+    .update({ parent_id: ahmadDahlanParentId })
+    .eq('id', alyaStudentId)
+  console.log('[OK] Alya Ramadhani terhubung ke wali murid Ahmad Dahlan.')
+
+  // 7. Seed Materials (Modul Belajar - Tiket 05)
+  console.log('[SEED] [Tiket 05] Menyuntikkan master data materials (Modul Pembelajaran)...')
+  const initialMaterials = [
+    {
+      id: 'b1000000-0000-0000-0000-000000000001',
+      class_id: 'c1000000-0000-0000-0000-000000000001', // UTBK Intensif A
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      title: 'Modul 01: Kinematika & Dinamika Gerak Lurus UTBK',
+      description: 'Ringkasan konsep gerak lurus berubah beraturan (GLBB), gerak parabola, dan hukum Newton beserta contoh soal kontekstual.',
+      category: 'Modul Teori',
+      file_type: 'PDF',
+      file_size: '3.7 MB',
+      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
+      storage_path: 'classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
+    },
+    {
+      id: 'b1000000-0000-0000-0000-000000000002',
+      class_id: 'c1000000-0000-0000-0000-000000000001', // UTBK Intensif A
+      tutor_id: tutorMap.get('Pak Hendra Wijaya, M.Pd'),
+      title: 'Bank Soal: TPS Penalaran Matematika & Kuantitatif 2026',
+      description: 'Kompilasi 50 soal prediksi penalaran umum dan pengetahuan kuantitatif SNBT dengan pembahasan komprehensif.',
+      category: 'Bank Soal',
+      file_type: 'PDF',
+      file_size: '4.2 MB',
+      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
+      storage_path: 'classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
+    },
+    {
+      id: 'b1000000-0000-0000-0000-000000000004',
+      class_id: 'c1000000-0000-0000-0000-000000000004', // SMP Prestasi A
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      title: 'Lembar Kerja Siswa: Sistem Peredaran Darah Manusia',
+      description: 'LKS interaktif IPA Terpadu Kelas 8 persiapan asesmen formatif tengah semester.',
+      category: 'Lembar Tugas',
+      file_type: 'PDF',
+      file_size: '2.1 MB',
+      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
+      storage_path: 'classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
+    },
+  ]
+
+  // Pastikan objek file contoh tersedia di bucket
+  const samplePdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Title (Modul Belajar Tadulako Cendekia) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF')
+  for (const m of initialMaterials) {
+    if (m.storage_path) {
+      await supabase.storage.from('learning-materials').upload(m.storage_path, samplePdf, {
+        contentType: m.file_type === 'PDF' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        upsert: true,
+      })
+    }
+
+    const { data: existingMat } = await supabase
+      .from('materials')
+      .select('id')
+      .eq('id', m.id)
+      .maybeSingle()
+
+    if (existingMat) {
+      console.log(`  ↪ Material "${m.title}" sudah ada: ${m.id}`)
+    } else {
+      const { error: matErr } = await supabase.from('materials').insert(m)
+      if (matErr) {
+        console.error(`  [ERROR] Gagal insert material "${m.title}":`, matErr.message)
+      } else {
+        console.log(`  [OK] Material "${m.title}" berhasil dibuat.`)
+      }
+    }
+  }
+
+  // 8. Seed Grades (Nilai & Evaluasi Rapor - Tiket 05)
+  console.log('[SEED] [Tiket 05] Menyuntikkan data grades (Nilai & Catatan Evaluasi)...')
+  const fahriStudentId = 'd992d9fc-6f5b-434f-998b-358e54a754b7'
+  const bintangStudentId = '921896b7-be81-4d51-af4a-6cc467757b03'
+  const utbkClassId = 'c1000000-0000-0000-0000-000000000001'
+  const smpClassId = 'c1000000-0000-0000-0000-000000000004'
+
+  const initialGrades = [
+    // Fahri Ramadhan (UTBK Intensif A)
+    {
+      id: 'de000000-0000-0000-0000-000000000001',
+      student_id: fahriStudentId,
+      class_id: utbkClassId,
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      subject_name: 'Fisika UTBK',
+      assessment_title: 'Try Out 1 UTBK: Mekanika & Listrik',
+      category: 'Try Out',
+      score: 85,
+      class_average: 78,
+      tutor_feedback: 'Pemahaman konsep hukum Newton dan gerak parabola sangat kuat. Perlu ketelitian lebih pada perhitungan usaha dan energi kinetik.',
+      assessment_date: '2026-10-10',
+    },
+    {
+      id: 'de000000-0000-0000-0000-000000000002',
+      student_id: fahriStudentId,
+      class_id: utbkClassId,
+      tutor_id: tutorMap.get('Pak Hendra Wijaya, M.Pd'),
+      subject_name: 'Penalaran Matematika & TPS',
+      assessment_title: 'Kuis 1: Penalaran Logika Kuantitatif',
+      category: 'Kuis',
+      score: 92,
+      class_average: 80,
+      tutor_feedback: 'Kecepatan pengerjaan pola barisan dan deret sangat baik. Pertahankan fokus pada soal cerita perbandingan rasio!',
+      assessment_date: '2026-10-15',
+    },
+    {
+      id: 'de000000-0000-0000-0000-000000000003',
+      student_id: fahriStudentId,
+      class_id: utbkClassId,
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      subject_name: 'Fisika UTBK',
+      assessment_title: 'Tugas Mandiri: Gelombang Bunyi & Cahaya',
+      category: 'Tugas',
+      score: 88,
+      class_average: 82,
+      tutor_feedback: 'Analisis efek Doppler dan intensitas bunyi diselesaikan dengan runut dan lengkap.',
+      assessment_date: '2026-10-19',
+    },
+    // Bintang Pratama (Teman Sekelas di UTBK Intensif A)
+    {
+      id: 'de000000-0000-0000-0000-000000000004',
+      student_id: bintangStudentId,
+      class_id: utbkClassId,
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      subject_name: 'Fisika UTBK',
+      assessment_title: 'Try Out 1 UTBK: Mekanika & Listrik',
+      category: 'Try Out',
+      score: 71,
+      class_average: 78,
+      tutor_feedback: 'Bagus dalam memahami rumus dasar, perbanyak latihan soal variasi pada materi hukum gravitasi Newton.',
+      assessment_date: '2026-10-10',
+    },
+    {
+      id: 'de000000-0000-0000-0000-000000000005',
+      student_id: bintangStudentId,
+      class_id: utbkClassId,
+      tutor_id: tutorMap.get('Pak Hendra Wijaya, M.Pd'),
+      subject_name: 'Penalaran Matematika & TPS',
+      assessment_title: 'Kuis 1: Penalaran Logika Kuantitatif',
+      category: 'Kuis',
+      score: 76,
+      class_average: 80,
+      tutor_feedback: 'Logika matematika baik, perlu akselerasi waktu pengerjaan untuk bagian TPS kuantitatif.',
+      assessment_date: '2026-10-15',
+    },
+    // Alya Ramadhani (SMP Prestasi A)
+    {
+      id: 'de000000-0000-0000-0000-000000000006',
+      student_id: alyaStudentId,
+      class_id: smpClassId,
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      subject_name: 'IPA Terpadu SMP',
+      assessment_title: 'Kuis Formatif: Sistem Organ Manusia',
+      category: 'Kuis',
+      score: 90,
+      class_average: 84,
+      tutor_feedback: 'Sangat aktif dan memahami fungsi jantung dan sirkulasi peredaran darah dengan sangat baik.',
+      assessment_date: '2026-10-16',
+    },
+    {
+      id: 'de000000-0000-0000-0000-000000000007',
+      student_id: alyaStudentId,
+      class_id: smpClassId,
+      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
+      subject_name: 'IPA Terpadu SMP',
+      assessment_title: 'LKS Mandiri: Klasifikasi Makhluk Hidup',
+      category: 'Tugas',
+      score: 86,
+      class_average: 81,
+      tutor_feedback: 'Kunci dikotomi hewan avertebrata dibuat dengan rapi dan teliti.',
+      assessment_date: '2026-10-18',
+    },
+  ]
+
+  for (const g of initialGrades) {
+    const { data: existingGrd } = await supabase
+      .from('grades')
+      .select('id')
+      .eq('id', g.id)
+      .maybeSingle()
+
+    if (existingGrd) {
+      console.log(`  ↪ Grade "${g.assessment_title}" untuk siswa ${g.student_id} sudah ada: ${g.id}`)
+    } else {
+      const { error: grdErr } = await supabase.from('grades').insert(g)
+      if (grdErr) {
+        console.error(`  [ERROR] Gagal insert grade "${g.assessment_title}":`, grdErr.message)
+      } else {
+        console.log(`  [OK] Grade "${g.assessment_title}" berhasil dibuat: skor ${g.score}`)
+      }
+    }
+  }
+
+  console.log('[DONE] [Tiket 01 & Tiket 05] Database Seeding Master Data & Modul Nilai Selesai 100% Sukses!')
 }
 
 runSeed().catch((err) => {

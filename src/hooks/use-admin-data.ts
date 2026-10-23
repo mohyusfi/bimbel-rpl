@@ -5,6 +5,7 @@ import { masterDataService } from '~/server/services/master-data.service'
 import { registrationService } from '~/server/services/registration.service'
 import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
+import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
 import {
   adminStore,
   type Registration,
@@ -79,10 +80,45 @@ export function useAdminDataSync() {
   const queryClient = useQueryClient()
 
   React.useEffect(() => {
-    const unsubscribe = adminStore.subscribe(() => {
+    const unsubscribeStore = adminStore.subscribe(() => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     })
-    return unsubscribe
+
+    let realtimeChannel: any = null
+    if (typeof window !== 'undefined' && isSupabaseConfigured() && typeof supabase.channel === 'function') {
+      try {
+        realtimeChannel = supabase
+          .channel('public:academic-sync-live')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'materials' },
+            () => {
+              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.materials })
+              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'grades' },
+            () => {
+              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.grades })
+              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+            }
+          )
+          .subscribe()
+      } catch (err) {
+        console.warn('[WARN] Gagal menginisialisasi realtime academic sync:', err)
+      }
+    }
+
+    return () => {
+      unsubscribeStore()
+      if (realtimeChannel && typeof supabase.removeChannel === 'function') {
+        try {
+          supabase.removeChannel(realtimeChannel)
+        } catch {}
+      }
+    }
   }, [queryClient])
 }
 
@@ -388,71 +424,35 @@ export type AddLearningMaterialInput = Omit<LearningMaterial, 'id' | 'uploadedAt
 }
 
 export async function uploadAndSaveLearningMaterial(input: AddLearningMaterialInput) {
-  let fileUrl = input.fileUrl
-  let storage_path = input.storage_path || input.storagePath
+  const res = await learningService.uploadMaterial({
+    file: input.file,
+    classId: input.classId,
+    tutorId: input.tutorId,
+    title: input.title,
+    description: input.description,
+    category: input.category,
+    fileType: input.fileType,
+    fileSize: input.fileSize,
+    fileUrl: input.fileUrl,
+    storagePath: input.storage_path || input.storagePath,
+  })
 
-  if (input.file) {
-    const fileObj = input.file
-    const originalName = fileObj instanceof File ? fileObj.name : `${input.title}.${input.fileType === 'PPTX' ? 'pptx' : 'pdf'}`
-    const sanitizedName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const targetPath = `${input.classId || 'general'}/${Date.now()}-${sanitizedName}`
-
-    const contentType =
-      fileObj.type ||
-      (input.fileType === 'PPTX'
-        ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-        : 'application/pdf')
-
-    const { error: uploadError } = await supabase.storage
-      .from('learning-materials')
-      .upload(targetPath, fileObj, {
-        contentType,
-        upsert: true,
-      })
-
-    if (uploadError) {
-      console.error('Supabase storage upload failed:', uploadError)
-      throw uploadError
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from('learning-materials')
-      .getPublicUrl(targetPath)
-
-    fileUrl = publicUrlData.publicUrl
-    storage_path = targetPath
+  if (!res.success) {
+    throw new Error(res.error)
   }
 
-  const { file: _, ...materialPayload } = input
-  return adminStore.addLearningMaterial({
-    ...materialPayload,
-    fileUrl: fileUrl || materialPayload.fileUrl,
-    storage_path,
-    storagePath: storage_path,
-  })
+  return res.data
 }
 
 export async function removeAndDeleteLearningMaterial(idOrPayload: string | { id: string; storage_path?: string }) {
   const id = typeof idOrPayload === 'string' ? idOrPayload : idOrPayload.id
-  const explicitStoragePath = typeof idOrPayload === 'object' ? idOrPayload.storage_path : undefined
+  const res = await learningService.deleteMaterial(id)
 
-  const target = adminStore.getState().learningMaterials.find((m) => m.id === id)
-  const storagePath = explicitStoragePath || target?.storage_path || target?.storagePath
-
-  if (storagePath) {
-    try {
-      const { error: removeError } = await supabase.storage
-        .from('learning-materials')
-        .remove([storagePath])
-      if (removeError) {
-        console.warn('Supabase storage remove warning:', removeError)
-      }
-    } catch (err) {
-      console.warn('Failed to remove file from Supabase storage:', err)
-    }
+  if (!res.success) {
+    throw new Error(res.error)
   }
 
-  return adminStore.deleteLearningMaterial(id)
+  return true
 }
 
 export interface SubmitPaymentProofInput {
@@ -1048,20 +1048,43 @@ export function useAdminMutations() {
 
   const addGradeRecordMutation = useMutation({
     mutationFn: async (
-      input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & { classAverage?: number }
+      input: Omit<GradeRecord, 'id' | 'assessmentDate' | 'classAverage'> & {
+        classAverage?: number
+        assessmentDate?: string
+      }
     ) => {
-      return adminStore.addGradeRecord(input)
+      const res = await learningService.saveGrade({
+        studentId: input.studentId,
+        classId: input.classId,
+        tutorId: input.tutorId,
+        subjectName: input.subjectName,
+        assessmentTitle: input.assessmentTitle,
+        category: input.category,
+        score: input.score,
+        tutorFeedback: input.tutorFeedback,
+        assessmentDate: input.assessmentDate,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.grades })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
 
   const updateGradeRecordMutation = useMutation({
     mutationFn: async (input: { id: string; updates: Partial<GradeRecord> }) => {
-      return adminStore.updateGradeRecord(input.id, input.updates)
+      const res = await learningService.updateGrade(input.id, input.updates)
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      return res.data
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.grades })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -1468,8 +1491,9 @@ export function useLearningMaterials() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.materials,
-    queryFn: () => adminStore.getState().learningMaterials,
-    initialData: () => adminStore.getState().learningMaterials,
+    queryFn: async () => {
+      return await learningService.getMaterials()
+    },
   })
 }
 
@@ -1477,16 +1501,13 @@ export function useClassMaterials(classId?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: classId ? ([...ADMIN_KEYS.materials, 'class', classId] as const) : ADMIN_KEYS.materials,
-    queryFn: () => {
-      const all = adminStore.getState().learningMaterials
-      if (!classId || classId === 'ALL') return all
-      return all.filter((m) => m.classId === classId || m.classId === 'ALL')
+    queryFn: async () => {
+      if (!classId || classId === 'ALL') {
+        return await learningService.getMaterials()
+      }
+      return await learningService.getMaterialsByClass(classId)
     },
-    initialData: () => {
-      const all = adminStore.getState().learningMaterials
-      if (!classId || classId === 'ALL') return all
-      return all.filter((m) => m.classId === classId || m.classId === 'ALL')
-    },
+    enabled: Boolean(classId),
   })
 }
 
@@ -1494,25 +1515,33 @@ export function useTutorMaterials(tutorId?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: tutorId ? ([...ADMIN_KEYS.materials, 'tutor', tutorId] as const) : ADMIN_KEYS.materials,
-    queryFn: () => {
-      const all = adminStore.getState().learningMaterials
-      if (!tutorId || tutorId === 'ALL') return all
-      return all.filter((m) => m.tutorId === tutorId)
+    queryFn: async () => {
+      if (!tutorId || tutorId === 'ALL') {
+        return await learningService.getMaterials()
+      }
+      return await learningService.getMaterialsByTutor(tutorId)
     },
-    initialData: () => {
-      const all = adminStore.getState().learningMaterials
-      if (!tutorId || tutorId === 'ALL') return all
-      return all.filter((m) => m.tutorId === tutorId)
-    },
+    enabled: Boolean(tutorId),
   })
 }
 
-export function useGradeRecords() {
+export function useGradeRecords(filters?: { studentId?: string; classId?: string; tutorId?: string }) {
   useAdminDataSync()
+  const hasFilter = Boolean(filters?.studentId || filters?.classId || filters?.tutorId)
+  const queryKey = hasFilter
+    ? ([
+        ...ADMIN_KEYS.grades,
+        ...(filters?.studentId ? ['student', filters.studentId] : []),
+        ...(filters?.classId ? ['class', filters.classId] : []),
+        ...(filters?.tutorId ? ['tutor', filters.tutorId] : []),
+      ] as const)
+    : ADMIN_KEYS.grades
+
   return useQuery({
-    queryKey: ADMIN_KEYS.grades,
-    queryFn: () => adminStore.getState().gradeRecords,
-    initialData: () => adminStore.getState().gradeRecords,
+    queryKey,
+    queryFn: async () => {
+      return await learningService.getGrades(filters)
+    },
   })
 }
 
@@ -1615,8 +1644,10 @@ export function useStudentDashboardData(targetStudentId?: string) {
       ? Math.round((hadirCount / totalCompleted) * 100)
       : 100
 
-  // Grades for student
-  const studentGrades = grades.filter((g) => g.studentId === studentId)
+  // Grades for student (cocokkan UUID database dan ID legacy pengguna aktif)
+  const studentGrades = grades.filter(
+    (g) => g.studentId === studentId || (currentStudent && g.studentId === currentStudent.id)
+  )
   const total = studentGrades.length
   const avgScore =
     total > 0
@@ -1626,11 +1657,11 @@ export function useStudentDashboardData(targetStudentId?: string) {
       : 0
   const highestScore =
     total > 0 ? Math.max(...studentGrades.map((g) => g.score)) : 0
-  const avgGrade = total > 0 ? avgScore : 88
+  const avgGrade = total > 0 ? avgScore : 0
 
-  // Class materials
+  // Class materials: ketat per rombel kelas siswa sesuai Acceptance Criteria Tiket 05
   const classMaterials = materials.filter(
-    (m) => m.classId === currentStudent?.classId || m.classId === 'ALL'
+    (m) => currentStudent?.classId && m.classId === currentStudent.classId
   )
 
   // Invoices

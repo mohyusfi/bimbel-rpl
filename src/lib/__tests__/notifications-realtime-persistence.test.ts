@@ -657,6 +657,62 @@ describe('Tiket 07 — Notifikasi Waktu-Nyata Supabase Realtime & Broadcast Bimb
       expect(hookResult).toBeDefined()
       expect(typeof hookResult.getActiveChannels).toBe('function')
     })
+
+    it('memfilter notifikasi admin dari role siswa (role: student) dan mengisolasi unread count', () => {
+      const queryClient = new QueryClient()
+      queryClient.setQueryData(ADMIN_KEYS.notifications, adminStore.getState().notifications)
+
+      const studentHook = renderHookInSSR(
+        () => useRealtimeNotifications({ userId: 'stu-1', role: 'student' }),
+        queryClient
+      )
+
+      // Siswa tidak boleh melihat pendaftaran atau bukti bayar siswa lain
+      const hasRegistrationNotif = studentHook.notifications.some(
+        (n) => n.type === 'registration'
+      )
+      expect(hasRegistrationNotif).toBe(false)
+
+      const hasGeneralPaymentNotif = studentHook.notifications.some(
+        (n) => n.type === 'payment' && !n.userId && !n.metadata?.studentId
+      )
+      expect(hasGeneralPaymentNotif).toBe(false)
+    })
+
+    it('menandai seluruh notifikasi yang tampil sebagai terbaca via markAllAsRead() sehingga unreadCount 0', () => {
+      const queryClient = new QueryClient()
+
+      // Tambah notifikasi khusus untuk stu-test
+      const newNotif = adminStore.addNotification({
+        userId: 'stu-test-unread',
+        title: 'Pengumuman Ujian',
+        message: 'Jadwal ujian akhir pekan',
+        type: 'academic',
+      })
+      expect(newNotif.isRead).toBe(false)
+
+      queryClient.setQueryData(ADMIN_KEYS.notifications, adminStore.getState().notifications)
+
+      const hookResult = renderHookInSSR(
+        () => useRealtimeNotifications({ userId: 'stu-test-unread', role: 'student' }),
+        queryClient
+      )
+
+      expect(hookResult.unreadCount).toBeGreaterThan(0)
+
+      hookResult.markAllAsRead()
+
+      // Sinkronkan cache QueryClient dengan state terbaru dari adminStore
+      queryClient.setQueryData(ADMIN_KEYS.notifications, adminStore.getState().notifications)
+
+      // Ambil kembali state setelah markAllAsRead
+      const hookAfter = renderHookInSSR(
+        () => useRealtimeNotifications({ userId: 'stu-test-unread', role: 'student' }),
+        queryClient
+      )
+
+      expect(hookAfter.unreadCount).toBe(0)
+    })
   })
 
   // =========================================================================

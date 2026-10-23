@@ -129,8 +129,7 @@ export function DashboardShell({
     unreadCount: unreadNotifsCount,
     markAsRead,
     markAllAsRead,
-    isConnected: isRealtimeConnected,
-  } = useRealtimeNotifications({ userId: currentUserId })
+  } = useRealtimeNotifications({ userId: currentUserId, role })
 
   const allItems = React.useMemo(
     () => navGroups.flatMap((g) => g.items),
@@ -414,15 +413,6 @@ export function DashboardShell({
                         {unreadNotifsCount > 0 && (
                           <span className="px-2 py-0.5 text-[10px] font-bold bg-[#CB2957] text-[#FFFFFF] rounded-full tabular-nums">
                             {unreadNotifsCount} baru
-                          </span>
-                        )}
-                        {isRealtimeConnected && (
-                          <span
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-[#16A34A]"
-                            title="Supabase Realtime Terhubung"
-                          >
-                            <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-                            <span className="hidden sm:inline">Live</span>
                           </span>
                         )}
                       </div>

@@ -877,14 +877,14 @@ const INITIAL_MATERIALS: LearningMaterial[] = [
     classId: 'cls-1',
     className: 'UTBK Intensif A',
     subjectName: 'Fisika UTBK',
-    title: 'MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
-    description: 'Ringkasan komprehensif rumus mekanika, dinamika rotasi, dan strategi pengerjaan soal tipe HOTS SNBT.',
+    title: 'Modul 01: Kinematika & Dinamika Gerak Lurus UTBK',
+    description: 'Ringkasan komprehensif konsep gerak lurus dan strategi pengerjaan soal tipe HOTS SNBT.',
     category: 'Modul Teori',
     tutorId: 'tut-1',
     tutorName: 'Kak Dian Pratiwi, S.Si',
     fileType: 'PDF',
     fileSize: '3.7 MB',
-    fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
+    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
     uploadedAt: '16 Okt 2026',
   },
   {
@@ -892,44 +892,29 @@ const INITIAL_MATERIALS: LearningMaterial[] = [
     classId: 'cls-1',
     className: 'UTBK Intensif A',
     subjectName: 'Informatika & Integrasi Sistem',
-    title: 'Arsitektur dan Integrasi REST API.pptx',
-    description: 'Slide materi presentasi visual mengenai arsitektur client-server, RESTful API contract, dan protokol integrasi sistem modern.',
-    category: 'Modul Teori',
+    title: 'Bank Soal: TPS Penalaran Matematika & Kuantitatif 2026',
+    description: 'Kompilasi 50 soal prediksi penalaran umum dan pengetahuan kuantitatif SNBT dengan pembahasan komprehensif.',
+    category: 'Bank Soal',
     tutorId: 'tut-2',
     tutorName: 'Pak Hendra Wijaya, M.Pd',
-    fileType: 'PPTX',
-    fileSize: '160 KB',
-    fileUrl: '/Arsitektur dan Integrasi REST API.pptx',
-    uploadedAt: '15 Okt 2026',
-  },
-  {
-    id: 'mat-3',
-    classId: 'cls-1',
-    className: 'UTBK Intensif A',
-    subjectName: 'Fisika UTBK',
-    title: 'Bank Soal Try Out Fisika SNBT 2025-2026.pdf',
-    description: 'Kompilasi butir soal latihan evaluasi konsep dan pemecahan kasus gerak lurus dan termodinamika.',
-    category: 'Bank Soal',
-    tutorId: 'tut-1',
-    tutorName: 'Kak Dian Pratiwi, S.Si',
     fileType: 'PDF',
-    fileSize: '3.7 MB',
-    fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf',
-    uploadedAt: '12 Okt 2026',
+    fileSize: '4.2 MB',
+    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
+    uploadedAt: '15 Okt 2026',
   },
   {
     id: 'mat-4',
     classId: 'cls-4',
     className: 'SMP Prestasi A',
     subjectName: 'IPA Terpadu SMP',
-    title: 'Slide Presentasi Prinsip Kerja Jaringan & Data.pptx',
-    description: 'Materi slide pengenalan dasar struktur pertukaran data dan komunikasi protokol digital.',
-    category: 'Modul Teori',
+    title: 'Lembar Kerja Siswa: Sistem Peredaran Darah Manusia',
+    description: 'LKS interaktif IPA Terpadu Kelas 8 persiapan asesmen formatif tengah semester.',
+    category: 'Lembar Tugas',
     tutorId: 'tut-1',
     tutorName: 'Kak Dian Pratiwi, S.Si',
-    fileType: 'PPTX',
-    fileSize: '160 KB',
-    fileUrl: '/Arsitektur dan Integrasi REST API.pptx',
+    fileType: 'PDF',
+    fileSize: '2.1 MB',
+    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
     uploadedAt: '10 Okt 2026',
   },
 ]
@@ -1046,16 +1031,15 @@ function loadInitialState(): AdminState {
           console.info('[INFO] Auto-purging legacy mock data from localStorage...')
           localStorage.removeItem(STORAGE_KEY)
         } else {
-          const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS
-          const learningMaterials = rawMaterials.map((m) => {
-            if (m.fileUrl?.includes('fisika-utbk-2026') || m.fileUrl?.includes('bank-soal-utbk') || m.fileUrl === '#') {
-              return { ...m, fileUrl: '/MOH YUSFI LAKHAFIDUN MODUL 1.pdf', fileType: 'PDF' as const }
-            }
-            if (m.fileUrl?.includes('penalaran-matematika') || m.fileUrl?.includes('ipa-terpadu')) {
-              return { ...m, fileUrl: '/Arsitektur dan Integrasi REST API.pptx', fileType: 'PPTX' as const }
-            }
-            return m
-          })
+          // Auto-purge modul materi dan rapor nilai dari localStorage agar tidak tertinggal data lama
+          if (parsed.learningMaterials || parsed.gradeRecords) {
+            delete parsed.learningMaterials
+            delete parsed.gradeRecords
+            try {
+              const { learningMaterials: _m, gradeRecords: _g, ...cleaned } = parsed
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned))
+            } catch {}
+          }
 
           return {
             ...parsed,
@@ -1066,8 +1050,8 @@ function loadInitialState(): AdminState {
             courses: parsed.courses || [],
             classes: parsed.classes || [],
             attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
-            learningMaterials,
-            gradeRecords: parsed.gradeRecords || INITIAL_GRADES,
+            learningMaterials: [],
+            gradeRecords: [],
             parents: parsed.parents || INITIAL_PARENTS,
             selectedChildId: parsed.selectedChildId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
             activeTutorId: parsed.activeTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
@@ -1122,7 +1106,8 @@ function clampCapacity(capacity: unknown, defaultCap = 12): number {
 function saveAndNotify() {
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      const { learningMaterials: _m, gradeRecords: _g, ...persistentState } = state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentState))
     } catch (e) {
       console.warn('Gagal menyimpan admin state ke localStorage:', e)
     }
