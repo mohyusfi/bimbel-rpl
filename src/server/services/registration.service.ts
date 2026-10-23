@@ -16,6 +16,132 @@ export function generateRegistrationNumber(sequence: number): string {
   return `REG-${year}${month}-${seq}`
 }
 
+export function generateStudentNis(sequence: number, year = 2026): string {
+  const seq = String(sequence).padStart(3, '0')
+  return `TC-${year}-${seq}`
+}
+
+export function validateClassCapacityForTransfer(
+  currentCount: number,
+  capacityLimit = 12,
+  className = 'Rombel'
+): { valid: boolean; error?: string } {
+  const max = Math.min(12, clampCapacity(capacityLimit))
+  if (currentCount >= max) {
+    return {
+      valid: false,
+      error: `Rombel ${className} sudah penuh (${currentCount}/${max} siswa). Batas maksimal adalah ${max} siswa.`,
+    }
+  }
+  return { valid: true }
+}
+
+export interface UpdateStudentInput {
+  id: string
+  name: string
+  email: string
+  phone: string
+  school: string
+  classId: string
+  parentName: string
+  parentPhone: string
+  parentEmail?: string
+  parentJob?: string
+  parentAddress?: string
+  status: 'aktif' | 'nonaktif'
+}
+
+export interface CreateStudentInput {
+  name: string
+  email: string
+  phone: string
+  school: string
+  packageCode: PackageCode
+  classId: string
+  parentName: string
+  parentPhone: string
+  parentEmail?: string
+  parentJob?: string
+  parentAddress?: string
+}
+
+export interface StudentDetail extends Student {
+  classDetails?: {
+    id: string
+    name: string
+    capacity: number
+    currentStudents: number
+    tutorName?: string
+  }
+  schedules?: Array<{
+    id: string
+    subjectName: string
+    tutorName: string
+    roomName: string
+    dayOfWeek: string
+    startTime: string
+    endTime: string
+  }>
+}
+
+interface DbClassRow {
+  id: string
+  class_name: string
+  capacity: number
+  courses?: { course_code?: string | null } | null
+}
+
+interface DbScheduleRow {
+  id: string
+  subject_name: string | null
+  day_of_week: string
+  start_time: string | null
+  end_time: string | null
+  rooms?: { name?: string | null } | null
+  tutors?: {
+    profiles?: {
+      full_name?: string | null
+    } | null
+  } | null
+}
+
+interface DbStudentRelationRow {
+  id: string
+  nis: string
+  origin_school: string | null
+  grade_level: string
+  status: string
+  created_at: string | null
+  profiles?: {
+    id?: string
+    full_name?: string | null
+    email?: string | null
+    phone_number?: string | null
+  } | null
+  parents?: {
+    id?: string
+    occupation?: string | null
+    address?: string | null
+    profiles?: {
+      full_name?: string | null
+      email?: string | null
+      phone_number?: string | null
+    } | null
+  } | null
+  class_members?: Array<{
+    class_id?: string
+    classes?: {
+      id?: string
+      class_name?: string | null
+      capacity?: number | null
+      courses?: { course_code?: string | null } | null
+      tutors?: {
+        profiles?: { full_name?: string | null } | null
+      } | null
+    } | null
+  }> | null
+}
+
 export interface CreateRegistrationInput {
   studentName: string
   studentEmail: string
@@ -35,13 +161,15 @@ export const registrationService = {
    * Mengambil semua data pendaftaran calon siswa dari Supabase
    */
   async getRegistrations(): Promise<Registration[]> {
+    await ensureAdminSession()
+
     const { data, error } = await supabase
       .from('registrations')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil registrations dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil registrations dari Supabase:', error?.message)
       return []
     }
 
@@ -70,6 +198,8 @@ export const registrationService = {
    * Mengambil data seluruh siswa dari Supabase beserta relasi profil, wali, dan rombel kelas
    */
   async getStudents(): Promise<Student[]> {
+    await ensureAdminSession()
+
     const { data, error } = await supabase
       .from('students')
       .select(`
@@ -109,7 +239,7 @@ export const registrationService = {
       .order('nis', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil students dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil students dari Supabase:', error?.message)
       return []
     }
 
@@ -438,7 +568,7 @@ export const registrationService = {
         }])
 
       if (memberInsertErr) {
-        console.warn('⚠️ Gagal memasukkan siswa ke class_members:', memberInsertErr.message)
+        console.warn('[WARN] Gagal memasukkan siswa ke class_members:', memberInsertErr.message)
       }
     }
 
@@ -453,7 +583,7 @@ export const registrationService = {
       .eq('id', regId)
 
     if (updateRegErr) {
-      console.warn('⚠️ Gagal update status registrasi:', updateRegErr.message)
+      console.warn('[WARN] Gagal update status registrasi:', updateRegErr.message)
     }
 
     return {
@@ -484,5 +614,592 @@ export const registrationService = {
     }
 
     return { success: true, data: true }
+  },
+
+  /**
+   * Memperbarui data siswa, kontak orang tua, dan mutasi rombel kelas
+   */
+  async updateStudent(input: UpdateStudentInput): Promise<ServerResult<Student>> {
+    await ensureAdminSession()
+
+    // 1. Ambil data siswa yang akan diupdate (dukung UUID maupun ID mock 'stu-X')
+    let studentRecord: {
+      id: string
+      profile_id: string
+      parent_id: string | null
+      class_id: string | null
+      grade_level: string
+      nis: string
+      created_at: string | null
+    } | null = null
+
+    const { data: directStudent } = await supabase
+      .from('students')
+      .select('id, profile_id, parent_id, class_id, grade_level, nis, created_at')
+      .eq('id', input.id)
+      .maybeSingle()
+
+    if (directStudent) {
+      studentRecord = directStudent
+    } else if (input.id.startsWith('stu-')) {
+      const seq = input.id.replace('stu-', '').padStart(3, '0')
+      const targetNis = `TC-2026-${seq}`
+      const { data: nisStudent } = await supabase
+        .from('students')
+        .select('id, profile_id, parent_id, class_id, grade_level, nis, created_at')
+        .eq('nis', targetNis)
+        .maybeSingle()
+
+      if (nisStudent) {
+        studentRecord = nisStudent
+      }
+    }
+
+    if (!studentRecord) {
+      return { success: false, error: 'Data siswa tidak ditemukan di database.' }
+    }
+
+    // 2. Update profil siswa di tabel profiles
+    if (studentRecord.profile_id) {
+      const { error: spErr } = await supabase
+        .from('profiles')
+        .update({
+          full_name: input.name.trim(),
+          email: input.email.trim().toLowerCase(),
+          phone_number: input.phone.trim(),
+          status: input.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', studentRecord.profile_id)
+
+      if (spErr) {
+        console.warn('[WARN] Gagal update profil siswa:', spErr.message)
+      }
+    }
+
+    // 3. Update data orang tua di tabel parents & profiles
+    if (studentRecord.parent_id) {
+      await supabase
+        .from('parents')
+        .update({
+          occupation: input.parentJob?.trim() || null,
+          address: input.parentAddress?.trim() || null,
+          phone_number: input.parentPhone.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', studentRecord.parent_id)
+
+      const { data: parentRecord } = await supabase
+        .from('parents')
+        .select('profile_id')
+        .eq('id', studentRecord.parent_id)
+        .maybeSingle()
+
+      if (parentRecord?.profile_id) {
+        const parentProfileUpdates: Record<string, string> = {
+          full_name: input.parentName.trim(),
+          phone_number: input.parentPhone.trim(),
+          updated_at: new Date().toISOString(),
+        }
+        if (input.parentEmail?.trim()) {
+          parentProfileUpdates.email = input.parentEmail.trim().toLowerCase()
+        }
+        await supabase
+          .from('profiles')
+          .update(parentProfileUpdates)
+          .eq('id', parentRecord.profile_id)
+      }
+    }
+
+    // 4. Cek perubahan kelas / mutasi rombel
+    let currentClassId = studentRecord.class_id
+    let updatedPackageCode: PackageCode =
+      (studentRecord.grade_level === 'SMA' ? 'UTBK' : (studentRecord.grade_level as PackageCode)) || 'UTBK'
+    let resolvedClassName = 'Rombel Bimbingan'
+
+    // Ambil info semua kelas untuk resolusi
+    const { data: dbClasses } = await supabase
+      .from('classes')
+      .select('id, class_name, capacity, courses:course_id(course_code)')
+
+    const typedClasses = (dbClasses as unknown as DbClassRow[] | null) || []
+
+    if (input.classId && input.classId !== currentClassId) {
+      let targetClass: DbClassRow | null = typedClasses.find((c) => c.id === input.classId) || null
+      if (!targetClass && typedClasses.length > 0) {
+        const clsMapping: Record<string, string> = {
+          'cls-1': 'UTBK Intensif A',
+          'cls-2': 'UTBK Intensif B',
+          'cls-3': 'SMA IPA 1',
+          'cls-4': 'SMP Prestasi A',
+          'cls-5': 'SD Cendekia A',
+        }
+        const mapped = clsMapping[input.classId]
+        if (mapped) {
+          targetClass = typedClasses.find((c) => c.class_name.toLowerCase() === mapped.toLowerCase()) || null
+        }
+      }
+
+      if (!targetClass) {
+        return { success: false, error: 'Kelas rombel tujuan mutasi tidak ditemukan.' }
+      }
+
+      // Validasi kuota rombel tujuan (maksimal 12 siswa)
+      const { count: memberCount } = await supabase
+        .from('class_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', targetClass.id)
+
+      const capacityCheck = validateClassCapacityForTransfer(
+        memberCount ?? 0,
+        targetClass.capacity || 12,
+        targetClass.class_name
+      )
+      if (!capacityCheck.valid) {
+        return { success: false, error: capacityCheck.error! }
+      }
+
+      // Hapus keanggotaan kelas lama dan daftarkan ke kelas baru
+      await supabase
+        .from('class_members')
+        .delete()
+        .eq('student_id', studentRecord.id)
+
+      await supabase
+        .from('class_members')
+        .insert([{
+          id: crypto.randomUUID(),
+          class_id: targetClass.id,
+          student_id: studentRecord.id,
+          joined_at: new Date().toISOString(),
+        }])
+
+      currentClassId = targetClass.id
+      resolvedClassName = targetClass.class_name
+      const courseCode = targetClass.courses?.course_code as PackageCode
+      if (courseCode) {
+        updatedPackageCode = courseCode
+      }
+    } else if (currentClassId && typedClasses.length > 0) {
+      const existingCls = typedClasses.find((c) => c.id === currentClassId)
+      if (existingCls) {
+        resolvedClassName = existingCls.class_name
+      }
+    }
+
+    // 5. Update tabel students
+    const gradeLevel = updatedPackageCode === 'UTBK' ? 'SMA' : updatedPackageCode
+    const { error: finalStudErr } = await supabase
+      .from('students')
+      .update({
+        origin_school: input.school.trim(),
+        status: input.status,
+        class_id: currentClassId,
+        grade_level: gradeLevel,
+      })
+      .eq('id', studentRecord.id)
+
+    if (finalStudErr) {
+      return { success: false, error: finalStudErr.message }
+    }
+
+    const updatedResult: Student = {
+      id: studentRecord.id,
+      nis: studentRecord.nis,
+      name: input.name.trim(),
+      email: input.email.trim().toLowerCase(),
+      phone: input.phone.trim(),
+      school: input.school.trim(),
+      packageCode: updatedPackageCode,
+      classId: currentClassId || '',
+      className: resolvedClassName,
+      parentName: input.parentName.trim(),
+      parentPhone: input.parentPhone.trim(),
+      parentEmail: input.parentEmail?.trim() || undefined,
+      parentJob: input.parentJob?.trim() || undefined,
+      parentAddress: input.parentAddress?.trim() || undefined,
+      joinDate: studentRecord.created_at
+        ? new Intl.DateTimeFormat('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }).format(new Date(studentRecord.created_at))
+        : 'Oktober 2026',
+      status: input.status,
+    }
+
+    return { success: true, data: updatedResult }
+  },
+
+  /**
+   * Mendaftarkan siswa & wali baru langsung ke Supabase
+   */
+  async createStudent(input: CreateStudentInput): Promise<ServerResult<Student>> {
+    await ensureAdminSession()
+
+    // 1. Validasi rombel kelas
+    const { data: dbClasses } = await supabase
+      .from('classes')
+      .select('id, class_name, capacity, courses:course_id(course_code)')
+
+    const typedClasses = (dbClasses as unknown as DbClassRow[] | null) || []
+    let targetClass: DbClassRow | null = typedClasses.find((c) => c.id === input.classId) || null
+    if (!targetClass && typedClasses.length > 0) {
+      const clsMapping: Record<string, string> = {
+        'cls-1': 'UTBK Intensif A',
+        'cls-2': 'UTBK Intensif B',
+        'cls-3': 'SMA IPA 1',
+        'cls-4': 'SMP Prestasi A',
+        'cls-5': 'SD Cendekia A',
+      }
+      const mapped = clsMapping[input.classId]
+      if (mapped) {
+        targetClass = typedClasses.find((c) => c.class_name.toLowerCase() === mapped.toLowerCase()) || null
+      }
+    }
+
+    if (!targetClass) {
+      return { success: false, error: 'Rombel kelas tujuan tidak ditemukan.' }
+    }
+
+    // 2. Cek kuota rombel kelas
+    const { count: memberCount } = await supabase
+      .from('class_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', targetClass.id)
+
+    const capacityCheck = validateClassCapacityForTransfer(
+      memberCount ?? 0,
+      targetClass.capacity || 12,
+      targetClass.class_name
+    )
+    if (!capacityCheck.valid) {
+      return { success: false, error: capacityCheck.error! }
+    }
+
+    // 3. Generate sequential NIS
+    const { count: totalStudents } = await supabase
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+
+    const nis = generateStudentNis((totalStudents ?? 0) + 1)
+
+    // 4. Buat profil siswa
+    const studentProfileId = crypto.randomUUID()
+    const { error: spErr } = await supabase
+      .from('profiles')
+      .insert([{
+        id: studentProfileId,
+        full_name: input.name.trim(),
+        email: input.email.trim().toLowerCase(),
+        phone_number: input.phone.trim(),
+        role: 'student',
+        status: 'aktif',
+      }])
+
+    if (spErr) {
+      return { success: false, error: spErr.message }
+    }
+
+    // 5. Buat profil & entri orang tua
+    const parentProfileId = crypto.randomUUID()
+    const parentEmail =
+      input.parentEmail?.trim().toLowerCase() ||
+      `${input.email.split('@')[0]}.wali@tadulakocendekia.sch.id`
+
+    await supabase
+      .from('profiles')
+      .insert([{
+        id: parentProfileId,
+        full_name: input.parentName.trim(),
+        email: parentEmail,
+        phone_number: input.parentPhone.trim(),
+        role: 'parent',
+        status: 'aktif',
+      }])
+
+    const parentRecordId = crypto.randomUUID()
+    await supabase
+      .from('parents')
+      .insert([{
+        id: parentRecordId,
+        profile_id: parentProfileId,
+        occupation: input.parentJob?.trim() || 'Wali Murid',
+        address: input.parentAddress?.trim() || 'Kota Palu',
+        phone_number: input.parentPhone.trim(),
+      }])
+
+    // 6. Buat entri siswa
+    const courseCode = (targetClass.courses?.course_code as PackageCode) || input.packageCode
+    const gradeLevel = courseCode === 'UTBK' ? 'SMA' : courseCode
+    const studentId = crypto.randomUUID()
+
+    const { data: newStudent, error: stErr } = await supabase
+      .from('students')
+      .insert([{
+        id: studentId,
+        profile_id: studentProfileId,
+        parent_id: parentRecordId,
+        nis,
+        origin_school: input.school.trim(),
+        grade_level: gradeLevel,
+        status: 'aktif',
+        class_id: targetClass.id,
+      }])
+      .select()
+      .single()
+
+    if (stErr || !newStudent) {
+      return { success: false, error: stErr?.message || 'Gagal menyimpan data siswa.' }
+    }
+
+    // 7. Daftarkan ke class_members
+    await supabase
+      .from('class_members')
+      .insert([{
+        id: crypto.randomUUID(),
+        class_id: targetClass.id,
+        student_id: studentId,
+      }])
+
+    const result: Student = {
+      id: studentId,
+      nis,
+      name: input.name.trim(),
+      email: input.email.trim().toLowerCase(),
+      phone: input.phone.trim(),
+      school: input.school.trim(),
+      packageCode: courseCode,
+      classId: targetClass.id,
+      className: targetClass.class_name,
+      parentName: input.parentName.trim(),
+      parentPhone: input.parentPhone.trim(),
+      parentEmail: input.parentEmail?.trim() || undefined,
+      parentJob: input.parentJob?.trim() || undefined,
+      parentAddress: input.parentAddress?.trim() || undefined,
+      joinDate: new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date()),
+      status: 'aktif',
+    }
+
+    return { success: true, data: result }
+  },
+
+  /**
+   * Mengambil detail lengkap seorang siswa berdasarkan ID
+   */
+  async getStudentById(id: string): Promise<ServerResult<StudentDetail>> {
+    await ensureAdminSession()
+
+    let studentData: DbStudentRelationRow | null = null
+
+    // 1. Coba query langsung by id (UUID)
+    const { data: directData } = await supabase
+      .from('students')
+      .select(`
+        id,
+        nis,
+        origin_school,
+        grade_level,
+        status,
+        created_at,
+        profiles:profile_id (
+          id,
+          full_name,
+          email,
+          phone_number
+        ),
+        parents:parent_id (
+          id,
+          occupation,
+          address,
+          profiles:profile_id (
+            full_name,
+            email,
+            phone_number
+          )
+        ),
+        class_members (
+          class_id,
+          classes:class_id (
+            id,
+            class_name,
+            capacity,
+            courses:course_id (
+              course_code
+            ),
+            tutors:tutor_id (
+              profiles:profile_id (
+                full_name
+              )
+            )
+          )
+        )
+      `)
+      .eq('id', id)
+      .maybeSingle()
+
+    if (directData) {
+      studentData = directData as unknown as DbStudentRelationRow
+    } else if (id.startsWith('stu-')) {
+      // 2. Pemetaan ID mock 'stu-X' ke NIS 'TC-2026-00X'
+      const seq = id.replace('stu-', '').padStart(3, '0')
+      const targetNis = `TC-2026-${seq}`
+      const { data: nisData } = await supabase
+        .from('students')
+        .select(`
+          id,
+          nis,
+          origin_school,
+          grade_level,
+          status,
+          created_at,
+          profiles:profile_id (
+            id,
+            full_name,
+            email,
+            phone_number
+          ),
+          parents:parent_id (
+            id,
+            occupation,
+            address,
+            profiles:profile_id (
+              full_name,
+              email,
+              phone_number
+            )
+          ),
+          class_members (
+            class_id,
+            classes:class_id (
+              id,
+              class_name,
+              capacity,
+              courses:course_id (
+                course_code
+              ),
+              tutors:tutor_id (
+                profiles:profile_id (
+                  full_name
+                )
+              )
+            )
+          )
+        `)
+        .eq('nis', targetNis)
+        .maybeSingle()
+
+      if (nisData) {
+        studentData = nisData as unknown as DbStudentRelationRow
+      }
+    }
+
+    if (!studentData) {
+      return { success: false, error: 'Siswa tidak ditemukan' }
+    }
+
+    const s = studentData
+    const studentProfile = s.profiles || {}
+    const parentRecord = s.parents || {}
+    const parentProfile = parentRecord.profiles || {}
+    const firstMember = s.class_members?.[0] || {}
+    const classRecord = firstMember.classes || {}
+    const courseRecord = classRecord.courses || {}
+    const tutorRecord = classRecord.tutors || {}
+    const tutorProfile = tutorRecord.profiles || {}
+
+    const classId = firstMember.class_id || ''
+    const className = classRecord.class_name || 'Rombel Bimbingan'
+
+    // Ambil jumlah siswa aktif di kelas tersebut
+    let currentStudentsCount = 0
+    if (classId) {
+      const { count } = await supabase
+        .from('class_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', classId)
+      currentStudentsCount = count ?? 0
+    }
+
+    // Ambil jadwal bimbingan untuk kelas ini
+    let schedulesList: StudentDetail['schedules'] = []
+    if (classId) {
+      const { data: dbSchedules } = await supabase
+        .from('schedules')
+        .select(`
+          id,
+          subject_name,
+          day_of_week,
+          start_time,
+          end_time,
+          rooms:room_id (name),
+          tutors:tutor_id (
+            profiles:profile_id (
+              full_name
+            )
+          )
+        `)
+        .eq('class_id', classId)
+        .order('day_of_week', { ascending: true })
+
+      if (dbSchedules) {
+        const typedSchedules = dbSchedules as unknown as DbScheduleRow[]
+        schedulesList = typedSchedules.map((sch) => ({
+          id: sch.id,
+          subjectName: sch.subject_name || 'Mata Pelajaran',
+          tutorName: sch.tutors?.profiles?.full_name || 'Tutor Bimbel',
+          roomName: sch.rooms?.name || 'Ruang Belajar',
+          dayOfWeek: sch.day_of_week,
+          startTime: sch.start_time?.slice(0, 5) || '',
+          endTime: sch.end_time?.slice(0, 5) || '',
+        }))
+      }
+    }
+
+    const packageCode =
+      (courseRecord.course_code as PackageCode) ||
+      (s.grade_level === 'SMA' ? 'UTBK' : (s.grade_level as PackageCode)) ||
+      'UTBK'
+
+    const studentDetail: StudentDetail = {
+      id: s.id,
+      nis: s.nis,
+      name: studentProfile.full_name || 'Siswa Bimbel',
+      email: studentProfile.email || '',
+      phone: studentProfile.phone_number || '',
+      school: s.origin_school || 'Sekolah di Kota Palu',
+      packageCode,
+      classId,
+      className,
+      parentName: parentProfile.full_name || 'Wali Murid',
+      parentPhone: parentProfile.phone_number || '',
+      parentEmail: parentProfile.email || undefined,
+      parentJob: parentRecord.occupation || undefined,
+      parentAddress: parentRecord.address || undefined,
+      joinDate: s.created_at
+        ? new Intl.DateTimeFormat('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }).format(new Date(s.created_at))
+        : 'Oktober 2026',
+      status: (s.status as 'aktif' | 'nonaktif') || 'aktif',
+      classDetails: classId
+        ? {
+            id: classId,
+            name: className,
+            capacity: classRecord.capacity || 12,
+            currentStudents: currentStudentsCount,
+            tutorName: tutorProfile.full_name || undefined,
+          }
+        : undefined,
+      schedules: schedulesList,
+    }
+
+    return { success: true, data: studentDetail }
   },
 }

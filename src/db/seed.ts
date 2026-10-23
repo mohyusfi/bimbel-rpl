@@ -4,19 +4,19 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://rtamiwffuaxwzyjkoc
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || ''
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Supabase URL atau Anon Key tidak ditemukan di environment variable.')
+  console.error('[ERROR] Supabase URL atau Anon Key tidak ditemukan di environment variable.')
   process.exit(1)
 }
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 async function runSeed() {
-  console.log('🌱 [Tiket 01] Memulai Seeding Master Data ke Supabase...')
+  console.log('[SEED] [Tiket 01] Memulai Seeding Master Data ke Supabase...')
 
   // 1. Login sebagai Super Admin untuk bypass RLS
   const adminEmail = 'pimpinan@tadulakocendekia.sch.id'
   const adminPassword = 'password123'
-  console.log(`🔐 Mengautentikasi sebagai Super Admin (${adminEmail})...`)
+  console.log(`[AUTH] Mengautentikasi sebagai Super Admin (${adminEmail})...`)
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: adminEmail,
@@ -24,13 +24,13 @@ async function runSeed() {
   })
 
   if (authError || !authData?.session) {
-    console.error('❌ Gagal login sebagai Super Admin:', authError?.message)
+    console.error('[ERROR] Gagal login sebagai Super Admin:', authError?.message)
     process.exit(1)
   }
-  console.log('✅ Berhasil terautentikasi sebagai Super Admin.')
+  console.log('[OK] Berhasil terautentikasi sebagai Super Admin.')
 
   // 2. Seed Courses (Paket Bimbingan Belajar)
-  console.log('📦 Menyuntikkan master data courses (Paket Belajar)...')
+  console.log('[SEED] Menyuntikkan master data courses (Paket Belajar)...')
   const initialCourses = [
     {
       course_code: 'SD',
@@ -81,16 +81,16 @@ async function runSeed() {
         .select('id, course_code')
         .single()
       if (error) {
-        console.error(`  ❌ Gagal insert course ${c.course_code}:`, error.message)
+        console.error(`  [ERROR] Gagal insert course ${c.course_code}:`, error.message)
       } else if (inserted) {
         courseMap.set(c.course_code, inserted.id)
-        console.log(`  ✅ Course ${c.course_code} berhasil dibuat: ${inserted.id}`)
+        console.log(`  [OK] Course ${c.course_code} berhasil dibuat: ${inserted.id}`)
       }
     }
   }
 
   // 3. Seed Rooms (Ruangan Kelas Berkapasitas 10-12)
-  console.log('🏫 Menyuntikkan master data rooms (Ruangan Kelas)...')
+  console.log('[SEED] Menyuntikkan master data rooms (Ruangan Kelas)...')
   const initialRooms = [
     {
       room_name: 'Ruang Palu-1',
@@ -130,15 +130,15 @@ async function runSeed() {
     } else {
       const { data: inserted, error } = await supabase.from('rooms').insert(r).select('id').single()
       if (error) {
-        console.error(`  ❌ Gagal insert room ${r.room_name}:`, error.message)
+        console.error(`  [ERROR] Gagal insert room ${r.room_name}:`, error.message)
       } else {
-        console.log(`  ✅ Room ${r.room_name} berhasil dibuat: ${inserted?.id}`)
+        console.log(`  [OK] Room ${r.room_name} berhasil dibuat: ${inserted?.id}`)
       }
     }
   }
 
   // 4. Seed Profiles & Tutors (Pengajar)
-  console.log('👨‍🏫 Menyuntikkan master data profiles & tutors...')
+  console.log('[SEED] Menyuntikkan master data profiles & tutors...')
   const initialTutorData = [
     {
       profileId: '1dc75962-7771-4c58-85af-5ce40c2eabae', // Dian Pratiwi (existing)
@@ -198,9 +198,9 @@ async function runSeed() {
         status: 'aktif',
       })
       if (profErr) {
-        console.warn(`  ⚠️ Profile ${t.fullName} notice:`, profErr.message)
+        console.warn(`  [WARN] Profile ${t.fullName} notice:`, profErr.message)
       } else {
-        console.log(`  ✅ Profile tutor ${t.fullName} dibuat.`)
+        console.log(`  [OK] Profile tutor ${t.fullName} dibuat.`)
       }
     }
 
@@ -228,16 +228,16 @@ async function runSeed() {
         .single()
 
       if (tutErr) {
-        console.error(`  ❌ Gagal insert tutor ${t.fullName}:`, tutErr.message)
+        console.error(`  [ERROR] Gagal insert tutor ${t.fullName}:`, tutErr.message)
       } else if (insertedTutor) {
         tutorMap.set(t.fullName, insertedTutor.id)
-        console.log(`  ✅ Tutor ${t.fullName} berhasil dibuat: ${insertedTutor.id}`)
+        console.log(`  [OK] Tutor ${t.fullName} berhasil dibuat: ${insertedTutor.id}`)
       }
     }
   }
 
   // 5. Seed Classes (Rombel Kelas)
-  console.log('👥 Menyuntikkan master data classes (Rombel Kelas)...')
+  console.log('[SEED] Menyuntikkan master data classes (Rombel Kelas)...')
   const initialClasses = [
     {
       id: 'c1000000-0000-0000-0000-000000000001',
@@ -302,21 +302,21 @@ async function runSeed() {
         .eq('id', cls.id)
 
       if (updErr) {
-        console.error(`  ❌ Gagal update link class ${cls.class_name}:`, updErr.message)
+        console.error(`  [ERROR] Gagal update link class ${cls.class_name}:`, updErr.message)
       } else {
-        console.log(`  ✅ Class ${cls.class_name} diperbarui dengan relasi course & tutor.`)
+        console.log(`  [OK] Class ${cls.class_name} diperbarui dengan relasi course & tutor.`)
       }
     } else {
       const { error: insErr } = await supabase.from('classes').insert(cls)
       if (insErr) {
-        console.error(`  ❌ Gagal insert class ${cls.class_name}:`, insErr.message)
+        console.error(`  [ERROR] Gagal insert class ${cls.class_name}:`, insErr.message)
       } else {
-        console.log(`  ✅ Class ${cls.class_name} berhasil dibuat.`)
+        console.log(`  [OK] Class ${cls.class_name} berhasil dibuat.`)
       }
     }
   }
 
-  console.log('🎉 [Tiket 01] Database Seeding Master Data Selesai 100% Sukses!')
+  console.log('[DONE] [Tiket 01] Database Seeding Master Data Selesai 100% Sukses!')
 }
 
 runSeed().catch((err) => {

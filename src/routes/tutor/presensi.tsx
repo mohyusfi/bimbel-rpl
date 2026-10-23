@@ -14,6 +14,8 @@ import {
   ChevronDown,
   Info,
   Loader2,
+  Lock,
+  History,
 } from 'lucide-react'
 import {
   useTutorDashboardData,
@@ -23,6 +25,7 @@ import {
 import { StatusBadge } from '~/components/ui/status-badge'
 import { cn } from '~/lib/utils'
 import type { AttendanceEntry, AttendanceStatus, AttendanceSession } from '~/lib/admin-store'
+import { isSessionLockedForTutor, isSessionOverdue } from '~/lib/attendance-helpers'
 
 export const Route = createFileRoute('/tutor/presensi')({
   ssr: false,
@@ -33,25 +36,41 @@ export function TutorPresensiPage() {
   const { tutor, sessions, students } = useTutorDashboardData()
   const { saveSessionAttendance } = useAdminMutations()
 
-  // Selected session state (defaults to first uncompleted session)
-  const defaultSessionId = React.useMemo(() => {
-    const uncompleted = sessions.find((s) => !s.isCompleted)
-    return uncompleted ? uncompleted.id : sessions[0]?.id || ''
-  }, [sessions])
+  // Tab: 'pending' (Perlu Presensi) vs 'history' (Riwayat Presensi)
+  const [activeTab, setActiveTab] = React.useState<'pending' | 'history'>('pending')
 
-  const [selectedSessionId, setSelectedSessionId] = React.useState<string>(defaultSessionId)
+  // Pisahkan sesi menjadi sesi yang belum tervalidasi vs sesi yang sudah selesai
+  const pendingSessions = React.useMemo(
+    () => sessions.filter((s) => !s.isCompleted),
+    [sessions]
+  )
+  const completedSessions = React.useMemo(
+    () => sessions.filter((s) => s.isCompleted),
+    [sessions]
+  )
 
-  // Sync if sessions load later or selectedSessionId becomes invalid
+  // Selected session state (defaults to first uncompleted session, or first session)
+  const [selectedSessionId, setSelectedSessionId] = React.useState<string>('')
+
+  // Sync selected session when sessions change or tab changes
   React.useEffect(() => {
-    if (!selectedSessionId && sessions.length > 0) {
-      const uncompleted = sessions.find((s) => !s.isCompleted)
-      setSelectedSessionId(uncompleted ? uncompleted.id : sessions[0].id)
+    if (activeTab === 'pending') {
+      const current = pendingSessions.find((s) => s.id === selectedSessionId)
+      if (!current && pendingSessions.length > 0) {
+        setSelectedSessionId(pendingSessions[0].id)
+      }
+    } else {
+      const current = completedSessions.find((s) => s.id === selectedSessionId)
+      if (!current && completedSessions.length > 0) {
+        setSelectedSessionId(completedSessions[0].id)
+      }
     }
-  }, [sessions, selectedSessionId])
+  }, [activeTab, pendingSessions, completedSessions, selectedSessionId])
 
   // Use session detail hook for active session
   const { data: sessionDetail } = useSessionDetails(selectedSessionId)
-  const selectedSession = sessionDetail || sessions.find((s) => s.id === selectedSessionId) || sessions[0]
+  const selectedSession =
+    sessionDetail || sessions.find((s) => s.id === selectedSessionId) || sessions[0]
 
   // Attendance form state
   const [topic, setTopic] = React.useState<string>('')
@@ -59,6 +78,13 @@ export function TutorPresensiPage() {
   const [saveSuccess, setSaveSuccess] = React.useState<boolean>(false)
   const [hasAlpaNotice, setHasAlpaNotice] = React.useState<boolean>(false)
   const [isSaving, setIsSaving] = React.useState<boolean>(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+
+  // Cek apakah sesi terpilih terkunci (Audit Lock 24h)
+  const isLocked = React.useMemo(() => {
+    if (!selectedSession) return false
+    return isSessionLockedForTutor(selectedSession)
+  }, [selectedSession])
 
   // Initialize or re-populate entries when selectedSession changes
   React.useEffect(() => {
@@ -66,6 +92,7 @@ export function TutorPresensiPage() {
       setTopic(selectedSession.topic || '')
       setSaveSuccess(false)
       setHasAlpaNotice(false)
+      setErrorMessage(null)
 
       if (selectedSession.entries && selectedSession.entries.length > 0) {
         setEntries(selectedSession.entries)
@@ -82,7 +109,7 @@ export function TutorPresensiPage() {
         setEntries(newEntries)
       }
     }
-  }, [selectedSession?.id, selectedSession?.topic])
+  }, [selectedSession?.id, selectedSession?.topic, students])
 
   // Count statuses
   const countHadir = entries.filter((e) => e.status === 'hadir').length
@@ -92,6 +119,7 @@ export function TutorPresensiPage() {
 
   // Quick mark all as Hadir
   const handleMarkAllHadir = () => {
+    if (isLocked) return
     setEntries((prev) =>
       prev.map((entry) => ({
         ...entry,
@@ -102,6 +130,7 @@ export function TutorPresensiPage() {
 
   // Update status for single student
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
+    if (isLocked) return
     setEntries((prev) =>
       prev.map((entry) =>
         entry.studentId === studentId ? { ...entry, status } : entry
@@ -111,6 +140,7 @@ export function TutorPresensiPage() {
 
   // Update note for single student
   const handleNoteChange = (studentId: string, note: string) => {
+    if (isLocked) return
     setEntries((prev) =>
       prev.map((entry) =>
         entry.studentId === studentId ? { ...entry, note } : entry
@@ -120,11 +150,13 @@ export function TutorPresensiPage() {
 
   // Save attendance
   const handleSave = async () => {
-    if (!selectedSession) return
+    if (!selectedSession || isLocked) return
     setIsSaving(true)
+    setErrorMessage(null)
+    const currentId = selectedSession.id
     try {
       await saveSessionAttendance({
-        sessionId: selectedSession.id,
+        sessionId: currentId,
         topic: topic.trim() || selectedSession.subjectName,
         entries,
       })
@@ -133,14 +165,23 @@ export function TutorPresensiPage() {
       setHasAlpaNotice(anyAlpa)
       setSaveSuccess(true)
 
-      // Hide success notification after 5 seconds
+      // Pindahkan langsung ke tab Riwayat Presensi agar pengajar melihat sesi yang telah selesai diarsip
+      setActiveTab('history')
+      setSelectedSessionId(currentId)
+
+      // Sembunyikan notifikasi sukses setelah 5 detik
       setTimeout(() => {
         setSaveSuccess(false)
       }, 5000)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan presensi'
+      setErrorMessage(msg)
     } finally {
       setIsSaving(false)
     }
   }
+
+  const displayedSessions = activeTab === 'pending' ? pendingSessions : completedSessions
 
   return (
     <div className="space-y-6">
@@ -157,57 +198,148 @@ export function TutorPresensiPage() {
         </p>
       </div>
 
+      {/* Tab Switcher: Perlu Presensi vs Riwayat Presensi */}
+      <div className="flex items-center gap-2 border-b border-[#D2D2D2] pb-px">
+        <button
+          type="button"
+          onClick={() => setActiveTab('pending')}
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer',
+            activeTab === 'pending'
+              ? 'border-[#000000] text-[#000000]'
+              : 'border-transparent text-[#555555] hover:text-[#000000]'
+          )}
+        >
+          <ClipboardCheck className="w-4 h-4" />
+          <span>Perlu Presensi</span>
+          <span className="inline-flex items-center justify-center font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-[#EEEEEE] text-[#000000] tabular-nums">
+            {pendingSessions.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('history')}
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors cursor-pointer',
+            activeTab === 'history'
+              ? 'border-[#000000] text-[#000000]'
+              : 'border-transparent text-[#555555] hover:text-[#000000]'
+          )}
+        >
+          <History className="w-4 h-4" />
+          <span>Riwayat Presensi</span>
+          <span className="inline-flex items-center justify-center font-mono text-[11px] px-1.5 py-0.5 rounded-full bg-[#EEEEEE] text-[#000000] tabular-nums">
+            {completedSessions.length}
+          </span>
+        </button>
+      </div>
+
       {/* Session Selector Strip */}
       <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-5">
-        <label className="text-xs font-semibold text-[#000000] block mb-2">
-          Pilih Sesi Bimbingan
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {sessions.map((sess) => {
-            const isSelected = sess.id === selectedSession?.id
-            return (
-              <button
-                key={sess.id}
-                type="button"
-                onClick={() => setSelectedSessionId(sess.id)}
-                className={cn(
-                  'text-left p-3.5 rounded-[10px] border transition-all cursor-pointer flex flex-col justify-between gap-2.5',
-                  isSelected
-                    ? 'border-2 border-[#000000] bg-[#F6F6F6]'
-                    : 'border-[#D2D2D2] bg-[#FFFFFF] hover:border-[#888888]'
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="font-semibold text-xs text-[#000000] block">
-                      {sess.subjectName}
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-semibold text-[#000000] block">
+            {activeTab === 'pending' ? 'Daftar Sesi Menunggu Presensi' : 'Daftar Sesi Selesai (Arsip)'}
+          </label>
+          <span className="text-[11px] text-[#555555]">
+            Menampilkan {displayedSessions.length} sesi
+          </span>
+        </div>
+
+        {displayedSessions.length === 0 ? (
+          <div className="p-8 text-center border border-dashed border-[#D2D2D2] rounded-[10px] space-y-1">
+            <Calendar className="w-6 h-6 mx-auto text-[#888888]" />
+            <p className="text-xs font-medium text-[#292524]">
+              {activeTab === 'pending'
+                ? 'Semua sesi bimbingan telah tervalidasi.'
+                : 'Belum ada riwayat sesi bimbingan yang selesai.'}
+            </p>
+            <p className="text-[11px] text-[#555555]">
+              {activeTab === 'pending'
+                ? 'Pilih tab Riwayat Presensi untuk meninjau arsip sesi yang telah dicatat.'
+                : 'Sesi yang telah disimpan presensinya akan otomatis diarsipkan di sini.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {displayedSessions.map((sess) => {
+              const isSelected = sess.id === selectedSession?.id
+              const overdue = isSessionOverdue(sess)
+              const locked = isSessionLockedForTutor(sess)
+
+              return (
+                <button
+                  key={sess.id}
+                  type="button"
+                  onClick={() => setSelectedSessionId(sess.id)}
+                  className={cn(
+                    'text-left p-3.5 rounded-[10px] border transition-all cursor-pointer flex flex-col justify-between gap-2.5',
+                    isSelected
+                      ? 'border-2 border-[#000000] bg-[#F6F6F6]'
+                      : 'border-[#D2D2D2] bg-[#FFFFFF] hover:border-[#888888]'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-xs text-[#000000] block">
+                        {sess.subjectName}
+                      </span>
+                      <span className="text-[11px] text-[#555555] block">
+                        {sess.className} · {sess.roomName}
+                      </span>
+                    </div>
+
+                    {sess.isCompleted ? (
+                      locked ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-[#555555]">
+                          <Lock className="w-3.5 h-3.5 text-[#555555]" />
+                          <span>Terkunci</span>
+                        </span>
+                      ) : (
+                        <StatusBadge status="hadir" label="Selesai" />
+                      )
+                    ) : overdue ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#901B14]">
+                        <AlertCircle className="w-3.5 h-3.5 text-[#901B14]" />
+                        <span>Terlewat</span>
+                      </span>
+                    ) : (
+                      <StatusBadge status="terjadwal" label="Belum Absen" />
+                    )}
+                  </div>
+
+                  <div className="text-[11px] text-[#555555] flex items-center justify-between pt-1 border-t border-[#D2D2D2]/60">
+                    <span>
+                      {sess.dayOfWeek}, {sess.sessionDate}
                     </span>
-                    <span className="text-[11px] text-[#555555] block">
-                      {sess.className} · {sess.roomName}
+                    <span className="tabular-nums font-mono">
+                      {sess.startTime}–{sess.endTime}
                     </span>
                   </div>
-                  <StatusBadge
-                    status={sess.isCompleted ? 'hadir' : 'terjadwal'}
-                    label={sess.isCompleted ? 'Selesai' : 'Belum Absen'}
-                  />
-                </div>
-
-                <div className="text-[11px] text-[#555555] flex items-center justify-between pt-1 border-t border-[#D2D2D2]/60">
-                  <span>
-                    {sess.dayOfWeek}, {sess.sessionDate}
-                  </span>
-                  <span className="tabular-nums font-mono">
-                    {sess.startTime}–{sess.endTime}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {selectedSession ? (
         <div className="space-y-6">
+          {/* Audit Lock Banner jika sesi telah terkunci > 24 jam */}
+          {isLocked && (
+            <div className="flex items-start gap-3 p-4 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-xs text-[#555555]">
+              <Lock className="w-4 h-4 text-[#555555] shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-semibold text-[#000000] block">
+                  Sesi Terkunci Permanen (Batas Toleransi Koreksi 24 Jam Telah Berakhir)
+                </span>
+                <p className="leading-relaxed">
+                  Catatan presensi dan evaluasi topik pada sesi ini berada dalam mode baca-saja (read-only) untuk melindungi integritas arsip rapor siswa. Hubungi Administrator jika memerlukan pembukaan kunci audit resmi.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Active Session Detail & Topic Input */}
           <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#D2D2D2]">
@@ -231,14 +363,18 @@ export function TutorPresensiPage() {
                 </div>
               </div>
 
-              <StatusBadge
-                status={selectedSession.isCompleted ? 'hadir' : 'terjadwal'}
-                label={
-                  selectedSession.isCompleted
-                    ? 'Presensi Tersimpan'
-                    : 'Menunggu Checklist'
-                }
-              />
+              {selectedSession.isCompleted ? (
+                isLocked ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#555555]">
+                    <Lock className="w-3.5 h-3.5 text-[#555555]" />
+                    <span>Arsip Terkunci</span>
+                  </span>
+                ) : (
+                  <StatusBadge status="hadir" label="Tersimpan (Grace Period)" />
+                )
+              ) : (
+                <StatusBadge status="terjadwal" label="Menunggu Checklist" />
+              )}
             </div>
 
             {/* Topic Input */}
@@ -252,10 +388,11 @@ export function TutorPresensiPage() {
               <input
                 id="session-topic"
                 type="text"
+                disabled={isLocked}
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="Contoh: Mekanika Dinamika & Hukum Newton Lanjutan"
-                className="w-full h-10 px-3.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                className="w-full h-10 px-3.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] disabled:bg-[#F6F6F6] disabled:text-[#555555] disabled:cursor-not-allowed"
               />
               <p className="text-[11px] text-[#555555]">
                 Topik ini akan ditampilkan pada laporan kehadiran orang tua dan buku kendali siswa.
@@ -263,7 +400,7 @@ export function TutorPresensiPage() {
             </div>
           </div>
 
-          {/* Real-time Status Counters & Quick Action */}
+          {/* Real-time Status Counters */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-3.5 flex items-center justify-between">
               <div>
@@ -315,7 +452,7 @@ export function TutorPresensiPage() {
           </div>
 
           {/* Peringatan Visual Jika Ada Siswa Berstatus Alpa */}
-          {countAlpa > 0 && (
+          {countAlpa > 0 && !isLocked && (
             <div className="bg-[#FFFFFF] border-l-4 border-l-[#901B14] border border-[#D2D2D2] rounded-[10px] p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-[#901B14] shrink-0 mt-0.5" />
               <div className="space-y-1">
@@ -341,14 +478,16 @@ export function TutorPresensiPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleMarkAllHadir}
-                className="inline-flex items-center justify-center gap-1.5 bg-[#FFFFFF] border border-[#D2D2D2] hover:bg-[#F6F6F6] text-[#000000] text-xs font-semibold px-3.5 py-2 rounded-[8px] transition-colors cursor-pointer shrink-0"
-              >
-                <Check className="w-3.5 h-3.5 text-[#166534]" />
-                <span>Tandai Semua Hadir</span>
-              </button>
+              {!isLocked && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllHadir}
+                  className="inline-flex items-center justify-center gap-1.5 bg-[#FFFFFF] border border-[#D2D2D2] hover:bg-[#F6F6F6] text-[#000000] text-xs font-semibold px-3.5 py-2 rounded-[8px] transition-colors cursor-pointer shrink-0"
+                >
+                  <Check className="w-3.5 h-3.5 text-[#166534]" />
+                  <span>Tandai Semua Hadir</span>
+                </button>
+              )}
             </div>
 
             {/* List of Students */}
@@ -394,14 +533,16 @@ export function TutorPresensiPage() {
                           <button
                             key={st}
                             type="button"
+                            disabled={isLocked}
                             onClick={() => handleStatusChange(entry.studentId, st)}
                             className={cn(
-                              'px-3 py-1.5 rounded-[6px] text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer',
+                              'px-3 py-1.5 rounded-[6px] text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer disabled:cursor-not-allowed',
                               isActive && st === 'hadir' && 'bg-[#166534] text-[#FFFFFF]',
                               isActive && st === 'sakit' && 'bg-[#85600F] text-[#FFFFFF]',
                               isActive && st === 'izin' && 'bg-[#3A5A80] text-[#FFFFFF]',
                               isActive && st === 'alpa' && 'bg-[#901B14] text-[#FFFFFF]',
-                              !isActive && 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]'
+                              !isActive && 'text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF]',
+                              isLocked && !isActive && 'hover:text-[#555555] hover:bg-transparent opacity-60'
                             )}
                           >
                             {st}
@@ -414,12 +555,13 @@ export function TutorPresensiPage() {
                     <div className="w-full lg:max-w-xs">
                       <input
                         type="text"
-                        placeholder="Catatan khusus (opsional)..."
+                        disabled={isLocked}
+                        placeholder={isLocked ? 'Tidak ada catatan' : 'Catatan khusus (opsional)...'}
                         value={entry.note || ''}
                         onChange={(e) =>
                           handleNoteChange(entry.studentId, e.target.value)
                         }
-                        className="w-full h-8 px-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] focus:outline-none focus:border-[#000000]"
+                        className="w-full h-8 px-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] focus:outline-none focus:border-[#000000] disabled:bg-[#F6F6F6] disabled:text-[#555555] disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -430,36 +572,55 @@ export function TutorPresensiPage() {
             {/* Bottom Actions Bar */}
             <div className="p-4 sm:p-5 bg-[#F6F6F6] border-t border-[#D2D2D2] flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-[#555555] text-center sm:text-left">
-                Pastikan data kehadiran telah dicek sebelum menekan simpan.
+                {isLocked
+                  ? 'Sesi dalam mode arsip baca-saja. Perubahan tidak dapat disimpan.'
+                  : 'Pastikan data kehadiran telah dicek sebelum menekan simpan.'}
               </div>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#000000] hover:bg-[#222222] disabled:opacity-50 text-[#FFFFFF] font-semibold text-xs px-5 py-2.5 rounded-[8px] transition-colors cursor-pointer"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
-                    <span>Menyimpan Presensi...</span>
-                  </>
-                ) : saveSuccess ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-[#FFFFFF]" />
-                    <span>Presensi Tersimpan!</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>Simpan Presensi Sesi</span>
-                  </>
-                )}
-              </button>
+              {!isLocked ? (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#000000] hover:bg-[#222222] disabled:opacity-50 text-[#FFFFFF] font-semibold text-xs px-5 py-2.5 rounded-[8px] transition-colors cursor-pointer"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#FFFFFF]" />
+                      <span>Menyimpan Presensi...</span>
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-[#FFFFFF]" />
+                      <span>Presensi Tersimpan!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Presensi Sesi</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#555555]">
+                  <Lock className="w-3.5 h-3.5 text-[#555555]" />
+                  <span>Arsip Terkunci (Mode Baca-Saja)</span>
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Feedback & Notifications */}
+          {/* Feedback & Error Notifications */}
+          {errorMessage && (
+            <div className="p-4 bg-[#FFFFFF] border border-[#901B14] rounded-[10px] space-y-1">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#901B14]">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Gagal menyimpan presensi</span>
+              </div>
+              <p className="text-xs text-[#555555] pl-6">{errorMessage}</p>
+            </div>
+          )}
+
           {saveSuccess && (
             <div className="p-4 bg-[#FFFFFF] border border-[#166534] rounded-[10px] space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#166534]">

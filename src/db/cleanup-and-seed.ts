@@ -4,7 +4,7 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://rtamiwffuaxwzyjkoc
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || ''
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Supabase URL atau Anon Key tidak ditemukan di environment variable.')
+  console.error('[ERROR] Supabase URL atau Anon Key tidak ditemukan di environment variable.')
   process.exit(1)
 }
 
@@ -38,12 +38,12 @@ const OFFICIAL_CLASS_IDS = {
 }
 
 async function runCleanupAndSeed() {
-  console.log('🧹 [Pembersihan] Memulai pembersihan data lokal/uji coba & sinkronisasi Supabase...')
+  console.log('[CLEANUP] [Pembersihan] Memulai pembersihan data lokal/uji coba & sinkronisasi Supabase...')
 
   // 1. Login sebagai Super Admin
   const adminEmail = 'pimpinan@tadulakocendekia.sch.id'
   const adminPassword = 'password123'
-  console.log(`🔐 Mengautentikasi sebagai Super Admin (${adminEmail})...`)
+  console.log(`[AUTH] Mengautentikasi sebagai Super Admin (${adminEmail})...`)
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: adminEmail,
@@ -51,52 +51,52 @@ async function runCleanupAndSeed() {
   })
 
   if (authError || !authData?.session) {
-    console.error('❌ Gagal login sebagai Super Admin:', authError?.message)
+    console.error('[ERROR] Gagal login sebagai Super Admin:', authError?.message)
     process.exit(1)
   }
-  console.log('✅ Berhasil login sebagai Super Admin.')
+  console.log('[OK] Berhasil login sebagai Super Admin.')
 
   // 2. Tandai data registrasi uji coba yang menggantung menjadi ditolak
-  console.log('🗑️ Menandai data registrasi uji coba di tabel registrations...')
+  console.log('[CLEANUP] Menandai data registrasi uji coba di tabel registrations...')
   const { error: updRegErr } = await supabase
     .from('registrations')
     .update({ status: 'ditolak', rejected_reason: 'Data uji coba dibersihkan' })
     .eq('status', 'menunggu')
 
   if (updRegErr) {
-    console.warn('⚠️ Gagal membersihkan antrean registrations:', updRegErr.message)
+    console.warn('[WARN] Gagal membersihkan antrean registrations:', updRegErr.message)
   } else {
-    console.log('✅ Antrean tabel registrations berhasil dibersihkan (0 entri menunggu).')
+    console.log('[OK] Antrean tabel registrations berhasil dibersihkan (0 entri menunggu).')
   }
 
   // 3. Hapus class_members selain siswa resmi
-  console.log('🗑️ Membersihkan relasi class_members siswa uji coba...')
+  console.log('[CLEANUP] Membersihkan relasi class_members siswa uji coba...')
   const { error: delCmErr } = await supabase
     .from('class_members')
     .delete()
     .not('student_id', 'in', `(${OFFICIAL_STUDENT_IDS.fahri},${OFFICIAL_STUDENT_IDS.alya})`)
 
   if (delCmErr) {
-    console.warn('⚠️ Gagal membersihkan class_members:', delCmErr.message)
+    console.warn('[WARN] Gagal membersihkan class_members:', delCmErr.message)
   } else {
-    console.log('✅ Relasi class_members dibersihkan.')
+    console.log('[OK] Relasi class_members dibersihkan.')
   }
 
   // 4. Nonaktifkan akun students uji coba selain siswa resmi
-  console.log('🗑️ Menonaktifkan akun uji coba di tabel students...')
+  console.log('[CLEANUP] Menonaktifkan akun uji coba di tabel students...')
   const { error: updStuErr } = await supabase
     .from('students')
     .update({ status: 'nonaktif' })
     .not('id', 'in', `(${OFFICIAL_STUDENT_IDS.fahri},${OFFICIAL_STUDENT_IDS.alya})`)
 
   if (updStuErr) {
-    console.warn('⚠️ Gagal menonaktifkan akun uji coba students:', updStuErr.message)
+    console.warn('[WARN] Gagal menonaktifkan akun uji coba students:', updStuErr.message)
   } else {
-    console.log('✅ Akun uji coba students dinonaktifkan.')
+    console.log('[OK] Akun uji coba students dinonaktifkan.')
   }
 
   // 5. Hapus profiles dummy yang tidak termasuk profil resmi
-  console.log('🗑️ Membersihkan profil dummy di tabel profiles...')
+  console.log('[CLEANUP] Membersihkan profil dummy di tabel profiles...')
   const officialIdsList = Object.values(OFFICIAL_PROFILE_IDS).join(',')
   const { error: delProfErr } = await supabase
     .from('profiles')
@@ -104,13 +104,13 @@ async function runCleanupAndSeed() {
     .not('id', 'in', `(${officialIdsList})`)
 
   if (delProfErr) {
-    console.warn('⚠️ Gagal membersihkan profiles dummy (kemungkinan terikat FK):', delProfErr.message)
+    console.warn('[WARN] Gagal membersihkan profiles dummy (kemungkinan terikat FK):', delProfErr.message)
   } else {
-    console.log('✅ Tabel profiles berhasil dirampingkan ke akun resmi.')
+    console.log('[OK] Tabel profiles berhasil dirampingkan ke akun resmi.')
   }
 
   // 6. Pastikan Master Courses (Paket Bimbingan) lengkap
-  console.log('📦 Menyelaraskan master courses...')
+  console.log('[SEED] Menyelaraskan master courses...')
   const coursesToSeed = [
     {
       course_code: 'SD',
@@ -159,7 +159,7 @@ async function runCleanupAndSeed() {
   }
 
   // 7. Pastikan Master Rooms (Ruangan Kelas)
-  console.log('🏫 Menyelaraskan master rooms...')
+  console.log('[SEED] Menyelaraskan master rooms...')
   const roomsToSeed = [
     {
       room_name: 'Ruang Palu-1',
@@ -200,7 +200,7 @@ async function runCleanupAndSeed() {
   }
 
   // 8. Pastikan Profil & Tutors
-  console.log('👨‍🏫 Menyelaraskan profil dan master tutors...')
+  console.log('[SEED] Menyelaraskan profil dan master tutors...')
   const tutorsToSeed = [
     {
       profileId: OFFICIAL_PROFILE_IDS.dian,
@@ -284,7 +284,7 @@ async function runCleanupAndSeed() {
   }
 
   // 9. Pastikan 5 Rombel Classes
-  console.log('👥 Menyelaraskan master rombel classes...')
+  console.log('[SEED] Menyelaraskan master rombel classes...')
   const classesToSeed = [
     {
       id: OFFICIAL_CLASS_IDS.utbkA,
@@ -347,7 +347,7 @@ async function runCleanupAndSeed() {
   }
 
   // 10. Pasang 2 Profil Wali & Siswa Resmi Demo
-  console.log('🎓 Menyiapkan akun resmi Fahri Ramadhan & Alya Ramadhani...')
+  console.log('[SEED] Menyiapkan akun resmi Fahri Ramadhan & Alya Ramadhani...')
 
   // Wali 1: Ir. H. Ahmad Dahlan
   const { data: exWali1 } = await supabase.from('profiles').select('id').eq('id', OFFICIAL_PROFILE_IDS.ahmadDahlan).maybeSingle()
@@ -484,7 +484,7 @@ async function runCleanupAndSeed() {
     })
   }
 
-  console.log('✨ [Sukses] Database Supabase bersih 100% dan siap untuk Tiket 03!')
+  console.log('[DONE] [Sukses] Database Supabase bersih 100% dan siap untuk Tiket 03!')
 }
 
 runCleanupAndSeed().catch((err) => {

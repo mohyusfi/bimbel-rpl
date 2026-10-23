@@ -184,7 +184,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                         TADULAKO CENDEKIA
                       </p>
                       <p className="text-[12px] font-black tracking-widest leading-tight text-center my-0.5">
-                        ★ LUNAS ★
+                        LUNAS
                       </p>
                       <p className="text-[7.5px] font-bold font-mono tracking-wider leading-none text-center">
                         TATA USAHA RESMI

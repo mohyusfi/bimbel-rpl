@@ -9,7 +9,6 @@ import {
   Trash2,
   Pencil,
   X,
-  Sparkles,
   Plus,
   DoorClosed,
   UserCheck,
@@ -149,25 +148,6 @@ function AdminJadwalPage() {
   )
 
   const isSubmitDisabled = conflictResult.hasConflict || isFormIncomplete
-
-  // Conflict Simulation button: Instant demo of 2-layer conflict
-  const handleTriggerConflictSimulation = () => {
-    const firstClass = classes[0]
-    const firstTutor = tutors.find((t) => t.id === 'tut-2') || tutors[0]
-    const firstRoom = rooms.find((r) => r.id === 'rm-1') || rooms[0]
-
-    setEditingSchedule(null)
-    setScheduleForm({
-      classId: firstClass?.id || '',
-      subjectName: 'Simulasi Bentrok 2-Lapis',
-      tutorId: firstTutor?.id || '',
-      roomId: firstRoom?.id || '',
-      dayOfWeek: 'Senin',
-      startTime: '16:00',
-      endTime: '17:30',
-    })
-    setIsScheduleModalOpen(true)
-  }
 
   const handleApplySuggestedRoom = (suggestedRoomId: string) => {
     setScheduleForm((prev) => ({ ...prev, roomId: suggestedRoomId }))
@@ -374,16 +354,6 @@ function AdminJadwalPage() {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap shrink-0">
-          <button
-            type="button"
-            onClick={handleTriggerConflictSimulation}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] hover:bg-[#F6F6F6] hover:border-[#000000] transition-colors cursor-pointer"
-            title="Demonstrasi instan deteksi bentrok ruangan & tutor"
-          >
-            <Sparkles className="w-4 h-4 text-[#A81E46]" />
-            <span>Simulasi Konflik</span>
-          </button>
-
           <button
             type="button"
             onClick={handleOpenScheduleModal}
@@ -643,6 +613,16 @@ function AdminJadwalPage() {
           columns={tableColumns}
           data={filteredSchedules}
           searchPlaceholder="Cari kelas, mata pelajaran, ruangan, atau tutor..."
+          emptyState={
+            <div className="space-y-1.5 text-center py-8">
+              <p className="text-sm font-semibold text-[#000000]">
+                Belum ada jadwal bimbingan
+              </p>
+              <p className="text-xs text-[#555555]">
+                Belum ada jadwal bimbingan di database. Klik tombol &quot;Tambah Jadwal&quot; di atas untuk membuat jadwal baru.
+              </p>
+            </div>
+          }
         />
       )}
 

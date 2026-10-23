@@ -85,6 +85,14 @@ src/
    - Dilarang memakai unicode mentah (`✓`, `✗`, `•`, `↗`) atau bare naked dots.
 5. **Zero Fake Buttons**: Teks statis non-klik (nomor invoice, NIS, ID) tidak boleh diberi border/background yang menyerupai tombol. Gunakan monospace netral (`font-mono text-xs text-[#555555]`).
 6. **KPI Card Footers**: Gunakan tipografi netral seragam (`font-medium text-[#292524]` dan `text-[11px] text-[#555555]`).
+7. **Zero Emojis in Code & Messages (Aturan Bebas Emoji)**:
+   - Dilarang keras menggunakan karakter emoji (seperti `⚠️`, `❌`, `✅`, `🧹`, `🎉`, dll.) pada kode program, pesan log (`console.log`, `console.warn`, `console.error`), pesan error API, notifikasi sistem, maupun teks antarmuka pengguna (UI).
+   - Gunakan tag penanda teks profesional berstandar industri:
+     - Peringatan: `[WARN]` (misal: `console.warn('[WARN] Gagal mengambil...')`)
+     - Kesalahan/Error: `[ERROR]` (misal: `console.error('[ERROR] Gagal login...')`)
+     - Sukses/Konfirmasi: `[OK]` atau `[INFO]`
+     - Operasi Seeder/Migrasi: `[SEED]` atau `[CLEANUP]`
+   - Pada komponen antarmuka pengguna (UI), gunakan selalu ikon SVG resmi dari pustaka Lucide React (`AlertCircle`, `CheckCircle2`, `XCircle`, `Clock`, dll.).
 
 ---
 

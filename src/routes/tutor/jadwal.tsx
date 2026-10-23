@@ -8,7 +8,7 @@ import {
   Users,
   ClipboardCheck,
 } from 'lucide-react'
-import { useTutorDashboardData } from '~/hooks/use-admin-data'
+import { useTutorDashboardData, useAttendanceSessions } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { cn } from '~/lib/utils'
 import type { Schedule } from '~/lib/admin-store'
@@ -21,7 +21,8 @@ export const Route = createFileRoute('/tutor/jadwal')({
 const DAYS = ['Semua Hari', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as const
 
 function TutorJadwalPage() {
-  const { schedules, classes, students } = useTutorDashboardData()
+  const { schedules, classes, students, tutor } = useTutorDashboardData()
+  const { data: tutorSessions = [] } = useAttendanceSessions(tutor?.id)
   const [selectedDay, setSelectedDay] = React.useState<string>('Semua Hari')
 
   const filteredSchedules = selectedDay === 'Semua Hari'
@@ -41,16 +42,27 @@ function TutorJadwalPage() {
     {
       accessorKey: 'dayOfWeek',
       header: 'Hari & Waktu',
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <span className="font-semibold text-xs text-[#000000] block">
-            {row.original.dayOfWeek}
-          </span>
-          <span className="font-mono text-[11px] text-[#555555] tabular-nums">
-            {row.original.startTime}–{row.original.endTime} WITA
-          </span>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const nextSession = tutorSessions.find(
+          (s) => s.scheduleId === row.original.id && !s.isCompleted
+        )
+        return (
+          <div className="space-y-0.5">
+            <span className="font-semibold text-xs text-[#000000] block">
+              {row.original.dayOfWeek}
+            </span>
+            <span className="font-mono text-[11px] text-[#555555] tabular-nums block">
+              {row.original.startTime}–{row.original.endTime} WITA
+            </span>
+            {nextSession && (
+              <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[#CB2957] font-medium block">
+                <Clock className="w-3 h-3 shrink-0" />
+                Sesi: {nextSession.sessionDate}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'subjectName',
@@ -96,17 +108,23 @@ function TutorJadwalPage() {
     {
       id: 'action',
       header: () => <span className="sr-only">Aksi</span>,
-      cell: ({ row }) => (
-        <div className="flex justify-end">
-          <Link
-            to="/tutor/presensi"
-            className="inline-flex items-center gap-1.5 bg-[#000000] text-[#FFFFFF] hover:bg-[#222222] font-semibold text-xs px-3 py-1.5 rounded-[6px] transition-colors shrink-0"
-          >
-            <ClipboardCheck className="w-3.5 h-3.5" />
-            <span>Presensi Sesi</span>
-          </Link>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const nextSession = tutorSessions.find(
+          (s) => s.scheduleId === row.original.id && !s.isCompleted
+        )
+        return (
+          <div className="flex justify-end">
+            <Link
+              to="/tutor/presensi"
+              search={nextSession?.id ? { sessionId: nextSession.id } : undefined}
+              className="inline-flex items-center gap-1.5 bg-[#000000] text-[#FFFFFF] hover:bg-[#222222] font-semibold text-xs px-3 py-1.5 rounded-[6px] transition-colors shrink-0"
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>Presensi Sesi</span>
+            </Link>
+          </div>
+        )
+      },
     },
   ]
 
@@ -194,6 +212,16 @@ function TutorJadwalPage() {
         columns={columns}
         data={filteredSchedules}
         searchPlaceholder="Cari mapel, kelas, atau ruangan..."
+        emptyState={
+          <div className="space-y-1.5 text-center py-8">
+            <p className="text-sm font-semibold text-[#000000]">
+              Belum ada jadwal mengajar
+            </p>
+            <p className="text-xs text-[#555555]">
+              Anda belum memiliki jadwal mengajar tatap muka aktif di database.
+            </p>
+          </div>
+        }
         renderMobileCard={(sch) => {
           const count = getStudentCount(sch.classId)
           return (

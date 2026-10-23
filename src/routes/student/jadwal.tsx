@@ -7,7 +7,7 @@ import {
   Info,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import { useStudentDashboardData, useAttendanceSessions } from '~/hooks/use-admin-data'
 import type { Schedule } from '~/lib/admin-store'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
@@ -19,6 +19,7 @@ export const Route = createFileRoute('/student/jadwal')({
 
 function StudentJadwalPage() {
   const { student, classSchedules } = useStudentDashboardData()
+  const { data: studentSessions = [] } = useAttendanceSessions(undefined, student?.classId)
   const [selectedSubject, setSelectedSubject] = React.useState<string>('Semua')
 
   // Subject options for filter slot
@@ -44,11 +45,24 @@ function StudentJadwalPage() {
     {
       id: 'time',
       header: 'Waktu bimbingan',
-      cell: ({ row }) => (
-        <span className="tabular-nums font-mono text-xs text-[#292524] whitespace-nowrap">
-          {row.original.startTime} – {row.original.endTime} WITA
-        </span>
-      ),
+      cell: ({ row }) => {
+        const nextSession = studentSessions.find(
+          (s) => s.scheduleId === row.original.id && !s.isCompleted
+        )
+        return (
+          <div className="space-y-0.5">
+            <span className="tabular-nums font-mono text-xs text-[#292524] whitespace-nowrap block">
+              {row.original.startTime} – {row.original.endTime} WITA
+            </span>
+            {nextSession && (
+              <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[#CB2957] font-medium block">
+                <Clock className="w-3 h-3 shrink-0" />
+                Sesi: {nextSession.sessionDate}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'subjectName',
@@ -146,6 +160,16 @@ function StudentJadwalPage() {
               <Clock className="w-3.5 h-3.5 text-[#555555]" />
               <span>WITA (UTC+8)</span>
             </div>
+          </div>
+        }
+        emptyState={
+          <div className="space-y-1.5 text-center py-8">
+            <p className="text-sm font-semibold text-[#000000]">
+              Belum ada jadwal bimbingan
+            </p>
+            <p className="text-xs text-[#555555]">
+              Belum ada jadwal tatap muka untuk rombel kelas Anda di database.
+            </p>
           </div>
         }
         renderMobileCard={(row) => (

@@ -1,8 +1,10 @@
 import * as React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '~/lib/supabase/client'
+import { supabase, isSupabaseConfigured } from '~/lib/supabase/client'
 import { masterDataService } from '~/server/services/master-data.service'
 import { registrationService } from '~/server/services/registration.service'
+import { scheduleService } from '~/server/services/schedule.service'
+import { attendanceService } from '~/server/services/attendance.service'
 import {
   adminStore,
   type Registration,
@@ -117,6 +119,37 @@ export function useAdminStudents() {
       }
       return adminStore.getState().students
     },
+  })
+}
+
+export function useAdminStudentDetail(studentId: string) {
+  useAdminDataSync()
+  return useQuery({
+    queryKey: ['admin', 'student', studentId],
+    queryFn: async () => {
+      if (!studentId) return null
+      try {
+        const res = await registrationService.getStudentById(studentId)
+        if (res.success && res.data) {
+          return res.data
+        }
+      } catch (err) {
+        console.warn('Fallback student detail:', err)
+      }
+      const localStudent = adminStore.getState().students.find((s) => s.id === studentId)
+      if (!localStudent) return null
+      return {
+        ...localStudent,
+        classDetails: {
+          id: localStudent.classId,
+          name: localStudent.className,
+          capacity: 12,
+          currentStudents: 1,
+        },
+        schedules: [],
+      }
+    },
+    enabled: Boolean(studentId),
   })
 }
 
@@ -250,7 +283,20 @@ export function useAdminSchedules() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.schedules,
-    queryFn: () => adminStore.getState().schedules,
+    queryFn: async () => {
+      try {
+        const dbSchedules = await scheduleService.getSchedules()
+        if (Array.isArray(dbSchedules) && dbSchedules.length > 0) {
+          return dbSchedules as Schedule[]
+        }
+        if (isSupabaseConfigured() && Array.isArray(dbSchedules)) {
+          return []
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil jadwal dari Supabase:', err)
+      }
+      return adminStore.getState().schedules
+    },
   })
 }
 
@@ -568,7 +614,24 @@ export function useAdminMutations() {
 
   const addStudentMutation = useMutation({
     mutationFn: async (input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) => {
-      return adminStore.addStudent(input)
+      const res = await registrationService.createStudent({
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        school: input.school,
+        packageCode: input.packageCode,
+        classId: input.classId,
+        parentName: input.parentName,
+        parentPhone: input.parentPhone,
+        parentEmail: input.parentEmail,
+        parentJob: input.parentJob,
+        parentAddress: input.parentAddress,
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.addStudent(input)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -577,10 +640,29 @@ export function useAdminMutations() {
 
   const updateStudentMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Student> }) => {
-      return adminStore.updateStudent(id, updates)
+      const res = await registrationService.updateStudent({
+        id,
+        name: updates.name || '',
+        email: updates.email || '',
+        phone: updates.phone || '',
+        school: updates.school || '',
+        classId: updates.classId || '',
+        parentName: updates.parentName || '',
+        parentPhone: updates.parentPhone || '',
+        parentEmail: updates.parentEmail,
+        parentJob: updates.parentJob,
+        parentAddress: updates.parentAddress,
+        status: (updates.status as 'aktif' | 'nonaktif') || 'aktif',
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.updateStudent(id, updates)
+      return res.data
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'student', variables.id] })
     },
   })
 
@@ -729,6 +811,28 @@ export function useAdminMutations() {
 
   const addScheduleMutation = useMutation({
     mutationFn: async (input: Omit<Schedule, 'id'>) => {
+      try {
+        const res = await scheduleService.createSchedule({
+          classId: input.classId,
+          subjectName: input.subjectName,
+          tutorId: input.tutorId,
+          roomId: input.roomId,
+          dayOfWeek: input.dayOfWeek,
+          startTime: input.startTime,
+          endTime: input.endTime,
+        })
+        if (!res.success) {
+          if (res.code === 'SCHEDULE_CONFLICT') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase createSchedule warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('bentrok') || err?.message?.includes('Bertabrakan') || err?.message?.includes('ruangan')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase createSchedule fallback:', err?.message)
+      }
       return adminStore.addSchedule(input)
     },
     onSuccess: () => {
@@ -738,6 +842,20 @@ export function useAdminMutations() {
 
   const updateScheduleMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
+      try {
+        const res = await scheduleService.updateSchedule(id, updates)
+        if (!res.success) {
+          if (res.code === 'OVERDUE_UPDATE_FORBIDDEN' || res.code === 'SCHEDULE_CONFLICT') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase updateSchedule warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('tidak dapat diubah') || err?.message?.includes('bentrok')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase updateSchedule fallback:', err?.message)
+      }
       return adminStore.updateSchedule(id, updates)
     },
     onSuccess: () => {
@@ -747,6 +865,14 @@ export function useAdminMutations() {
 
   const deleteScheduleMutation = useMutation({
     mutationFn: async (id: string) => {
+      try {
+        const res = await scheduleService.deleteSchedule(id)
+        if (!res.success) {
+          console.warn('[WARN] Supabase deleteSchedule warning:', res.error)
+        }
+      } catch (err: any) {
+        console.warn('[WARN] Supabase deleteSchedule fallback:', err?.message)
+      }
       return adminStore.deleteSchedule(id)
     },
     onSuccess: () => {
@@ -845,6 +971,23 @@ export function useAdminMutations() {
       topic: string
       entries: AttendanceEntry[]
     }) => {
+      // 1. Eksekusi ke database Supabase via service layer
+      try {
+        const res = await attendanceService.saveSessionAttendance(input)
+        if (!res.success) {
+          if (res.code === 'SESSION_AUDIT_LOCKED' || res.code === 'DUPLICATE_STUDENT_ENTRY') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase saveSessionAttendance warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('Audit Lock') || err?.message?.includes('dikunci') || err?.message?.includes('duplikasi')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase saveSessionAttendance fallback:', err?.message)
+      }
+
+      // 2. Sinkronkan ke local reactive store
       return adminStore.saveSessionAttendance(
         input.sessionId,
         input.topic,
@@ -1062,6 +1205,28 @@ export function useAddScheduleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: Omit<Schedule, 'id'>) => {
+      try {
+        const res = await scheduleService.createSchedule({
+          classId: input.classId,
+          subjectName: input.subjectName,
+          tutorId: input.tutorId,
+          roomId: input.roomId,
+          dayOfWeek: input.dayOfWeek,
+          startTime: input.startTime,
+          endTime: input.endTime,
+        })
+        if (!res.success) {
+          if (res.code === 'SCHEDULE_CONFLICT') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase createSchedule warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('bentrok') || err?.message?.includes('Bertabrakan') || err?.message?.includes('ruangan')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase createSchedule fallback:', err?.message)
+      }
       return adminStore.addSchedule(input)
     },
     onSuccess: () => {
@@ -1074,6 +1239,20 @@ export function useUpdateScheduleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<Schedule, 'id'>> }) => {
+      try {
+        const res = await scheduleService.updateSchedule(id, updates)
+        if (!res.success) {
+          if (res.code === 'OVERDUE_UPDATE_FORBIDDEN' || res.code === 'SCHEDULE_CONFLICT') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase updateSchedule warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('tidak dapat diubah') || err?.message?.includes('bentrok')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase updateSchedule fallback:', err?.message)
+      }
       return adminStore.updateSchedule(id, updates)
     },
     onSuccess: () => {
@@ -1090,6 +1269,23 @@ export function useSaveSessionAttendanceMutation() {
       topic: string
       entries: AttendanceEntry[]
     }) => {
+      // 1. Eksekusi ke database Supabase via service layer
+      try {
+        const res = await attendanceService.saveSessionAttendance(input)
+        if (!res.success) {
+          if (res.code === 'SESSION_AUDIT_LOCKED' || res.code === 'DUPLICATE_STUDENT_ENTRY') {
+            throw new Error(res.error)
+          }
+          console.warn('[WARN] Supabase saveSessionAttendance warning:', res.error)
+        }
+      } catch (err: any) {
+        if (err?.message?.includes('Audit Lock') || err?.message?.includes('dikunci') || err?.message?.includes('duplikasi')) {
+          throw err
+        }
+        console.warn('[WARN] Supabase saveSessionAttendance fallback:', err?.message)
+      }
+
+      // 2. Sinkronkan ke local reactive store
       return adminStore.saveSessionAttendance(
         input.sessionId,
         input.topic,
@@ -1191,17 +1387,41 @@ export function useSubmitPaymentProofMutation() {
 // Specialized Query Hooks for Tutor, Student, and Parent Portals
 // -------------------------------------------------------------
 
-export function useAttendanceSessions(tutorId?: string) {
+export function useAttendanceSessions(tutorId?: string, classId?: string) {
   useAdminDataSync()
-  return useQuery({
-    queryKey: tutorId ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const) : ADMIN_KEYS.attendance,
-    queryFn: () => {
-      const all = adminStore.getState().attendanceSessions
-      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
-    },
-    initialData: () => {
-      const all = adminStore.getState().attendanceSessions
-      return tutorId ? all.filter((s) => s.tutorId === tutorId) : all
+  return useQuery<AttendanceSession[]>({
+    queryKey: tutorId
+      ? ([...ADMIN_KEYS.attendance, 'tutor', tutorId] as const)
+      : classId
+        ? ([...ADMIN_KEYS.attendance, 'class', classId] as const)
+        : ADMIN_KEYS.attendance,
+    queryFn: async () => {
+      try {
+        const dbSessions = await scheduleService.getSessions(tutorId, classId)
+        if (Array.isArray(dbSessions)) {
+          return dbSessions.map((s) => ({
+            id: s.id,
+            scheduleId: s.scheduleId || '',
+            classId: s.classId,
+            className: s.className || 'Rombel Kelas',
+            subjectName: s.subjectName || 'Sesi Bimbingan',
+            tutorId: s.tutorId || '',
+            tutorName: s.tutorName || 'Tutor Bimbel',
+            roomId: s.roomId || '',
+            roomName: s.roomName || 'Ruang Belajar',
+            sessionDate: s.sessionDate,
+            dayOfWeek: s.dayOfWeek || 'Senin',
+            startTime: s.startTime || '16:00',
+            endTime: s.endTime || '17:30',
+            topic: s.topic || 'Sesi Bimbingan',
+            isCompleted: s.isCompleted,
+            entries: ((s as { entries?: AttendanceEntry[] }).entries || []),
+          }))
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil sessions dari Supabase:', err)
+      }
+      return []
     },
   })
 }
@@ -1210,13 +1430,35 @@ export function useSessionDetails(sessionId: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.attendance, 'session', sessionId] as const,
-    queryFn: () => {
-      const all = adminStore.getState().attendanceSessions
-      return all.find((s) => s.id === sessionId) || null
-    },
-    initialData: () => {
-      const all = adminStore.getState().attendanceSessions
-      return all.find((s) => s.id === sessionId) || null
+    queryFn: async () => {
+      if (!sessionId) return null
+      try {
+        const dbSessions = await scheduleService.getSessions()
+        const found = dbSessions.find((s) => s.id === sessionId)
+        if (found) {
+          return {
+            id: found.id,
+            scheduleId: found.scheduleId || '',
+            classId: found.classId,
+            className: found.className || 'Rombel Kelas',
+            subjectName: found.subjectName || 'Sesi Bimbingan',
+            tutorId: found.tutorId || '',
+            tutorName: found.tutorName || 'Tutor Bimbel',
+            roomId: found.roomId || '',
+            roomName: found.roomName || 'Ruang Belajar',
+            sessionDate: found.sessionDate,
+            dayOfWeek: found.dayOfWeek || 'Senin',
+            startTime: found.startTime || '16:00',
+            endTime: found.endTime || '17:30',
+            topic: found.topic || 'Sesi Bimbingan',
+            isCompleted: found.isCompleted,
+            entries: ((found as { entries?: AttendanceEntry[] }).entries || []),
+          }
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil detail sesi dari Supabase:', err)
+      }
+      return null
     },
     enabled: Boolean(sessionId),
   })
@@ -1418,10 +1660,17 @@ export function useStudentDashboardData(targetStudentId?: string) {
 }
 
 export function useTutorDashboardData(targetTutorId?: string) {
-  const { data: session } = useActiveSession()
-  const tutorId = targetTutorId || session?.activeTutorId || 'tut-1'
-
   const { data: tutors = [] } = useAdminTutors()
+  const { data: session } = useActiveSession()
+
+  // Resolusi ID Pengajar resmi: targetTutorId -> session activeTutorId -> pencarian di tutors Supabase
+  const resolvedTutor =
+    (targetTutorId ? tutors.find((t) => t.id === targetTutorId) : null) ||
+    (session?.activeTutorId ? tutors.find((t) => t.id === session.activeTutorId || t.name === (session.tutor as any)?.name) : null) ||
+    tutors[0]
+
+  const tutorId = resolvedTutor?.id || targetTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9'
+
   const { data: schedules = [] } = useAdminSchedules()
   const { data: sessions = [] } = useAttendanceSessions(tutorId)
   const { data: materials = [] } = useLearningMaterials()
@@ -1429,7 +1678,7 @@ export function useTutorDashboardData(targetTutorId?: string) {
   const { data: classes = [] } = useAdminClasses()
   const { data: students = [] } = useAdminStudents()
 
-  const currentTutor = tutors.find((t) => t.id === tutorId) || tutors[0]
+  const currentTutor = resolvedTutor || tutors[0]
 
   const tutorSchedules = schedules.filter((s) => s.tutorId === tutorId)
   const tutorMaterials = materials.filter((m) => m.tutorId === tutorId)
