@@ -1,4 +1,5 @@
 import { supabase } from './supabase/client'
+import { isSessionLockedForTutor } from './attendance-helpers'
 
 export type PackageCode = 'UTBK' | 'SMA' | 'SMP' | 'SD'
 
@@ -152,6 +153,7 @@ export interface AttendanceSession {
   endTime: string
   topic: string
   isCompleted: boolean
+  completedAt?: string
   entries: AttendanceEntry[]
 }
 
@@ -1823,6 +1825,13 @@ export const adminStore = {
     const session = state.attendanceSessions.find((s) => s.id === sessionId)
     if (!session) return false
 
+    // Pemeriksaan Audit Lock & 24h Grace Period
+    if (isSessionLockedForTutor(session)) {
+      throw new Error(
+        'Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 24 jam dan telah dikunci untuk menjaga integritas data presensi.'
+      )
+    }
+
     // Pencegahan duplikasi presensi siswa pada sesi yang sama
     const seenStudentIds = new Set<string>()
     for (const entry of entries) {
@@ -1837,6 +1846,9 @@ export const adminStore = {
     session.topic = topic
     session.entries = entries
     session.isCompleted = true
+    if (!session.completedAt) {
+      session.completedAt = new Date().toISOString()
+    }
 
     const alpaEntries = entries.filter((e) => e.status === 'alpa')
     if (alpaEntries.length > 0) {

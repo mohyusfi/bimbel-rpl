@@ -1,5 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import { ensureAdminSession } from './master-data.service'
+import { formatLocalDate } from '~/lib/attendance-helpers'
 
 export type ServerResult<T> =
   | { success: true; data: T }
@@ -549,6 +550,8 @@ export const scheduleService = {
     }
 
     // 4. Sinkronkan sesi yang belum selesai (is_completed = false)
+    // Proteksi sesi lampau (overdue): Jika hari jadwal berubah, hanya perbarui sesi masa depan (session_date >= today)
+    const todayStr = formatLocalDate()
     const sessionUpdatePayload: Record<string, any> = {}
     if (updates.classId !== undefined) sessionUpdatePayload.class_id = updates.classId
     if (updates.tutorId !== undefined) sessionUpdatePayload.tutor_id = updates.tutorId
@@ -561,11 +564,18 @@ export const scheduleService = {
     }
 
     if (Object.keys(sessionUpdatePayload).length > 0) {
-      await supabase
+      let sessionQuery = supabase
         .from('sessions')
         .update(sessionUpdatePayload)
         .eq('schedule_id', id)
         .eq('is_completed', false)
+
+      // Jika hari bimbingan mingguan berubah, proteksi sesi lampau agar tidak ikut tergeser
+      if (updates.dayOfWeek !== undefined && updates.dayOfWeek !== existing.dayOfWeek) {
+        sessionQuery = sessionQuery.gte('session_date', todayStr)
+      }
+
+      await sessionQuery
     }
 
     const updatedRow = updatedSchedule as unknown as ScheduleJoinedRow

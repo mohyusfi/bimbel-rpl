@@ -220,6 +220,41 @@ describe('Tiket 03 — Presensi Digital Sesi Kalender Aktual & Persistensi Audit
       const result = adminStore.saveSessionAttendance('ses-nonexistent-999', 'Topik X', [])
       expect(result).toBe(false)
     })
+
+    it('menolak pengubahan presensi jika sesi sudah selesai lebih dari 24 jam yang lalu (Audit Lock)', () => {
+      const baseSchedule = adminStore.getState().schedules[0]
+      const session = adminStore.createSessionFromSchedule(baseSchedule.id, '2026-10-15')
+
+      // Tandai sesi selesai 48 jam yang lalu
+      const pastTime = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      session.isCompleted = true
+      session.completedAt = pastTime
+
+      expect(() => {
+        adminStore.saveSessionAttendance(session.id, 'Topik Terkunci', [
+          { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+        ])
+      }).toThrow(/Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 24 jam/)
+    })
+
+    it('mengizinkan pengubahan presensi jika sesi baru selesai dalam batas 24 jam (Grace Period aktif)', () => {
+      const baseSchedule = adminStore.getState().schedules[0]
+      const session = adminStore.createSessionFromSchedule(baseSchedule.id, '2026-10-23')
+
+      // Sesi selesai 2 jam yang lalu
+      const recentTime = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      session.isCompleted = true
+      session.completedAt = recentTime
+
+      const success = adminStore.saveSessionAttendance(session.id, 'Topik Terkoreksi', [
+        { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'izin' },
+      ])
+      expect(success).toBe(true)
+
+      const saved = adminStore.getState().attendanceSessions.find((s) => s.id === session.id)
+      expect(saved?.topic).toBe('Topik Terkoreksi')
+      expect(saved?.entries.find((e) => e.studentId === 'stu-1')?.status).toBe('izin')
+    })
   })
 
   // =========================================================================
