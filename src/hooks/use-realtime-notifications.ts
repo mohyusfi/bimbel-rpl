@@ -7,6 +7,7 @@ import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
 
 export interface RealtimeNotificationsOptions {
   userId?: string | null
+  role?: 'admin' | 'tutor' | 'student' | 'parent'
   client?: SupabaseClient
   enabled?: boolean
   queryClient?: QueryClient
@@ -172,6 +173,7 @@ export function useRealtimeNotifications(
 
   const {
     userId,
+    role,
     client = supabase,
     enabled = true,
     onNotification,
@@ -215,15 +217,44 @@ export function useRealtimeNotifications(
   })
 
   const notifications = React.useMemo(() => {
-    if (!userId) return allNotifications
-    return allNotifications.filter(
-      (n) =>
+    return allNotifications.filter((n) => {
+      // 1. If role is explicitly provided
+      if (role === 'admin') {
+        // Admin has full visibility into all notifications
+        return true
+      }
+
+      if (role === 'student' || role === 'parent' || role === 'tutor') {
+        // Exclude admin-specific operational notifications
+        if (n.type === 'registration') return false
+        if (n.type === 'payment' && !n.userId && !n.metadata?.studentId && !n.metadata?.parentId) return false
+
+        // Broadcast announcements are visible to everyone
+        if (n.type === 'announcement') return true
+
+        // User-specific notifications
+        if (userId) {
+          return (
+            n.userId === userId ||
+            n.metadata?.studentId === userId ||
+            n.metadata?.parentId === userId
+          )
+        }
+
+        // If userId not yet resolved, show student/academic domain notifications only
+        return n.type === 'academic' || n.type === 'attendance' || n.type === 'schedule' || n.type === 'billing'
+      }
+
+      // 2. Default behavior (when role is omitted, preserving backwards compatibility)
+      if (!userId) return true
+      return (
         !n.userId ||
         n.userId === userId ||
         n.metadata?.studentId === userId ||
         n.metadata?.parentId === userId
-    )
-  }, [allNotifications, userId])
+      )
+    })
+  }, [allNotifications, userId, role])
 
   const unreadCount = React.useMemo(
     () => notifications.filter((n) => !n.isRead).length,
@@ -239,9 +270,21 @@ export function useRealtimeNotifications(
   )
 
   const markAllAsRead = React.useCallback(() => {
-    adminStore.markAllNotificationsRead(userId ?? undefined)
+    // 1. Mark all unread notifications visible in this portal as read
+    const unreadTargetIds = notifications.filter((n) => !n.isRead).map((n) => n.id)
+    unreadTargetIds.forEach((id) => {
+      adminStore.markNotificationRead(id)
+    })
+
+    // 2. Call adminStore.markAllNotificationsRead for the user or globally
+    if (userId) {
+      adminStore.markAllNotificationsRead(userId)
+    } else {
+      adminStore.markAllNotificationsRead()
+    }
+
     queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
-  }, [queryClient, userId])
+  }, [notifications, queryClient, userId])
 
   return {
     notifications,

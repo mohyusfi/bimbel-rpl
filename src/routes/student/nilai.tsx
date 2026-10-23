@@ -15,6 +15,34 @@ import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { DataTable } from '~/components/ui/data-table'
 import { cn } from '~/lib/utils'
 
+// Short date helper (e.g., '2026-10-10' -> '10 Okt')
+function formatShortDate(dateStr: string) {
+  if (!dateStr) return ''
+  const parts = dateStr.split('-')
+  if (parts.length === 3) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ]
+    const monthIdx = parseInt(parts[1], 10) - 1
+    const day = parseInt(parts[2], 10)
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${day} ${months[monthIdx]}`
+    }
+  }
+  return dateStr
+}
+
 export const Route = createFileRoute('/student/nilai')({
   ssr: false,
   component: StudentNilaiPage,
@@ -39,17 +67,19 @@ function StudentNilaiPage() {
 
   // Score Progress Chart data (chronological order)
   const chartGrades = [...grades].reverse()
-  const chartWidth = 600
-  const chartHeight = 200
-  const paddingX = 40
-  const paddingY = 25
-  const innerWidth = chartWidth - paddingX * 2
-  const innerHeight = chartHeight - paddingY * 2
+  const chartWidth = 1000
+  const chartHeight = 300
+  const paddingLeft = 45
+  const paddingRight = 35
+  const paddingTop = 30
+  const paddingBottom = 35
+  const innerWidth = chartWidth - paddingLeft - paddingRight
+  const innerHeight = chartHeight - paddingTop - paddingBottom
 
-  const getY = (val: number) => paddingY + innerHeight - (val / 100) * innerHeight
+  const getY = (val: number) => paddingTop + innerHeight - (val / 100) * innerHeight
   const getX = (index: number) => {
-    if (chartGrades.length <= 1) return paddingX + innerWidth / 2
-    return paddingX + (index / (chartGrades.length - 1)) * innerWidth
+    if (chartGrades.length <= 1) return paddingLeft + innerWidth / 2
+    return paddingLeft + (index / (chartGrades.length - 1)) * innerWidth
   }
 
   const studentPoints = chartGrades.map((g, idx) => ({
@@ -57,7 +87,7 @@ function StudentNilaiPage() {
     y: getY(g.score),
     score: g.score,
     title: g.assessmentTitle,
-    date: g.assessmentDate,
+    date: formatShortDate(g.assessmentDate),
   }))
 
   const classPoints = chartGrades.map((g, idx) => ({
@@ -275,25 +305,26 @@ function StudentNilaiPage() {
             </div>
           </div>
 
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto pb-1">
             <svg
               viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="w-full h-48 sm:h-56 min-w-[500px]"
+              className="w-full min-w-[600px] h-72 sm:h-80"
+              preserveAspectRatio="none"
             >
-              {[100, 75, 50, 25, 0].map((val) => {
+              {[100, 80, 60, 40, 20, 0].map((val) => {
                 const y = getY(val)
                 return (
                   <g key={val}>
                     <line
-                      x1={paddingX}
+                      x1={paddingLeft}
                       y1={y}
-                      x2={chartWidth - paddingX}
+                      x2={chartWidth - paddingRight}
                       y2={y}
                       stroke="#E5E5E5"
                       strokeDasharray="3 3"
                     />
                     <text
-                      x={paddingX - 8}
+                      x={paddingLeft - 8}
                       y={y + 3}
                       textAnchor="end"
                       fontSize="10"
@@ -330,16 +361,16 @@ function StudentNilaiPage() {
                   <circle
                     cx={p.x}
                     cy={p.y}
-                    r="4.5"
+                    r="5"
                     fill="#CB2957"
                     stroke="#FFFFFF"
                     strokeWidth="2"
                   />
                   <text
                     x={p.x}
-                    y={p.y - 8}
+                    y={p.y - 10}
                     textAnchor="middle"
-                    fontSize="11"
+                    fontSize="12"
                     fontWeight="bold"
                     fill="#000000"
                   >
@@ -347,9 +378,9 @@ function StudentNilaiPage() {
                   </text>
                   <text
                     x={p.x}
-                    y={chartHeight - 6}
+                    y={chartHeight - 10}
                     textAnchor="middle"
-                    fontSize="10"
+                    fontSize="11"
                     fill="#555555"
                   >
                     {p.date}
