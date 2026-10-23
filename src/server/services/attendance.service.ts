@@ -1,5 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import { isSessionLockedForTutor, calculateAttendancePercentage } from '~/lib/attendance-helpers'
+import { ensureAdminSession } from './master-data.service'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -36,7 +37,30 @@ export const attendanceService = {
       return { success: false, error: 'ID sesi tidak valid.' }
     }
 
-    // 1. Ambil data sesi untuk verifikasi status
+    // 1. Pencegahan duplikasi siswa dalam satu payload
+    const seenStudentIds = new Set<string>()
+    for (const entry of entries) {
+      if (seenStudentIds.has(entry.studentId)) {
+        return {
+          success: false,
+          error: `Pencegahan duplikasi presensi: Siswa "${entry.studentName || entry.studentId}" memiliki lebih dari satu entri presensi.`,
+          code: 'DUPLICATE_STUDENT_ENTRY',
+        }
+      }
+      seenStudentIds.add(entry.studentId)
+    }
+
+    const isUUID = (val: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+    // Jika ID sesi bukan UUID (data sesi lokal mock), validasi telah lolos
+    if (!isUUID(sessionId)) {
+      return { success: true, data: true }
+    }
+
+    await ensureAdminSession()
+
+    // 2. Ambil data sesi untuk verifikasi status
     const { data: sessionData, error: sessionErr } = await supabase
       .from('sessions')
       .select('id, session_date, is_completed, created_at')
@@ -47,7 +71,7 @@ export const attendanceService = {
       return { success: false, error: `Sesi dengan ID "${sessionId}" tidak ditemukan di database.` }
     }
 
-    // 2. Verifikasi Audit Lock & 24h Grace Period
+    // 3. Verifikasi Audit Lock & 24h Grace Period
     const isLocked = isSessionLockedForTutor({
       isCompleted: sessionData.is_completed,
       sessionDate: sessionData.session_date,
@@ -60,19 +84,6 @@ export const attendanceService = {
         error: 'Pencegahan manipulasi presensi: Sesi telah selesai lebih dari 24 jam dan telah dikunci untuk menjaga integritas data presensi.',
         code: 'SESSION_AUDIT_LOCKED',
       }
-    }
-
-    // 3. Pencegahan duplikasi siswa dalam satu payload
-    const seenStudentIds = new Set<string>()
-    for (const entry of entries) {
-      if (seenStudentIds.has(entry.studentId)) {
-        return {
-          success: false,
-          error: `Pencegahan duplikasi presensi: Siswa "${entry.studentName || entry.studentId}" memiliki lebih dari satu entri presensi.`,
-          code: 'DUPLICATE_STUDENT_ENTRY',
-        }
-      }
-      seenStudentIds.add(entry.studentId)
     }
 
     // 4. Update status sesi bimbingan di tabel sessions
@@ -89,12 +100,13 @@ export const attendanceService = {
     }
 
     // 5. Upsert / simpan entri presensi ke tabel attendances
-    if (entries.length > 0) {
-      const attendancePayloads = entries.map((entry) => ({
+    const validEntries = entries.filter((e) => isUUID(e.studentId))
+    if (validEntries.length > 0) {
+      const attendancePayloads = validEntries.map((entry) => ({
         session_id: sessionId,
         student_id: entry.studentId,
         status: entry.status,
-        notes: entry.note || entry.notes || null,
+        notes: entry.note || (entry as any).notes || null,
       }))
 
       const { error: upsertErr } = await supabase

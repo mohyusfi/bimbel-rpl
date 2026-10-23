@@ -1542,6 +1542,57 @@ export const adminStore = {
     const tutor = state.tutors.find((t) => t.id === input.tutorId)
     if (tutor) tutor.weeklySessionsCount += 1
 
+    // Otomatis generate 1 entri sesi bimbingan perdana di attendanceSessions (SCHED-02)
+    const DAY_INDEX: Record<string, number> = {
+      Minggu: 0,
+      Senin: 1,
+      Selasa: 2,
+      Rabu: 3,
+      Kamis: 4,
+      Jumat: 5,
+      Sabtu: 6,
+    }
+    const targetDay = DAY_INDEX[newSchedule.dayOfWeek] ?? 1
+    const fromDate = new Date()
+    let diff = targetDay - fromDate.getDay()
+    if (diff <= 0) diff += 7
+    const nextDate = new Date(fromDate.getTime())
+    nextDate.setDate(fromDate.getDate() + diff)
+    const yyyy = nextDate.getFullYear()
+    const mm = String(nextDate.getMonth() + 1).padStart(2, '0')
+    const dd = String(nextDate.getDate()).padStart(2, '0')
+    const sessionDate = `${yyyy}-${mm}-${dd}`
+    const topic = `${newSchedule.subjectName} — Pertemuan 1`
+
+    const enrolledStudents = state.students.filter((s) => s.classId === newSchedule.classId)
+    const initialEntries: AttendanceEntry[] = enrolledStudents.map((s) => ({
+      studentId: s.id,
+      studentName: s.name,
+      nis: s.nis,
+      status: 'hadir',
+    }))
+
+    const initialSession: AttendanceSession = {
+      id: `ses-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      scheduleId: newSchedule.id,
+      classId: newSchedule.classId,
+      className: newSchedule.className,
+      subjectName: newSchedule.subjectName,
+      tutorId: newSchedule.tutorId,
+      tutorName: newSchedule.tutorName,
+      roomId: newSchedule.roomId,
+      roomName: newSchedule.roomName,
+      sessionDate,
+      dayOfWeek: newSchedule.dayOfWeek,
+      startTime: newSchedule.startTime,
+      endTime: newSchedule.endTime,
+      topic,
+      isCompleted: false,
+      entries: initialEntries,
+    }
+
+    state.attendanceSessions = [initialSession, ...state.attendanceSessions]
+
     saveAndNotify()
     return newSchedule
   },
@@ -1595,6 +1646,25 @@ export const adminStore = {
       roomName: input.roomName ?? (targetRoom ? targetRoom.name : oldSchedule.roomName),
     }
     state.schedules[index] = updated
+
+    // Sinkronkan perubahan jadwal ke sesi mendatang yang belum selesai
+    state.attendanceSessions = state.attendanceSessions.map((s) => {
+      if (s.scheduleId === id && !s.isCompleted) {
+        return {
+          ...s,
+          className: updated.className,
+          tutorId: updated.tutorId,
+          tutorName: updated.tutorName,
+          roomId: updated.roomId,
+          roomName: updated.roomName,
+          dayOfWeek: updated.dayOfWeek,
+          startTime: updated.startTime,
+          endTime: updated.endTime,
+        }
+      }
+      return s
+    })
+
     saveAndNotify()
     return updated
   },
@@ -1606,6 +1676,10 @@ export const adminStore = {
       if (tutor && tutor.weeklySessionsCount > 0) tutor.weeklySessionsCount -= 1
     }
     state.schedules = state.schedules.filter((s) => s.id !== id)
+    // Hapus sesi mendatang yang belum selesai dari jadwal yang dihapus
+    state.attendanceSessions = state.attendanceSessions.filter(
+      (s) => !(s.scheduleId === id && !s.isCompleted)
+    )
     saveAndNotify()
     return true
   },

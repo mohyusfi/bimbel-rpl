@@ -277,6 +277,7 @@ export const scheduleService = {
    * Mengambil semua jadwal bimbingan aktif dari database Supabase
    */
   async getSchedules(): Promise<ScheduleItem[]> {
+    await ensureAdminSession()
     const { data, error } = await supabase
       .from('schedules')
       .select(`
@@ -631,6 +632,18 @@ export const scheduleService = {
    * Mengambil sesi bimbingan dari database (Read query tidak memerlukan sesi admin)
    */
   async getSessions(tutorId?: string, classId?: string): Promise<SessionItem[]> {
+    const isUUID = (val: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+    if (tutorId && !isUUID(tutorId)) {
+      return []
+    }
+    if (classId && !isUUID(classId)) {
+      return []
+    }
+
+    await ensureAdminSession()
+
     let query = supabase
       .from('sessions')
       .select(`
@@ -669,6 +682,7 @@ export const scheduleService = {
       scheduleId: s.schedule_id || undefined,
       classId: s.class_id,
       className: s.classes?.class_name || 'Rombel Kelas',
+      subjectName: s.schedules?.subject_name || s.topic || 'Sesi Bimbingan',
       tutorId: s.tutor_id || undefined,
       tutorName: s.tutors?.profiles?.full_name || 'Tutor Bimbel',
       roomId: s.room_id || undefined,

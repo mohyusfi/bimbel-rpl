@@ -153,9 +153,10 @@ export function TutorPresensiPage() {
     if (!selectedSession || isLocked) return
     setIsSaving(true)
     setErrorMessage(null)
+    const currentId = selectedSession.id
     try {
       await saveSessionAttendance({
-        sessionId: selectedSession.id,
+        sessionId: currentId,
         topic: topic.trim() || selectedSession.subjectName,
         entries,
       })
@@ -163,6 +164,10 @@ export function TutorPresensiPage() {
       const anyAlpa = entries.some((e) => e.status === 'alpa')
       setHasAlpaNotice(anyAlpa)
       setSaveSuccess(true)
+
+      // Pindahkan langsung ke tab Riwayat Presensi agar pengajar melihat sesi yang telah selesai diarsip
+      setActiveTab('history')
+      setSelectedSessionId(currentId)
 
       // Sembunyikan notifikasi sukses setelah 5 detik
       setTimeout(() => {
