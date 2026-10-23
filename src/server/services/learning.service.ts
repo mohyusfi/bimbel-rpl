@@ -304,18 +304,40 @@ export const learningService = {
       // Upload ke Supabase Storage bucket learning-materials
       const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const targetPath = `classes/${classId}/${Date.now()}_${sanitizedName}`
+      // Normalisasi contentType ke standar MIME resmi Supabase Storage (mencegah penolakan dari aplikasi pihak ketiga seperti WPS Office)
       const contentType =
-        file.type ||
-        (finalFileType === 'PPTX'
+        finalFileType === 'PPTX'
           ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-          : 'application/pdf')
+          : 'application/pdf'
 
-      const { error: uploadError } = await supabase.storage
+      let uploadPayload: Blob | File | ArrayBuffer = file
+      try {
+        if (typeof file?.arrayBuffer === 'function') {
+          const buffer = await file.arrayBuffer()
+          uploadPayload = new File([buffer], sanitizedName, { type: contentType })
+        }
+      } catch {
+        // Fallback gunakan file asal
+      }
+
+      let { error: uploadError } = await supabase.storage
         .from('learning-materials')
-        .upload(targetPath, file, {
+        .upload(targetPath, uploadPayload, {
           contentType,
           upsert: true,
         })
+
+      if (uploadError) {
+        // Retry sekali jika gangguan jaringan sementara
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        const retryUpload = await supabase.storage
+          .from('learning-materials')
+          .upload(targetPath, uploadPayload, {
+            contentType,
+            upsert: true,
+          })
+        uploadError = retryUpload.error
+      }
 
       if (uploadError) {
         console.error('[ERROR] Gagal mengunggah berkas ke Supabase Storage:', uploadError.message)

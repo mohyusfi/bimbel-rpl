@@ -12,6 +12,9 @@ export const ALLOWED_MATERIAL_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'application/vnd.ms-powerpoint',
+  'application/wps-office.pptx',
+  'application/x-wps-office.pptx',
+  'application/kspresentation',
 ] as const
 
 export interface MaterialValidationResult {
@@ -36,7 +39,10 @@ export function validateMaterialFormat(
   const isPptx =
     lowerName.endsWith('.pptx') ||
     mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-    mimeType === 'application/vnd.ms-powerpoint'
+    mimeType === 'application/vnd.ms-powerpoint' ||
+    mimeType === 'application/wps-office.pptx' ||
+    mimeType === 'application/x-wps-office.pptx' ||
+    mimeType === 'application/kspresentation'
 
   if (!isPdf && !isPptx) {
     return {

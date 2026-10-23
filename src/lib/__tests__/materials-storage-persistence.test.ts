@@ -63,6 +63,10 @@ describe('Tiket 04 — Distribusi Modul Pembelajaran & Integrasi Cloud Storage',
       const resMimeFallback = validateMaterialFormat('dokumen_tanpa_ekstensi', 'application/vnd.ms-powerpoint')
       expect(resMimeFallback.valid).toBe(true)
       expect(resMimeFallback.fileType).toBe('PPTX')
+
+      const resWps = validateMaterialFormat('slide-materi.pptx', 'application/wps-office.pptx')
+      expect(resWps.valid).toBe(true)
+      expect(resWps.fileType).toBe('PPTX')
     })
 
     it('menolak format berkas selain PDF dan PPTX (DOCX, ZIP, EXE, JPG, MP4, dsb)', () => {
