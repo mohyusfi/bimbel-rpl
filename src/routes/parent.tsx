@@ -12,10 +12,12 @@ import {
 import { DashboardShell, type DashboardNavGroup } from '~/components/dashboard/DashboardShell'
 import { useParentDashboardData, useBimbelMutations } from '~/hooks/use-admin-data'
 import { useAuth } from '~/hooks/use-auth'
+import { createRouteGuard } from '~/lib/route-guard'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent')({
   ssr: false,
+  beforeLoad: createRouteGuard('parent'),
   component: ParentLayout,
 })
 
@@ -79,7 +81,10 @@ function ParentLayout() {
             <button
               key={child.id}
               type="button"
-              onClick={() => setSelectedChildId(child.id)}
+              onClick={() => {
+                setSelectedChildId(child.id)
+                auth.switchChild(child.id)
+              }}
               className={cn(
                 'w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-xs transition-all text-left cursor-pointer border shadow-none',
                 isSelected

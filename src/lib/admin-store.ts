@@ -2207,6 +2207,11 @@ export const adminStore = {
     return newParent
   },
 
+  updateParent(id: string, updates: Partial<ParentProfile>) {
+    state.parents = state.parents.map((p) => (p.id === id ? { ...p, ...updates } : p))
+    saveAndNotify()
+  },
+
   // ANNOUNCEMENTS
   addAnnouncement(input: Omit<Announcement, 'id' | 'publishedDate' | 'author'>) {
     const newAnn: Announcement = {

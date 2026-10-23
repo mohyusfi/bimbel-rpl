@@ -9,9 +9,11 @@ import {
 import { DashboardShell } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
 import { useAuth } from '~/hooks/use-auth'
+import { createRouteGuard } from '~/lib/route-guard'
 
 export const Route = createFileRoute('/tutor')({
   ssr: false,
+  beforeLoad: createRouteGuard('tutor'),
   component: TutorLayout,
 })
 
