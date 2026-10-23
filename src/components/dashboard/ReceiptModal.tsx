@@ -129,7 +129,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                           Biaya Bimbingan SPP Bulanan
                         </span>
                         <span className="text-[11px] text-[#555555]">
-                          No. Tagihan: <span className="tabular-nums font-mono">{invoice.id}</span> · Jatuh Tempo: <span className="tabular-nums">{invoice.dueDate}</span>
+                          No. Tagihan: <span className="tabular-nums font-mono">{(invoice as any).invoiceNumber || invoice.id}</span> · Jatuh Tempo: <span className="tabular-nums">{invoice.dueDate}</span>
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#555555]">

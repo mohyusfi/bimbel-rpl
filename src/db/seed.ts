@@ -520,7 +520,170 @@ async function runSeed() {
     }
   }
 
-  console.log('[DONE] [Tiket 01 & Tiket 05] Database Seeding Master Data & Modul Nilai Selesai 100% Sukses!')
+  // 9. Seed Invoices & Payments (Tagihan SPP & Verifikasi Pembayaran - Tiket 06)
+  console.log('[SEED] [Tiket 06] Menyuntikkan master data invoices & payments...')
+  const samplePngBuffer = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+    0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+    0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+  ])
+
+  const sampleReceiptPath = 'proofs/sample-receipt.png'
+  try {
+    await supabase.storage.from('receipts').upload(sampleReceiptPath, samplePngBuffer, {
+      contentType: 'image/png',
+      upsert: true,
+    })
+  } catch (err) {
+    console.warn('[WARN] Notice storage receipts upload:', err)
+  }
+
+  const { data: sampleReceiptPub } = supabase.storage.from('receipts').getPublicUrl(sampleReceiptPath)
+  const sampleReceiptUrl = sampleReceiptPub?.publicUrl || ''
+
+  const initialInvoices = [
+    {
+      id: 'f1000000-0000-0000-0000-000000000001',
+      student_id: fahriStudentId,
+      invoice_number: 'INV-202610-0011',
+      program_name: 'Intensif UTBK-SNBT',
+      description: 'SPP Bimbingan Belajar Periode Oktober 2026',
+      amount: 450000,
+      due_date: '2026-10-10',
+      status: 'lunas',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000002',
+      student_id: bintangStudentId,
+      invoice_number: 'INV-202610-0012',
+      program_name: 'SD Cendekia',
+      description: 'SPP Bimbingan Belajar Periode November 2026',
+      amount: 300000,
+      due_date: '2026-11-10',
+      status: 'menunggu',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000003',
+      student_id: alyaStudentId,
+      invoice_number: 'INV-202610-0013',
+      program_name: 'SMP Prestasi',
+      description: 'SPP Bimbingan Belajar Periode November 2026',
+      amount: 350000,
+      due_date: '2026-11-10',
+      status: 'belum_dibayar',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000004',
+      student_id: fahriStudentId,
+      invoice_number: 'INV-202609-0014',
+      program_name: 'Intensif UTBK-SNBT',
+      description: 'SPP Bimbingan Belajar Periode September 2026',
+      amount: 450000,
+      due_date: '2026-09-10',
+      status: 'ditolak',
+      rejected_reason: 'Bukti transfer buram dan tidak menampilkan nomor referensi bank.',
+    },
+  ]
+
+  for (const inv of initialInvoices) {
+    const { data: existingInv } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('id', inv.id)
+      .maybeSingle()
+
+    if (existingInv) {
+      console.log(`  ↪ Invoice "${inv.invoice_number}" sudah ada: ${inv.id}`)
+    } else {
+      const { error: invErr } = await supabase.from('invoices').insert(inv as any)
+      if (invErr) {
+        console.error(`  [ERROR] Gagal insert invoice "${inv.invoice_number}":`, invErr.message)
+      } else {
+        console.log(`  [OK] Invoice "${inv.invoice_number}" berhasil dibuat.`)
+      }
+    }
+  }
+
+  // Payments Seeding
+  const initialPayments = [
+    {
+      id: 'fa000000-0000-0000-0000-000000000001',
+      invoice_id: 'f1000000-0000-0000-0000-000000000001',
+      amount: 450000,
+      amount_paid: '450000',
+      transfer_receipt_file: 'bukti_transfer_bsi_oktober.png',
+      proof_file_url: sampleReceiptUrl,
+      storage_path: sampleReceiptPath,
+      bank_name: 'Bank Syariah Indonesia (BSI)',
+      payment_method: 'Transfer Bank Syariah Indonesia (BSI)',
+      submitted_at: '2026-10-09T08:00:00.000Z',
+      verified_at: '2026-10-10T09:15:00.000Z',
+      receipt_number: 'KWT-202610-0011',
+      submitted_by_role: 'student',
+      submitted_by_name: 'Fahri Ramadhan',
+      status: 'lunas',
+      notes: 'Pembayaran SPP terverifikasi lunas oleh tata usaha.',
+    },
+    {
+      id: 'fa000000-0000-0000-0000-000000000002',
+      invoice_id: 'f1000000-0000-0000-0000-000000000002',
+      amount: 300000,
+      amount_paid: '300000',
+      transfer_receipt_file: 'bukti_transfer_bsi_bintang.png',
+      proof_file_url: sampleReceiptUrl,
+      storage_path: sampleReceiptPath,
+      bank_name: 'Bank Syariah Indonesia (BSI)',
+      payment_method: 'Transfer Bank Syariah Indonesia (BSI)',
+      submitted_at: '2026-10-22T10:00:00.000Z',
+      submitted_by_role: 'parent',
+      submitted_by_name: 'Ahmad Dahlan',
+      status: 'menunggu',
+      notes: null,
+    },
+    {
+      id: 'fa000000-0000-0000-0000-000000000004',
+      invoice_id: 'f1000000-0000-0000-0000-000000000004',
+      amount: 450000,
+      amount_paid: '450000',
+      transfer_receipt_file: 'struk_tidak_jelas.jpg',
+      proof_file_url: sampleReceiptUrl,
+      storage_path: sampleReceiptPath,
+      bank_name: 'Bank Mandiri',
+      payment_method: 'Transfer Bank Mandiri',
+      submitted_at: '2026-09-08T11:00:00.000Z',
+      submitted_by_role: 'student',
+      submitted_by_name: 'Fahri Ramadhan',
+      status: 'ditolak',
+      notes: 'Bukti transfer buram dan tidak menampilkan nomor referensi bank.',
+    },
+  ]
+
+  for (const pay of initialPayments) {
+    const { data: existingPay } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('id', pay.id)
+      .maybeSingle()
+
+    if (existingPay) {
+      console.log(`  ↪ Payment "${pay.id}" sudah ada.`)
+    } else {
+      const { error: payErr } = await supabase.from('payments').insert(pay as any)
+      if (payErr) {
+        console.error(`  [ERROR] Gagal insert payment "${pay.id}":`, payErr.message)
+      } else {
+        console.log(`  [OK] Payment "${pay.id}" berhasil dibuat.`)
+      }
+    }
+  }
+
+  console.log('[DONE] [Tiket 01, Tiket 05 & Tiket 06] Database Seeding Selesai 100% Sukses!')
 }
 
 runSeed().catch((err) => {

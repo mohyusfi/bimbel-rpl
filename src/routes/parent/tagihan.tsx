@@ -77,7 +77,7 @@ function ParentBillingPage() {
       cell: ({ row }) => (
         <div className="space-y-0.5">
           <p className="font-mono text-xs font-semibold text-[#000000]">
-            {row.original.id}
+            {(row.original as any).invoiceNumber || row.original.id}
           </p>
           <p className="text-[11px] text-[#555555] flex items-center gap-1">
             <Clock className="w-3 h-3 text-[#555555]" />
