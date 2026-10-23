@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { learningService } from '../learning.service'
 
-describe('LearningService — TDD & Supabase Integration (Tiket 05)', () => {
+describe('LearningService — TDD & Supabase Integration (Tiket 05)', { timeout: 15000 }, () => {
   const UTBK_CLASS_ID = 'c1000000-0000-0000-0000-000000000001'
   const SMP_CLASS_ID = 'c1000000-0000-0000-0000-000000000004'
   const KAK_DIAN_TUTOR_ID = '9383fc09-99fc-423c-ac09-e3f94c26f5e9'

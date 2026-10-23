@@ -233,7 +233,15 @@ export const learningService = {
       }
     }
 
-    const { data, error } = await query
+    let { data, error } = await query
+
+    if (error) {
+      // Retry sekali jika terjadi gangguan jaringan sementara
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const retryResult = await query
+      data = retryResult.data
+      error = retryResult.error
+    }
 
     if (error) {
       console.error('[ERROR] Gagal memuat data modul pembelajaran dari Supabase:', error.message)
@@ -409,10 +417,20 @@ export const learningService = {
     }
 
     // 2. Hapus dari tabel materials
-    const { error: delError } = await supabase
+    let { error: delError } = await supabase
       .from('materials')
       .delete()
       .eq('id', materialId)
+
+    if (delError) {
+      // Retry sekali jika gangguan jaringan sementara
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const retryDel = await supabase
+        .from('materials')
+        .delete()
+        .eq('id', materialId)
+      delError = retryDel.error
+    }
 
     if (delError) {
       console.error('[ERROR] Gagal menghapus baris tabel materials:', delError.message)
@@ -550,7 +568,7 @@ export const learningService = {
     )
 
     // 2. Simpan nilai ke tabel grades
-    const { data: inserted, error: insertError } = await supabase
+    let { data: inserted, error: insertError } = await supabase
       .from('grades')
       .insert({
         student_id: realStudentId,
@@ -593,6 +611,55 @@ export const learningService = {
         )
       `)
       .single()
+
+    if (insertError) {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const retryInsert = await supabase
+        .from('grades')
+        .insert({
+          student_id: realStudentId,
+          class_id: classId,
+          tutor_id: realTutorId || null,
+          subject_name: subjectName.trim(),
+          assessment_title: assessmentTitle.trim(),
+          category: category || 'Kuis',
+          score: Math.round(score),
+          class_average: computedClassAverage,
+          tutor_feedback: tutorFeedback?.trim() || null,
+          assessment_date: assessmentDate,
+        })
+        .select(`
+          id,
+          student_id,
+          class_id,
+          tutor_id,
+          subject_name,
+          assessment_title,
+          category,
+          score,
+          class_average,
+          tutor_feedback,
+          assessment_date,
+          created_at,
+          students:student_id (
+            nis,
+            profiles:profile_id (
+              full_name
+            )
+          ),
+          classes:class_id (
+            class_name
+          ),
+          tutors:tutor_id (
+            profiles:profile_id (
+              full_name
+            )
+          )
+        `)
+        .single()
+      inserted = retryInsert.data
+      insertError = retryInsert.error
+    }
 
     if (insertError || !inserted) {
       console.error('[ERROR] Gagal menyimpan nilai ke Supabase:', insertError?.message)

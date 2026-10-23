@@ -356,18 +356,6 @@ async function runSeed() {
       storage_path: 'classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
     },
     {
-      id: 'b1000000-0000-0000-0000-000000000003',
-      class_id: 'c1000000-0000-0000-0000-000000000001', // UTBK Intensif A
-      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
-      title: 'Slide Presentasi: Termodinamika & Teori Kinetik Gas',
-      description: 'Bahan tayang pertemuan mencakup hukum termodinamika ke-1 dan ke-2 serta efisiensi siklus mesin Carnot.',
-      category: 'Modul Teori',
-      file_type: 'PPTX',
-      file_size: '8.5 MB',
-      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/slide-termodinamika-utbk.pptx',
-      storage_path: 'classes/c1000000-0000-0000-0000-000000000001/slide-termodinamika-utbk.pptx',
-    },
-    {
       id: 'b1000000-0000-0000-0000-000000000004',
       class_id: 'c1000000-0000-0000-0000-000000000004', // SMP Prestasi A
       tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
