@@ -6,12 +6,14 @@ import {
   BookOpen,
   CheckCircle2,
   GraduationCap,
+  TrendingUp,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useStudentDashboardData } from '~/hooks/use-admin-data'
 import type { GradeRecord } from '~/lib/admin-store'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { DataTable } from '~/components/ui/data-table'
+import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/nilai')({
   ssr: false,
@@ -34,6 +36,40 @@ function StudentNilaiPage() {
     totalAssessments > 0
       ? grades.reduce((max, g) => (g.score > max.score ? g : max), grades[0])
       : null
+
+  // Score Progress Chart data (chronological order)
+  const chartGrades = [...grades].reverse()
+  const chartWidth = 600
+  const chartHeight = 200
+  const paddingX = 40
+  const paddingY = 25
+  const innerWidth = chartWidth - paddingX * 2
+  const innerHeight = chartHeight - paddingY * 2
+
+  const getY = (val: number) => paddingY + innerHeight - (val / 100) * innerHeight
+  const getX = (index: number) => {
+    if (chartGrades.length <= 1) return paddingX + innerWidth / 2
+    return paddingX + (index / (chartGrades.length - 1)) * innerWidth
+  }
+
+  const studentPoints = chartGrades.map((g, idx) => ({
+    x: getX(idx),
+    y: getY(g.score),
+    score: g.score,
+    title: g.assessmentTitle,
+    date: g.assessmentDate,
+  }))
+
+  const classPoints = chartGrades.map((g, idx) => ({
+    x: getX(idx),
+    y: getY(g.classAverage || 0),
+    avg: g.classAverage || 0,
+  }))
+
+  const studentPath =
+    studentPoints.length > 0 ? `M ${studentPoints.map((p) => `${p.x},${p.y}`).join(' L ')}` : ''
+  const classPath =
+    classPoints.length > 0 ? `M ${classPoints.map((p) => `${p.x},${p.y}`).join(' L ')}` : ''
 
   // DataTable columns for grade records
   const columns: ColumnDef<GradeRecord>[] = [
@@ -91,6 +127,26 @@ function StudentNilaiPage() {
           </span>
         </div>
       ),
+    },
+    {
+      id: 'diff',
+      header: () => <span className="w-full text-right block">Selisih Kelas</span>,
+      cell: ({ row }) => {
+        const diff = row.original.score - (row.original.classAverage || 0)
+        const isPositive = diff >= 0
+        return (
+          <div className="text-right">
+            <span
+              className={cn(
+                'inline-flex items-center text-xs font-mono font-medium',
+                isPositive ? 'text-[#16a34a]' : 'text-[#dc2626]'
+              )}
+            >
+              {isPositive ? `+${diff}` : `${diff}`}
+            </span>
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'tutorFeedback',
@@ -194,7 +250,118 @@ function StudentNilaiPage() {
         />
       </div>
 
-      {/* 3. DataTable of Grades with renderMobileCard */}
+      {/* 3. Visual Score Progress Chart */}
+      {chartGrades.length > 0 && (
+        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D2D2D2]/60 pb-3">
+            <div>
+              <h2 className="text-base font-bold font-display text-[#000000] flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#CB2957]" />
+                <span>Grafik Perkembangan Nilai Belajar</span>
+              </h2>
+              <p className="text-xs text-[#555555] mt-0.5">
+                Tren skor evaluasi mandiri dibandingkan rata-rata rombel kelas.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-medium">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-[#000000]" />
+                <span className="text-[#000000]">Skor Pribadi</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-[#888888]" />
+                <span className="text-[#555555]">Rata-rata Kelas</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full overflow-x-auto">
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              className="w-full h-48 sm:h-56 min-w-[500px]"
+            >
+              {[100, 75, 50, 25, 0].map((val) => {
+                const y = getY(val)
+                return (
+                  <g key={val}>
+                    <line
+                      x1={paddingX}
+                      y1={y}
+                      x2={chartWidth - paddingX}
+                      y2={y}
+                      stroke="#E5E5E5"
+                      strokeDasharray="3 3"
+                    />
+                    <text
+                      x={paddingX - 8}
+                      y={y + 3}
+                      textAnchor="end"
+                      fontSize="10"
+                      fill="#777777"
+                      fontFamily="monospace"
+                    >
+                      {val}
+                    </text>
+                  </g>
+                )
+              })}
+
+              {classPath && (
+                <path
+                  d={classPath}
+                  fill="none"
+                  stroke="#999999"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                />
+              )}
+
+              {studentPath && (
+                <path
+                  d={studentPath}
+                  fill="none"
+                  stroke="#000000"
+                  strokeWidth="2.5"
+                />
+              )}
+
+              {studentPoints.map((p, idx) => (
+                <g key={idx}>
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r="4.5"
+                    fill="#CB2957"
+                    stroke="#FFFFFF"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={p.x}
+                    y={p.y - 8}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fontWeight="bold"
+                    fill="#000000"
+                  >
+                    {p.score}
+                  </text>
+                  <text
+                    x={p.x}
+                    y={chartHeight - 6}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="#555555"
+                  >
+                    {p.date}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
+      )}
+
+      {/* 4. DataTable of Grades with renderMobileCard */}
       <div className="space-y-3">
         <div>
           <h2 className="text-lg font-bold font-display text-[#000000]">

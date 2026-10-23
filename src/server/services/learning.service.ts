@@ -112,14 +112,8 @@ async function resolveStudentUUID(studentId: string): Promise<string> {
     if (data?.id) return data.id
   }
 
-  // Fallback: cari siswa pertama
-  const { data: first } = await supabase
-    .from('students')
-    .select('id')
-    .limit(1)
-    .maybeSingle()
-
-  return first?.id || studentId
+  // Jika tidak ditemukan, kembalikan nilai asal tanpa fallback sembarangan ke siswa lain
+  return studentId
 }
 
 /**
@@ -677,6 +671,26 @@ export const learningService = {
     if (updateErr || !updated) {
       console.error('[ERROR] Gagal memperbarui nilai:', updateErr?.message)
       return { success: false, error: updateErr?.message || 'Gagal memperbarui nilai.' }
+    }
+
+    // Hitung ulang dan sinkronkan class_average jika skor berubah
+    if (updates.score !== undefined && updated.class_id && updated.assessment_title) {
+      const { data: classGrades } = await supabase
+        .from('grades')
+        .select('score')
+        .eq('class_id', updated.class_id)
+        .eq('assessment_title', updated.assessment_title)
+
+      if (classGrades && classGrades.length > 0) {
+        const avg = Math.round(classGrades.reduce((s, g) => s + g.score, 0) / classGrades.length)
+        await supabase
+          .from('grades')
+          .update({ class_average: avg })
+          .eq('class_id', updated.class_id)
+          .eq('assessment_title', updated.assessment_title)
+
+        updated.class_average = avg
+      }
     }
 
     return {

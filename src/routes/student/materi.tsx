@@ -20,7 +20,14 @@ export const Route = createFileRoute('/student/materi')({
   component: StudentMateriPage,
 })
 
-const CATEGORIES = ['Semua', 'Modul Teori', 'Lembar Tugas', 'Bank Soal'] as const
+const CATEGORIES = [
+  'Semua',
+  'Modul Teori',
+  'Lembar Tugas',
+  'Bank Soal',
+  'Pembahasan Soal',
+  'Kisi-kisi Ujian',
+] as const
 
 function StudentMateriPage() {
   const { student } = useStudentDashboardData()
