@@ -473,7 +473,13 @@ function AdminPembayaranPage() {
       {/* DIALOG 1: Periksa Bukti Transfer (BILL-03) */}
       <Dialog.Root
         open={Boolean(inspectingInvoice)}
-        onOpenChange={(open) => !open && setInspectingInvoice(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInspectingInvoice(null)
+            setIsRejecting(false)
+            setRejectionReason('')
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -487,6 +493,10 @@ function AdminPembayaranPage() {
                   render={
                     <button
                       type="button"
+                      onClick={() => {
+                        setIsRejecting(false)
+                        setRejectionReason('')
+                      }}
                       className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
                     />
                   }
@@ -606,8 +616,8 @@ function AdminPembayaranPage() {
 
                   {/* Rejection Form Input (Toggle) */}
                   {isRejecting ? (
-                    <div className="p-3.5 bg-[#F6E7E3] rounded-[10px] border border-[#A1301C] space-y-2">
-                      <label className="font-bold text-[#A1301C] block">
+                    <div className="p-3.5 bg-[#F6E7E3] rounded-[10px] border border-[#A1301C] space-y-2.5">
+                      <label className="font-bold text-[#A1301C] block text-xs">
                         Alasan Penolakan Bukti Transfer (Wajib diisi) *
                       </label>
                       <textarea
@@ -615,14 +625,18 @@ function AdminPembayaranPage() {
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
                         placeholder="Contoh: Foto struk buram / nominal transfer belum sesuai tagihan."
-                        className="w-full p-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-[#000000] focus:outline-none"
+                        className="w-full p-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-[#000000] placeholder:text-[#888888] focus:outline-none focus:border-[#A1301C]"
                         required
+                        autoFocus
                       />
-                      <div className="flex justify-end gap-2 pt-1">
+                      <div className="flex items-center justify-end gap-2 pt-1">
                         <button
                           type="button"
-                          onClick={() => setIsRejecting(false)}
-                          className="px-3 py-1.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[6px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                          onClick={() => {
+                            setIsRejecting(false)
+                            setRejectionReason('')
+                          }}
+                          className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                         >
                           Batal
                         </button>
@@ -630,9 +644,10 @@ function AdminPembayaranPage() {
                           type="button"
                           disabled={!rejectionReason.trim()}
                           onClick={handleConfirmReject}
-                          className="px-3 py-1.5 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[6px] hover:bg-[#921E17] disabled:opacity-50 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[8px] hover:bg-[#921E17] disabled:opacity-50 transition-colors cursor-pointer"
                         >
-                          Kirim Penolakan
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Kirim Penolakan</span>
                         </button>
                       </div>
                     </div>
@@ -640,20 +655,24 @@ function AdminPembayaranPage() {
 
                   {/* Modal Actions */}
                   {!isRejecting && (
-                    <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D2]">
+                    <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-3 border-t border-[#D2D2D2]">
                       <button
                         type="button"
                         onClick={() => setIsRejecting(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#B3261E] hover:underline cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#B3261E] bg-[#FFFFFF] border border-[#B3261E]/30 rounded-[8px] hover:bg-[#F6E7E3] hover:border-[#B3261E] transition-colors cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" />
-                        <span>Tolak Bukti Transfer</span>
+                        <span>Tolak Bukti</span>
                       </button>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => setInspectingInvoice(null)}
+                          onClick={() => {
+                            setInspectingInvoice(null)
+                            setIsRejecting(false)
+                            setRejectionReason('')
+                          }}
                           className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                         >
                           Batal
@@ -661,10 +680,10 @@ function AdminPembayaranPage() {
                         <button
                           type="button"
                           onClick={handleConfirmVerify}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
                         >
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>Verifikasi Lunas & Terbitkan Kwitansi</span>
+                          <span>Verifikasi Lunas</span>
                         </button>
                       </div>
                     </div>
