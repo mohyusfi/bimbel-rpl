@@ -12,7 +12,7 @@ describe('QA & Security Edge Cases Verification', { timeout: 30000 }, () => {
 
 async function runQATests() {
   console.log('=====================================================')
-  console.log('🧪 RUNNING QA & SECURITY EDGE CASES VERIFICATION')
+  console.log('[TEST] RUNNING QA & SECURITY EDGE CASES VERIFICATION')
   console.log('=====================================================\n')
 
   // ----------------------------------------------------
@@ -44,7 +44,7 @@ async function runQATests() {
     initialRegCount + 1,
     'Registrations count should increment'
   )
-  console.log('✓ Test 1.1: Minimal/null optional fields handled safely without crash')
+  console.log('[PASS] Test 1.1: Minimal/null optional fields handled safely without crash')
 
   // Test 1.2: Phone validation logic edge cases
   const validatePhone = (phone: string) => {
@@ -58,7 +58,7 @@ async function runQATests() {
   assert.equal(validatePhone('12345'), false, 'Short phone (< 10 digits) should fail')
   assert.equal(validatePhone('abcdefghijk'), false, 'Non-digit string should fail')
   assert.equal(validatePhone('081234567890123456'), false, 'Too long phone (> 15 digits) should fail')
-  console.log('✓ Test 1.2: Phone number validation boundaries passed')
+  console.log('[PASS] Test 1.2: Phone number validation boundaries passed')
 
   // Test 1.3: Duplicate registration detection
   const duplicateRegCheck = adminStore
@@ -69,7 +69,7 @@ async function runQATests() {
         r.status === 'menunggu'
     )
   assert.equal(duplicateRegCheck, true, 'Duplicate waiting registration should be detected')
-  console.log('✓ Test 1.3: Duplicate waiting registration detection verified')
+  console.log('[PASS] Test 1.3: Duplicate waiting registration detection verified')
 
   // ----------------------------------------------------
   // SECTION 2: SUPER ADMIN STAFF CREATION & SESSION INTEGRITY
@@ -84,7 +84,7 @@ async function runQATests() {
     false,
     'Isolated Supabase client MUST NOT persist sessions to browser localStorage'
   )
-  console.log('✓ Test 2.1: Isolated client session persistence is strictly disabled')
+  console.log('[PASS] Test 2.1: Isolated client session persistence is strictly disabled')
 
   // Test 2.2: Create staff with valid data
   authStore.quickLogin('super_admin')
@@ -103,7 +103,7 @@ async function runQATests() {
   assert.equal(createStaffResult.staff?.roleTitle, 'Staf Tata Usaha')
   assert.equal(createStaffResult.staff?.isSuperAdmin, false)
   assert.equal(authStore.getAdminStaff().length, initialStaffCount + 1)
-  console.log('✓ Test 2.2: Regular staff creation succeeds with correct metadata')
+  console.log('[PASS] Test 2.2: Regular staff creation succeeds with correct metadata')
 
   // Test 2.3: Prevent duplicate staff email
   const duplicateStaffResult = await authStore.createAdminStaff({
@@ -117,7 +117,7 @@ async function runQATests() {
     duplicateStaffResult.error?.includes('sudah terdaftar'),
     'Expected error message for duplicate staff'
   )
-  console.log('✓ Test 2.3: Duplicate staff email is properly rejected')
+  console.log('[PASS] Test 2.3: Duplicate staff email is properly rejected')
 
   // Test 2.4: Empty name or email rejection
   const invalidStaffResult = await authStore.createAdminStaff({
@@ -125,14 +125,14 @@ async function runQATests() {
     email: '',
   })
   assert.equal(invalidStaffResult.success, false, 'Blank staff name/email should be rejected')
-  console.log('✓ Test 2.4: Blank staff validation rejected')
+  console.log('[PASS] Test 2.4: Blank staff validation rejected')
 
   // Test 2.5: Active session preserved after staff creation
   const currState = authStore.getState()
   assert.equal(currState.isAuthenticated, true, 'Current user session must remain authenticated')
   assert.equal(currState.isSuperAdmin, true, 'Current user Super Admin privilege must remain intact')
   assert.equal(currState.user?.email, DEMO_ACCOUNTS.super_admin.email, 'Current user must not be replaced')
-  console.log('✓ Test 2.5: Super admin active session is fully preserved after staff creation')
+  console.log('[PASS] Test 2.5: Super admin active session is fully preserved after staff creation')
 
   // ----------------------------------------------------
   // SECTION 3: FORMAT VALIDATION & SANITIZATION
@@ -145,24 +145,24 @@ async function runQATests() {
   const invalidUUID = 'not-a-uuid-string'
   assert.equal(uuidRegex.test(validUUID), true, 'Valid UUID should pass regex')
   assert.equal(uuidRegex.test(invalidUUID), false, 'Invalid UUID should fail regex')
-  console.log('✓ Test 3.1: UUID format validator verified')
+  console.log('[PASS] Test 3.1: UUID format validator verified')
 
   // Test 3.2: NIS format validation
   const nisRegex = /^TC-\d{4}-\d{3}$/
   assert.equal(nisRegex.test('TC-2026-001'), true, 'Valid NIS matches TC-YYYY-NNN format')
   assert.equal(nisRegex.test('NIS-123'), false, 'Non-conforming NIS fails')
-  console.log('✓ Test 3.2: NIS format strictly adheres to TC-YYYY-NNN')
+  console.log('[PASS] Test 3.2: NIS format strictly adheres to TC-YYYY-NNN')
 
   // Test 3.3: Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   assert.equal(emailRegex.test('pimpinan@tadulakocendekia.sch.id'), true)
   assert.equal(emailRegex.test('invalid-email-address'), false)
   assert.equal(emailRegex.test('no-at-sign.com'), false)
-  console.log('✓ Test 3.3: Email format validator verified')
+  console.log('[PASS] Test 3.3: Email format validator verified')
 
   await authStore.logout()
 
   console.log('\n=====================================================')
-  console.log('🎉 ALL 11 QA & SECURITY ASSERTIONS PASSED!')
+  console.log('[SUCCESS] ALL 11 QA & SECURITY ASSERTIONS PASSED!')
   console.log('=====================================================')
 }

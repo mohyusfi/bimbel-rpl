@@ -296,7 +296,7 @@ export const scheduleService = {
       .order('day_of_week', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil schedules dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil schedules dari Supabase:', error?.message)
       return []
     }
 
@@ -659,7 +659,7 @@ export const scheduleService = {
 
     const { data, error } = await query
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil sessions dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil sessions dari Supabase:', error?.message)
       return []
     }
 

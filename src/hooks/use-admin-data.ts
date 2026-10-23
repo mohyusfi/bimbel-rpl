@@ -289,7 +289,7 @@ export function useAdminSchedules() {
           return dbSchedules as Schedule[]
         }
       } catch (err) {
-        console.warn('⚠️ Gagal mengambil jadwal dari Supabase:', err)
+        console.warn('[WARN] Gagal mengambil jadwal dari Supabase:', err)
       }
       return []
     },
@@ -1337,7 +1337,7 @@ export function useAttendanceSessions(tutorId?: string, classId?: string) {
           }))
         }
       } catch (err) {
-        console.warn('⚠️ Gagal mengambil sessions dari Supabase:', err)
+        console.warn('[WARN] Gagal mengambil sessions dari Supabase:', err)
       }
       return []
     },

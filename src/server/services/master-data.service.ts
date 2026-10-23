@@ -43,7 +43,7 @@ export async function ensureAdminSession(): Promise<boolean> {
     }
     return false
   } catch (err) {
-    console.warn('⚠️ Gagal memastikan sesi admin di Supabase:', err)
+    console.warn('[WARN] Gagal memastikan sesi admin di Supabase:', err)
     return false
   }
 }
@@ -59,7 +59,7 @@ export const masterDataService = {
       .order('room_name', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil rooms dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil rooms dari Supabase:', error?.message)
       return []
     }
 
@@ -85,7 +85,7 @@ export const masterDataService = {
     const { data, error } = await supabase.from('rooms').insert(payload).select().single()
 
     if (error || !data) {
-      console.warn('⚠️ Gagal membuat ruangan di Supabase:', error?.message)
+      console.warn('[WARN] Gagal membuat ruangan di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal membuat ruangan' }
     }
 
@@ -115,7 +115,7 @@ export const masterDataService = {
     const { data, error } = await supabase.from('rooms').update(payload).eq('id', id).select().single()
 
     if (error || !data) {
-      console.warn('⚠️ Gagal memperbarui ruangan di Supabase:', error?.message)
+      console.warn('[WARN] Gagal memperbarui ruangan di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal memperbarui ruangan' }
     }
 
@@ -146,7 +146,7 @@ export const masterDataService = {
       .single()
 
     if (error || !data) {
-      console.warn('⚠️ Gagal toggle room active di Supabase:', error?.message)
+      console.warn('[WARN] Gagal toggle room active di Supabase:', error?.message)
       return { success: false, error: error?.message || 'Gagal mengubah status aktif ruangan' }
     }
 
@@ -172,7 +172,7 @@ export const masterDataService = {
       .order('price', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil courses dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil courses dari Supabase:', error?.message)
       return []
     }
 
@@ -238,7 +238,7 @@ export const masterDataService = {
       .order('status', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil tutors dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil tutors dari Supabase:', error?.message)
       return []
     }
 
@@ -270,7 +270,7 @@ export const masterDataService = {
       .order('class_name', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil classes dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil classes dari Supabase:', error?.message)
       return []
     }
 

@@ -1043,7 +1043,7 @@ function loadInitialState(): AdminState {
           parsed.students?.some((s: any) => typeof s.id === 'string' && s.id.startsWith('stu-'))
 
         if (hasLegacyMock) {
-          console.info('🧹 Auto-purging legacy mock data from localStorage...')
+          console.info('[INFO] Auto-purging legacy mock data from localStorage...')
           localStorage.removeItem(STORAGE_KEY)
         } else {
           const rawMaterials: LearningMaterial[] = parsed.learningMaterials || INITIAL_MATERIALS

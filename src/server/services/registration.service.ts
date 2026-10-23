@@ -169,7 +169,7 @@ export const registrationService = {
       .order('created_at', { ascending: false })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil registrations dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil registrations dari Supabase:', error?.message)
       return []
     }
 
@@ -239,7 +239,7 @@ export const registrationService = {
       .order('nis', { ascending: true })
 
     if (error || !data) {
-      console.warn('⚠️ Gagal mengambil students dari Supabase:', error?.message)
+      console.warn('[WARN] Gagal mengambil students dari Supabase:', error?.message)
       return []
     }
 
@@ -568,7 +568,7 @@ export const registrationService = {
         }])
 
       if (memberInsertErr) {
-        console.warn('⚠️ Gagal memasukkan siswa ke class_members:', memberInsertErr.message)
+        console.warn('[WARN] Gagal memasukkan siswa ke class_members:', memberInsertErr.message)
       }
     }
 
@@ -583,7 +583,7 @@ export const registrationService = {
       .eq('id', regId)
 
     if (updateRegErr) {
-      console.warn('⚠️ Gagal update status registrasi:', updateRegErr.message)
+      console.warn('[WARN] Gagal update status registrasi:', updateRegErr.message)
     }
 
     return {
@@ -673,7 +673,7 @@ export const registrationService = {
         .eq('id', studentRecord.profile_id)
 
       if (spErr) {
-        console.warn('⚠️ Gagal update profil siswa:', spErr.message)
+        console.warn('[WARN] Gagal update profil siswa:', spErr.message)
       }
     }
 
