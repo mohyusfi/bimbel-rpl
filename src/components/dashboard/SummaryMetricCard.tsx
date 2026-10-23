@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '~/lib/utils'
+import { Skeleton } from '~/components/ui/skeleton'
 
 export interface SummaryMetricCardProps {
   title: string
@@ -14,6 +15,7 @@ export interface SummaryMetricCardProps {
   onClick?: () => void
   to?: string
   className?: string
+  isLoading?: boolean
 }
 
 export function SummaryMetricCard({
@@ -28,8 +30,42 @@ export function SummaryMetricCard({
   onClick,
   to,
   className,
+  isLoading = false,
 }: SummaryMetricCardProps) {
   const isUrgent = variant === 'urgent'
+
+  const commonClasses = cn(
+    'bg-[#FFFFFF] text-[#000000] p-4 sm:p-5 flex flex-col justify-between transition-all select-none group rounded-[14px]',
+    isSelected
+      ? 'border-2 border-[#000000]'
+      : 'border border-[#D2D2D2] hover:border-[#000000]',
+    className
+  )
+
+  if (isLoading) {
+    return (
+      <div
+        data-testid="summary-metric-card-skeleton"
+        className={cn(commonClasses, 'pointer-events-none')}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0" />
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <Skeleton className="h-8 w-24" />
+          {description && <Skeleton className="h-3.5 w-3/4 mt-1.5" />}
+        </div>
+
+        {footer && (
+          <div className="mt-3 pt-2.5 border-t border-[#D2D2D2]/60">
+            <Skeleton className="h-3 w-20" />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const content = (
     <>
@@ -82,14 +118,6 @@ export function SummaryMetricCard({
         </div>
       )}
     </>
-  )
-
-  const commonClasses = cn(
-    'bg-[#FFFFFF] text-[#000000] p-4 sm:p-5 flex flex-col justify-between transition-all select-none group rounded-[14px]',
-    isSelected
-      ? 'border-2 border-[#000000]'
-      : 'border border-[#D2D2D2] hover:border-[#000000]',
-    className
   )
 
   if (to) {

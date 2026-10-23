@@ -41,6 +41,7 @@ function AdminDashboardIndex() {
     occupancyPercentage,
     totalEnrolled,
     totalCapacity,
+    isLoading: isSummaryLoading,
   } = useAdminSummary()
 
   const { data: registrations = [] } = useAdminRegistrations()
@@ -104,6 +105,7 @@ function AdminDashboardIndex() {
           icon={UserPlus}
           variant={pendingRegistrationsCount > 0 ? 'urgent' : 'default'}
           className="rounded-[14px]"
+          isLoading={isSummaryLoading}
           footer={
             <div className="flex items-center justify-between gap-1 text-xs">
               <span className="font-medium text-[#292524] tabular-nums">
@@ -122,6 +124,7 @@ function AdminDashboardIndex() {
           to="/admin/jadwal"
           icon={Calendar}
           className="rounded-[14px]"
+          isLoading={isSummaryLoading}
           footer={
             <div className="flex items-center justify-between gap-1 text-xs">
               <span className="font-medium text-[#292524]">
@@ -141,6 +144,7 @@ function AdminDashboardIndex() {
           icon={CreditCard}
           variant={pendingInvoicesCount > 0 ? 'urgent' : 'default'}
           className="rounded-[14px]"
+          isLoading={isSummaryLoading}
           footer={
             <div className="flex items-center justify-between gap-1 text-xs">
               <span className="font-medium text-[#292524] tabular-nums">
@@ -158,6 +162,7 @@ function AdminDashboardIndex() {
           to="/admin/ruangan"
           icon={Building2}
           className="rounded-[14px]"
+          isLoading={isSummaryLoading}
           footer={
             <div className="flex items-center justify-between gap-1 text-xs">
               <span className="font-medium text-[#292524]">

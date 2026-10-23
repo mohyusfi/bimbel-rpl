@@ -406,11 +406,13 @@ export function useAdminNotifications() {
 
 export function useAdminSummary() {
   useAdminDataSync()
-  const { data: registrations = [] } = useAdminRegistrations()
-  const { data: schedules = [] } = useAdminSchedules()
-  const { data: invoices = [] } = useAdminInvoices()
-  const { data: rooms = [] } = useAdminRooms()
-  const { data: classes = [] } = useAdminClasses()
+  const { data: registrations = [], isLoading: isLoadingRegistrations } = useAdminRegistrations()
+  const { data: schedules = [], isLoading: isLoadingSchedules } = useAdminSchedules()
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useAdminInvoices()
+  const { data: rooms = [], isLoading: isLoadingRooms } = useAdminRooms()
+  const { data: classes = [], isLoading: isLoadingClasses } = useAdminClasses()
+
+  const isLoading = isLoadingRegistrations || isLoadingSchedules || isLoadingInvoices || isLoadingRooms || isLoadingClasses
 
   const pendingRegistrationsCount = registrations.filter((r) => r.status === 'menunggu').length
   const pendingInvoicesCount = invoices.filter((i) => i.status === 'menunggu').length
@@ -431,6 +433,7 @@ export function useAdminSummary() {
     totalCapacity,
     totalEnrolled,
     occupancyPercentage,
+    isLoading,
   }
 }
 
@@ -1618,12 +1621,20 @@ export function useStudentDashboardData(targetStudentId?: string) {
   const { data: session } = useActiveSession()
   const studentId = targetStudentId || session?.activeStudentId || 'stu-1'
 
-  const { data: students = [] } = useAdminStudents()
-  const { data: schedules = [] } = useAdminSchedules()
-  const { data: sessions = [] } = useAttendanceSessions()
-  const { data: materials = [] } = useLearningMaterials()
-  const { data: grades = [] } = useGradeRecords()
-  const { data: invoices = [] } = useAdminInvoices()
+  const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
+  const { data: schedules = [], isLoading: isLoadingSchedules } = useAdminSchedules()
+  const { data: sessions = [], isLoading: isLoadingSessions } = useAttendanceSessions()
+  const { data: materials = [], isLoading: isLoadingMaterials } = useLearningMaterials()
+  const { data: grades = [], isLoading: isLoadingGrades } = useGradeRecords()
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useAdminInvoices()
+
+  const isLoading =
+    isLoadingStudents ||
+    isLoadingSchedules ||
+    isLoadingSessions ||
+    isLoadingMaterials ||
+    isLoadingGrades ||
+    isLoadingInvoices
 
   const currentStudent = students.find((s) => s.id === studentId) || students[0]
 
@@ -1709,11 +1720,12 @@ export function useStudentDashboardData(targetStudentId?: string) {
     totalAssessments: total,
     materials: classMaterials,
     invoices: studentInvoices,
+    isLoading,
   }
 }
 
 export function useTutorDashboardData(targetTutorId?: string) {
-  const { data: tutors = [] } = useAdminTutors()
+  const { data: tutors = [], isLoading: isLoadingTutors } = useAdminTutors()
   const { data: session } = useActiveSession()
 
   // Resolusi ID Pengajar resmi: targetTutorId -> session activeTutorId -> pencarian di tutors Supabase
@@ -1724,12 +1736,21 @@ export function useTutorDashboardData(targetTutorId?: string) {
 
   const tutorId = resolvedTutor?.id || targetTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9'
 
-  const { data: schedules = [] } = useAdminSchedules()
-  const { data: sessions = [] } = useAttendanceSessions(tutorId)
-  const { data: materials = [] } = useLearningMaterials()
-  const { data: grades = [] } = useGradeRecords()
-  const { data: classes = [] } = useAdminClasses()
-  const { data: students = [] } = useAdminStudents()
+  const { data: schedules = [], isLoading: isLoadingSchedules } = useAdminSchedules()
+  const { data: sessions = [], isLoading: isLoadingSessions } = useAttendanceSessions(tutorId)
+  const { data: materials = [], isLoading: isLoadingMaterials } = useLearningMaterials()
+  const { data: grades = [], isLoading: isLoadingGrades } = useGradeRecords()
+  const { data: classes = [], isLoading: isLoadingClasses } = useAdminClasses()
+  const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
+
+  const isLoading =
+    isLoadingTutors ||
+    isLoadingSchedules ||
+    isLoadingSessions ||
+    isLoadingMaterials ||
+    isLoadingGrades ||
+    isLoadingClasses ||
+    isLoadingStudents
 
   const currentTutor = resolvedTutor || tutors[0]
 
@@ -1755,6 +1776,7 @@ export function useTutorDashboardData(targetTutorId?: string) {
     grades: tutorGrades,
     classes,
     students,
+    isLoading,
   }
 }
 
@@ -1762,8 +1784,8 @@ export function useParentDashboardData(targetParentId?: string, targetChildId?: 
   const { data: session } = useActiveSession()
   const parentId = targetParentId || session?.activeParentId || 'par-1'
 
-  const { data: parents = [] } = useParents()
-  const { data: allStudents = [] } = useAdminStudents()
+  const { data: parents = [], isLoading: isLoadingParents } = useParents()
+  const { data: allStudents = [], isLoading: isLoadingStudents } = useAdminStudents()
 
   const currentParent = parents.find((p) => p.id === parentId) || parents[0]
   const children = allStudents.filter((s) => currentParent?.studentIds.includes(s.id))
@@ -1773,12 +1795,14 @@ export function useParentDashboardData(targetParentId?: string, targetChildId?: 
   const activeChild = children.find((c) => c.id === selectedChildId) || children[0]
 
   const childData = useStudentDashboardData(activeChild?.id)
+  const isLoading = isLoadingParents || isLoadingStudents || childData.isLoading
 
   return {
     parent: currentParent,
     children,
     selectedChild: activeChild,
     childData,
+    isLoading,
   }
 }
 

@@ -30,7 +30,7 @@ export const Route = createFileRoute('/parent/tagihan')({
 function ParentBillingPage() {
   const { parent, selectedChild, children = [], childData } = useParentDashboardData()
   const { student } = childData
-  const { data: allInvoices = [] } = useAdminInvoices()
+  const { data: allInvoices = [], isLoading: isLoadingInvoices } = useAdminInvoices()
 
   const [copiedAccount, setCopiedAccount] = React.useState<string | null>(null)
   const [selectedInvoiceForProof, setSelectedInvoiceForProof] = React.useState<Invoice | null>(null)
@@ -420,6 +420,7 @@ function ParentBillingPage() {
         <DataTable
           columns={columns}
           data={filteredInvoices}
+          isLoading={isLoadingInvoices}
           searchPlaceholder="Cari nomor tagihan, nama anak, atau program..."
           filterSlot={filterSlot}
           renderMobileCard={renderMobileCard}

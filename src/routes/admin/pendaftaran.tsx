@@ -43,7 +43,7 @@ const PACKAGE_NAMES: Record<PackageCode, string> = {
 }
 
 function AdminPendaftaranPage() {
-  const { data: registrations = [] } = useAdminRegistrations()
+  const { data: registrations = [], isLoading: isLoadingRegistrations } = useAdminRegistrations()
   const { data: classes = [] } = useAdminClasses()
   const { approveRegistration, rejectRegistration, addRegistration } =
     useAdminMutations()
@@ -508,6 +508,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
               isSelected={isSelected}
               onClick={() => setStatusFilter(card.status)}
               className="rounded-[14px]"
+              isLoading={isLoadingRegistrations}
               footer={
                 <div className="text-xs">
                   <span>{card.footer}</span>
@@ -525,6 +526,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
         totalCount={registrations.length}
         counterLabel="pendaftar"
         searchPlaceholder="Cari nama calon siswa, sekolah, wali, atau ID..."
+        isLoading={isLoadingRegistrations}
         filterSlot={
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

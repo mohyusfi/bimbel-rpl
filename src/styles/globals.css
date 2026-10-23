@@ -102,3 +102,18 @@
   border-color: #3f3f46 !important;
   background: #27272a !important;
 }
+
+/* Navigation Progress Bar Animation */
+@keyframes navigation-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.animate-navigation-progress {
+  animation: navigation-progress 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+

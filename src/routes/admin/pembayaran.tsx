@@ -37,8 +37,8 @@ export const Route = createFileRoute('/admin/pembayaran')({
 })
 
 function AdminPembayaranPage() {
-  const { data: invoices = [] } = useAdminInvoices()
-  const { data: students = [] } = useAdminStudents()
+  const { data: invoices = [], isLoading: isLoadingInvoices } = useAdminInvoices()
+  const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
   const { verifyInvoice, rejectInvoice, createInvoice } = useAdminMutations()
 
   // Filter
@@ -404,6 +404,7 @@ function AdminPembayaranPage() {
               isSelected={isSelected}
               onClick={() => setStatusFilter(card.key)}
               className="rounded-[14px]"
+              isLoading={isLoadingInvoices}
               footer={
                 <div className="text-xs">
                   <span className="font-semibold tabular-nums">
@@ -423,6 +424,7 @@ function AdminPembayaranPage() {
         totalCount={invoices.length}
         counterLabel="tagihan"
         searchPlaceholder="Cari nomor tagihan, nama siswa, NIS, atau program..."
+        isLoading={isLoadingInvoices}
         filterSlot={
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
