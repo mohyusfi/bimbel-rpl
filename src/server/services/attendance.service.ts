@@ -1,6 +1,7 @@
 import { supabase } from '~/lib/supabase/client'
 import { isSessionLockedForTutor, calculateAttendancePercentage } from '~/lib/attendance-helpers'
 import { ensureAdminSession } from './master-data.service'
+import { pushNotificationService } from './push-notification.service'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -115,6 +116,66 @@ export const attendanceService = {
 
       if (upsertErr) {
         return { success: false, error: upsertErr.message }
+      }
+
+      // 6. Notifikasi otomatis untuk siswa yang berstatus Alpa (in-app & Web Push)
+      const alpaEntries = validEntries.filter(
+        (e) => e.status === 'alpa' || (e.status as string).toLowerCase() === 'alpa'
+      )
+
+      if (alpaEntries.length > 0) {
+        try {
+          const alpaStudentIds = alpaEntries.map((e) => e.studentId)
+          const { data: studentRows } = await supabase
+            .from('students')
+            .select('id, profile_id, parent_id, parents ( id, profile_id )')
+            .in('id', alpaStudentIds)
+
+          const notifRows: any[] = []
+          const targetParentProfileIds: string[] = []
+
+          if (studentRows && studentRows.length > 0) {
+            for (const s of studentRows) {
+              const parentPid = (s as any).parents?.profile_id || s.parent_id
+              if (parentPid) {
+                targetParentProfileIds.push(parentPid)
+                notifRows.push({
+                  user_id: parentPid,
+                  title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+                  message: `Putra/Putri Anda tercatat tidak hadir (Alpa) pada sesi ${topic || 'bimbingan belajar'}.`,
+                  type: 'attendance',
+                  link_url: '/parent/kehadiran',
+                  metadata: { sessionId, studentId: s.id },
+                })
+              }
+              if (s.profile_id || s.id) {
+                notifRows.push({
+                  user_id: s.profile_id || s.id,
+                  title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+                  message: `Anda tercatat tidak hadir (Alpa) pada sesi ${topic || 'bimbingan belajar'}.`,
+                  type: 'attendance',
+                  link_url: '/student/kehadiran',
+                  metadata: { sessionId, studentId: s.id },
+                })
+              }
+            }
+          }
+
+          if (notifRows.length > 0) {
+            await supabase.from('notifications').insert(notifRows)
+          }
+
+          if (targetParentProfileIds.length > 0) {
+            await pushNotificationService.sendToUsers(targetParentProfileIds, {
+              title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+              message: `Putra/Putri Anda tercatat tidak hadir (Alpa) pada sesi ${topic || 'bimbingan belajar'}.`,
+              linkUrl: '/parent/kehadiran',
+              tag: `alpa-${sessionId}`,
+            })
+          }
+        } catch (alpaNotifErr) {
+          console.warn('[WARN] Gagal mencatat notifikasi presensi Alpa:', alpaNotifErr)
+        }
       }
     }
 

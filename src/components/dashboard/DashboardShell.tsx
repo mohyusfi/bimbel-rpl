@@ -5,6 +5,7 @@ import {
   Menu,
   X,
   Bell,
+  BellRing,
   Clock,
   CheckCheck,
   CheckCircle2,
@@ -26,6 +27,7 @@ import { SidebarBrand } from './SidebarBrand'
 import { authStore } from '~/lib/auth-store'
 import { useAuth } from '~/hooks/use-auth'
 import { useRealtimeNotifications } from '~/hooks/use-realtime-notifications'
+import { useWebPush } from '~/hooks/use-web-push'
 import type { AdminNotification } from '~/lib/admin-store'
 
 export interface DashboardNavItem {
@@ -130,6 +132,14 @@ export function DashboardShell({
     markAsRead,
     markAllAsRead,
   } = useRealtimeNotifications({ userId: currentUserId, role })
+
+  const {
+    isSupported: isPushSupported,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    subscribeToPush,
+    unsubscribeFromPush,
+  } = useWebPush()
 
   const allItems = React.useMemo(
     () => navGroups.flatMap((g) => g.items),
@@ -441,6 +451,51 @@ export function DashboardShell({
                         </Dialog.Close>
                       </div>
                     </div>
+
+                    {/* Banner Web Push Notification (Desktop & HP) */}
+                    {isPushSupported && (
+                      <div className="px-5 py-2.5 bg-[#F6F6F6] border-b border-[#D2D2D2] flex items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isPushSubscribed ? (
+                            <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                          ) : (
+                            <BellRing className="w-4 h-4 text-[#CB2957] shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold text-[#000000] truncate">
+                              {isPushSubscribed
+                                ? 'Notifikasi Peramban Aktif'
+                                : 'Notifikasi Desktop & Ponsel'}
+                            </p>
+                            <p className="text-[10px] text-[#555555] truncate">
+                              {isPushSubscribed
+                                ? 'Gawai Anda siap menerima pemberitahuan instan'
+                                : 'Terima peringatan instan saat aplikasi tidak dibuka'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {isPushSubscribed ? (
+                          <button
+                            type="button"
+                            disabled={isPushLoading}
+                            onClick={() => unsubscribeFromPush()}
+                            className="px-2 py-0.5 text-[10px] font-medium text-[#777777] hover:text-[#CB2957] border border-[#D2D2D2] hover:border-[#CB2957] rounded-[4px] bg-[#FFFFFF] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                          >
+                            Nonaktifkan
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isPushLoading}
+                            onClick={() => currentUserId && subscribeToPush(currentUserId)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[6px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                          >
+                            <span>{isPushLoading ? 'Mengaktifkan...' : 'Aktifkan'}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Filter Tabs: 'Semua', 'Belum Dibaca', 'Presensi', 'SPP', 'Akademik', 'Pengumuman' */}
                     <div className="px-5 py-2 border-b border-[#D2D2D2] bg-[#FFFFFF] flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
