@@ -16,9 +16,15 @@ import {
   XCircle,
   Calendar,
   Filter,
+  Pin,
+  Megaphone,
 } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useStudentDashboardData } from '~/hooks/use-admin-data'
+import {
+  useStudentDashboardData,
+  usePortalAnnouncements,
+} from '~/hooks/use-admin-data'
+import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import type { Schedule, LearningMaterial } from '~/lib/admin-store'
 import { downloadMaterialFile } from '~/lib/download-material'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
@@ -63,6 +69,7 @@ function StudentDashboardPage() {
     materials,
     invoices,
   } = useStudentDashboardData()
+  const { data: announcements = [] } = usePortalAnnouncements('student')
 
   const [activeTab, setActiveTab] = React.useState<'kalender' | 'mingguan'>('kalender')
   const [sessionFilter, setSessionFilter] = React.useState<string>('ALL')
@@ -287,6 +294,9 @@ function StudentDashboardPage() {
           </button>
         </div>
       )}
+
+      {/* Pengumuman Resmi Bimbel */}
+      <PortalAnnouncementsWidget announcements={announcements} />
 
       {/* 2. 4 Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">

@@ -97,6 +97,7 @@ export function setupRealtimeNotifications(
         queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.gradeRecords })
       } else if (notifType === 'announcement') {
         queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.announcements })
+        queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
       }
 
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -124,6 +125,18 @@ export function setupRealtimeNotifications(
   const broadcastChannel = client.channel('broadcast:announcements')
   broadcastChannel
     .on('broadcast', { event: 'announcement' }, handleIncomingNotification)
+    .on('broadcast', { event: 'announcement_deleted' }, (payload: any) => {
+      const annId =
+        payload?.payload?.announcementId ||
+        payload?.payload?.id ||
+        payload?.announcementId ||
+        payload?.id
+      if (annId) {
+        adminStore.deleteAnnouncement(annId)
+      }
+      queryClient?.invalidateQueries({ queryKey: ADMIN_KEYS.announcements })
+      queryClient?.invalidateQueries({ queryKey: ['portal-announcements'] })
+    })
     .on('broadcast', { event: 'notification' }, handleIncomingNotification)
     .subscribe()
 
@@ -252,8 +265,16 @@ export function useRealtimeNotifications(
         if (n.type === 'registration') return false
         if (n.type === 'payment' && !n.userId && !n.metadata?.studentId && !n.metadata?.parentId) return false
 
-        // Broadcast announcements are visible to everyone
-        if (n.type === 'announcement') return true
+        // Broadcast announcements are filtered by target audience
+        if (n.type === 'announcement') {
+          const target =
+            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
+          if (target === 'Semua') return true
+          if (target === 'Siswa' && role === 'student') return true
+          if (target === 'Orang Tua' && role === 'parent') return true
+          if (target === 'Tutor' && role === 'tutor') return true
+          return false
+        }
 
         // User-specific notifications
         const idsToMatch = new Set<string>()

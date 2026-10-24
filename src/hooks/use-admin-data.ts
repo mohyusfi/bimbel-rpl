@@ -462,32 +462,46 @@ export function useAdminInvoices(studentId?: string) {
   return useInvoices(studentId)
 }
 
-export function useAdminAnnouncements() {
+export function useAdminAnnouncements(filter?: { targetAudience?: string; role?: string }) {
   useAdminDataSync()
   return useQuery<Announcement[]>({
-    queryKey: ADMIN_KEYS.announcements,
+    queryKey: [...ADMIN_KEYS.announcements, filter?.targetAudience || 'ALL', filter?.role || 'admin'],
     queryFn: async () => {
       try {
-        const { data } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('type', 'announcement')
-          .order('created_at', { ascending: false })
-        if (data && data.length > 0) {
-          return data.map((n: any) => ({
-            id: n.id,
-            title: n.title,
-            content: n.message,
-            author: 'Tata Usaha',
-            publishedDate: n.created_at,
-            targetAudience: 'Semua' as const,
-            isPinned: false,
-          }))
+        const { getAnnouncementsFn } = await import('~/server/functions/announcements')
+        const res = await getAnnouncementsFn({ data: filter })
+        if (res.success && res.data) {
+          return res.data as Announcement[]
         }
       } catch (err) {
-        console.warn('[WARN] Gagal mengambil pengumuman dari Supabase:', err)
+        console.warn('[WARN] Gagal mengambil pengumuman dari server:', err)
       }
-      return []
+      return adminStore.getState().announcements || []
+    },
+  })
+}
+
+export function usePortalAnnouncements(role: 'student' | 'parent' | 'tutor') {
+  return useQuery<Announcement[]>({
+    queryKey: ['portal-announcements', role],
+    queryFn: async () => {
+      try {
+        const { getAnnouncementsFn } = await import('~/server/functions/announcements')
+        const res = await getAnnouncementsFn({ data: { role } })
+        if (res.success && res.data) {
+          return res.data as Announcement[]
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil pengumuman portal dari server:', err)
+      }
+      const all = adminStore.getState().announcements || []
+      return all.filter((a) => {
+        if (a.targetAudience === 'Semua') return true
+        if (role === 'student' && a.targetAudience === 'Siswa') return true
+        if (role === 'parent' && a.targetAudience === 'Orang Tua') return true
+        if (role === 'tutor' && a.targetAudience === 'Tutor') return true
+        return false
+      })
     },
   })
 }
@@ -1055,20 +1069,72 @@ export function useAdminMutations() {
   })
 
   const addAnnouncementMutation = useMutation({
-    mutationFn: async (input: Omit<Announcement, 'id' | 'publishedDate' | 'author'>) => {
-      return adminStore.addAnnouncement(input)
+    mutationFn: async (
+      input: Omit<Announcement, 'id' | 'publishedDate' | 'author'> & {
+        broadcast?: boolean
+        author?: string
+      }
+    ) => {
+      const { createAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await createAnnouncementFn({
+        data: {
+          title: input.title,
+          content: input.content,
+          targetAudience: input.targetAudience,
+          isPinned: input.isPinned,
+          broadcast: input.broadcast,
+          author: input.author,
+        },
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.addAnnouncement(res.data)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
     },
   })
 
   const deleteAnnouncementMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminStore.deleteAnnouncement(id)
+      const { deleteAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await deleteAnnouncementFn({ data: { announcementId: id } })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.deleteAnnouncement(id)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
+    },
+  })
+
+  const togglePinAnnouncementMutation = useMutation({
+    mutationFn: async ({ id, isPinned }: { id: string; isPinned: boolean }) => {
+      const { togglePinAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await togglePinAnnouncementFn({
+        data: { announcementId: id, isPinned },
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.togglePinAnnouncement(id, isPinned)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
     },
   })
 
@@ -1279,6 +1345,7 @@ export function useAdminMutations() {
     setSelectedChildId: setSelectedChildIdMutation.mutateAsync,
     addAnnouncement: addAnnouncementMutation.mutateAsync,
     deleteAnnouncement: deleteAnnouncementMutation.mutateAsync,
+    togglePinAnnouncement: togglePinAnnouncementMutation.mutateAsync,
     markAllNotificationsRead: markAllNotificationsReadMutation.mutateAsync,
     markNotificationRead: markNotificationReadMutation.mutateAsync,
     addNotification: adminStore.addNotification.bind(adminStore),

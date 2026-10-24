@@ -2189,25 +2189,49 @@ export const adminStore = {
   },
 
   // ANNOUNCEMENTS
-  addAnnouncement(input: Omit<Announcement, 'id' | 'publishedDate' | 'author'>) {
+  addAnnouncement(
+    input: Omit<Announcement, 'id' | 'publishedDate' | 'author'> & {
+      id?: string
+      author?: string
+      publishedDate?: string
+    }
+  ) {
+    const annId = input.id || `ann-${Date.now().toString().slice(-4)}`
+    const existing = state.announcements.find((a) => a.id === annId)
+    if (existing) {
+      return existing
+    }
+
     const newAnn: Announcement = {
       ...input,
-      id: `ann-${Date.now().toString().slice(-4)}`,
-      publishedDate: new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }).format(new Date()),
-      author: 'Hj. Nuraini, S.Pd',
+      id: annId,
+      publishedDate:
+        input.publishedDate ||
+        new Intl.DateTimeFormat('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }).format(new Date()),
+      author: input.author || 'Hj. Nuraini, S.Pd',
     }
     state.announcements = [newAnn, ...state.announcements]
     saveAndNotify()
-    this.broadcastAnnouncement(newAnn)
     return newAnn
   },
 
+  togglePinAnnouncement(id: string, isPinned?: boolean) {
+    state.announcements = state.announcements.map((a) => {
+      if (a.id === id) {
+        return { ...a, isPinned: isPinned !== undefined ? isPinned : !a.isPinned }
+      }
+      return a
+    })
+    saveAndNotify()
+    return true
+  },
+
   deleteAnnouncement(id: string) {
-    state.announcements = state.announcements.filter((a) => a.id !== id)
+    state.announcements = state.announcements.filter((a) => a.id !== id && a.title !== id)
     saveAndNotify()
     return true
   },

@@ -13,8 +13,14 @@ import {
   Sparkles,
   ChevronRight,
   Plus,
+  Megaphone,
+  Pin,
 } from 'lucide-react'
-import { useTutorDashboardData } from '~/hooks/use-admin-data'
+import {
+  useTutorDashboardData,
+  usePortalAnnouncements,
+} from '~/hooks/use-admin-data'
+import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { cn } from '~/lib/utils'
@@ -34,6 +40,7 @@ function TutorDashboardIndex() {
     classes,
     students,
   } = useTutorDashboardData()
+  const { data: announcements = [] } = usePortalAnnouncements('tutor')
 
   const completedSessions = sessions.filter((s) => s.isCompleted)
   const pendingSessions = sessions.filter((s) => !s.isCompleted)
@@ -64,6 +71,9 @@ function TutorDashboardIndex() {
           . Kelola jadwal kelas, catat presensi digital, unggah materi modul, dan input evaluasi belajar.
         </p>
       </div>
+
+      {/* Pengumuman Resmi Bimbel */}
+      <PortalAnnouncementsWidget announcements={announcements} />
 
       {/* 4 Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
