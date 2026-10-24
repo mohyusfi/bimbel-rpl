@@ -39,6 +39,7 @@ function AdminPengumumanPage() {
   } | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [togglingPinId, setTogglingPinId] = React.useState<string | null>(null)
 
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
@@ -95,6 +96,7 @@ function AdminPengumumanPage() {
   }
 
   const handleTogglePin = async (ann: Announcement) => {
+    setTogglingPinId(ann.id)
     try {
       await togglePinAnnouncement({
         id: ann.id,
@@ -112,6 +114,8 @@ function AdminPengumumanPage() {
         type: 'error',
         text: err?.message || 'Gagal mengubah status semat pengumuman.',
       })
+    } finally {
+      setTogglingPinId(null)
     }
   }
 
@@ -221,19 +225,31 @@ function AdminPengumumanPage() {
                   </span>
                   <button
                     type="button"
+                    disabled={togglingPinId === ann.id}
                     onClick={() => handleTogglePin(ann)}
                     className={cn(
-                      'p-1.5 rounded-[6px] transition-colors cursor-pointer',
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-[6px] transition-colors cursor-pointer disabled:opacity-60',
                       ann.isPinned
-                        ? 'text-[#CB2957] hover:bg-[#F6E7E3]'
-                        : 'text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6]'
+                        ? 'text-[#CB2957] bg-[#FBEAEF] hover:bg-[#F6DCE3]'
+                        : 'text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] border border-[#D2D2D2]'
                     )}
                     title={ann.isPinned ? 'Lepas sematan' : 'Sematkan di atas'}
                   >
-                    {ann.isPinned ? (
-                      <PinOff className="w-4 h-4" />
+                    {togglingPinId === ann.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#CB2957]" />
+                        <span>{ann.isPinned ? 'Melepas sematan...' : 'Menyematkan...'}</span>
+                      </>
+                    ) : ann.isPinned ? (
+                      <>
+                        <PinOff className="w-3.5 h-3.5" />
+                        <span>Lepas Sematan</span>
+                      </>
                     ) : (
-                      <Pin className="w-4 h-4" />
+                      <>
+                        <Pin className="w-3.5 h-3.5" />
+                        <span>Sematkan</span>
+                      </>
                     )}
                   </button>
                   <button

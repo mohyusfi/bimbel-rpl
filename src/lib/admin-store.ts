@@ -2216,6 +2216,7 @@ export const adminStore = {
     }
     state.announcements = [newAnn, ...state.announcements]
     saveAndNotify()
+    this.broadcastAnnouncement(newAnn)
     return newAnn
   },
 
@@ -2246,7 +2247,20 @@ export const adminStore = {
   ) {
     const notifId =
       input.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
-    const existing = state.notifications.find((n) => n.id === notifId)
+    const annId =
+      (input.metadata as any)?.announcementId ||
+      (input.type === 'announcement' ? input.id : null)
+
+    const existing = state.notifications.find((n) => {
+      if (n.id === notifId) return true
+      if (annId) {
+        const existingAnnId =
+          (n.metadata as any)?.announcementId ||
+          (n.type === 'announcement' ? n.id : null)
+        if (existingAnnId === annId) return true
+      }
+      return false
+    })
     if (existing) return existing
 
     const newNotif: AdminNotification = {
@@ -2292,7 +2306,7 @@ export const adminStore = {
       newNotifs.push({
         id: `notif-ann-${ann.id}-${r.userId}`,
         userId: r.userId,
-        title: `Pengumuman Bimbel: ${ann.title}`,
+        title: ann.title,
         message:
           ann.content.length > 140
             ? `${ann.content.substring(0, 137)}...`
@@ -2312,8 +2326,8 @@ export const adminStore = {
 
     // Always push notification for general/admin broadcast
     const generalNotif: AdminNotification = {
-      id: `notif-ann-${ann.id}`,
-      title: `Pengumuman: ${ann.title}`,
+      id: `notif-ann-${ann.id}-admin`,
+      title: ann.title,
       message:
         ann.content.length > 140
           ? `${ann.content.substring(0, 137)}...`
@@ -2325,6 +2339,7 @@ export const adminStore = {
       metadata: {
         announcementId: ann.id,
         targetAudience: ann.targetAudience,
+        recipientRole: 'admin',
       },
       data: ann,
     }

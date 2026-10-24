@@ -71,7 +71,21 @@ export function setupRealtimeNotifications(
 
     if (notifData && typeof notifData === 'object' && notifData.title) {
       const currentNotifications = adminStore.getState().notifications
-      if (!notifData.id || !currentNotifications.some((n) => n.id === notifData.id)) {
+      const annId =
+        notifData.metadata?.announcementId ||
+        (notifData.type === 'announcement' ? notifData.id : null)
+
+      const isDuplicate = currentNotifications.some((n) => {
+        if (notifData.id && n.id === notifData.id) return true
+        if (annId) {
+          const existingAnnId =
+            n.metadata?.announcementId || (n.type === 'announcement' ? n.id : null)
+          if (existingAnnId === annId) return true
+        }
+        return false
+      })
+
+      if (!isDuplicate) {
         addedNotif = adminStore.addNotification({
           id: notifData.id,
           userId: notifData.userId || notifData.user_id,
@@ -256,7 +270,24 @@ export function useRealtimeNotifications(
     return allNotifications.filter((n) => {
       // 1. If role is explicitly provided
       if (role === 'admin') {
-        // Admin has full visibility into all notifications
+        // Exclude role-specific personal notifications intended for other roles
+        if (n.type === 'announcement') {
+          const recipientRole = n.metadata?.recipientRole
+          if (recipientRole && recipientRole !== 'admin') {
+            return false
+          }
+          if (
+            n.userId &&
+            (n.userId.startsWith('stu-') ||
+              n.userId.startsWith('par-') ||
+              n.userId.startsWith('tut-') ||
+              n.userId.startsWith('usr-student') ||
+              n.userId.startsWith('usr-parent') ||
+              n.userId.startsWith('usr-tutor'))
+          ) {
+            return false
+          }
+        }
         return true
       }
 
@@ -265,25 +296,18 @@ export function useRealtimeNotifications(
         if (n.type === 'registration') return false
         if (n.type === 'payment' && !n.userId && !n.metadata?.studentId && !n.metadata?.parentId) return false
 
-        // Broadcast announcements are filtered by target audience
-        if (n.type === 'announcement') {
-          const target =
-            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
-          if (target === 'Semua') return true
-          if (target === 'Siswa' && role === 'student') return true
-          if (target === 'Orang Tua' && role === 'parent') return true
-          if (target === 'Tutor' && role === 'tutor') return true
-          return false
-        }
-
-        // User-specific notifications
+        // User-specific IDs resolution
         const idsToMatch = new Set<string>()
         if (userId) idsToMatch.add(userId)
         if (relevantUserIds) relevantUserIds.forEach((id) => idsToMatch.add(id))
 
         if (role === 'student') {
           // Add standard demo aliases for Fahri Ramadhan
-          if (userId === 'stu-1' || userId === 'd992d9fc-6f5b-434f-998b-358e54a754b7' || (userId && userId.startsWith('usr-student'))) {
+          if (
+            userId === 'stu-1' ||
+            userId === 'd992d9fc-6f5b-434f-998b-358e54a754b7' ||
+            (userId && userId.startsWith('usr-student'))
+          ) {
             idsToMatch.add('stu-1')
             idsToMatch.add('d992d9fc-6f5b-434f-998b-358e54a754b7')
           }
@@ -291,10 +315,42 @@ export function useRealtimeNotifications(
 
         if (role === 'parent') {
           // Add standard demo aliases for Ahmad Dahlan
-          if (userId === 'par-1' || userId === 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8' || (userId && userId.startsWith('usr-parent'))) {
+          if (
+            userId === 'par-1' ||
+            userId === 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8' ||
+            (userId && userId.startsWith('usr-parent'))
+          ) {
             idsToMatch.add('par-1')
             idsToMatch.add('ec6f75cb-887a-442b-b91d-f47f9afc5ab8')
           }
+        }
+
+        if (role === 'tutor') {
+          if (userId === 'tut-1' || (userId && userId.startsWith('usr-tutor'))) {
+            idsToMatch.add('tut-1')
+          }
+        }
+
+        // Broadcast announcements are filtered by target audience and role isolation
+        if (n.type === 'announcement') {
+          const target =
+            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
+          const recipientRole = n.metadata?.recipientRole
+
+          // Must match audience target
+          if (target === 'Siswa' && role !== 'student') return false
+          if (target === 'Orang Tua' && role !== 'parent') return false
+          if (target === 'Tutor' && role !== 'tutor') return false
+
+          // If a specific recipientRole is tagged, must match this role
+          if (recipientRole && recipientRole !== role) return false
+
+          // Match by user ID if assigned to specific user
+          if (n.userId && idsToMatch.size > 0 && !idsToMatch.has(n.userId)) {
+            return false
+          }
+
+          return true
         }
 
         if (idsToMatch.size > 0) {
@@ -358,11 +414,9 @@ export function useRealtimeNotifications(
       adminStore.markNotificationRead(id)
     })
 
-    // 2. Call adminStore.markAllNotificationsRead for the user or globally
+    // 2. Call adminStore.markAllNotificationsRead only if user is explicitly resolved
     if (userId) {
       adminStore.markAllNotificationsRead(userId)
-    } else {
-      adminStore.markAllNotificationsRead()
     }
 
     queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })

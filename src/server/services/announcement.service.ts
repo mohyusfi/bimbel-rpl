@@ -150,7 +150,7 @@ export const announcementService = {
 
         notifRows.push({
           user_id: recipient.id,
-          title: `Pengumuman Bimbel: ${announcementData.title}`,
+          title: announcementData.title,
           message:
             announcementData.content.length > 140
               ? `${announcementData.content.substring(0, 137)}...`
@@ -160,6 +160,7 @@ export const announcementService = {
           metadata: {
             announcementId,
             targetAudience,
+            recipientRole: recipient.role,
             isPinned,
             author,
             publishedDate,
