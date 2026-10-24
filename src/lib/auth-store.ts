@@ -1,6 +1,7 @@
 import {
   supabase,
   createSupabaseClient,
+  isSupabaseConfigured,
   type UserRole,
   type ProfileRow as SupabaseProfileRow,
 } from './supabase/client'
@@ -164,23 +165,11 @@ const AUTH_STORAGE_KEY = 'tc_bimbel_auth_state_v1'
 const ADMIN_STAFF_STORAGE_KEY = 'tc_bimbel_admin_staff_v1'
 
 function loadSavedAdminStaff(): AdminStaffMember[] {
-  if (typeof window === 'undefined') return INITIAL_ADMIN_STAFF
-  try {
-    const raw = localStorage.getItem(ADMIN_STAFF_STORAGE_KEY)
-    if (!raw) return INITIAL_ADMIN_STAFF
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed
-    return INITIAL_ADMIN_STAFF
-  } catch {
-    return INITIAL_ADMIN_STAFF
-  }
+  return INITIAL_ADMIN_STAFF
 }
 
-function persistAdminStaff(staffList: AdminStaffMember[]) {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(ADMIN_STAFF_STORAGE_KEY, JSON.stringify(staffList))
-  } catch {}
+function persistAdminStaff(_staffList: AdminStaffMember[]) {
+  // In-memory only: no localStorage persistence
 }
 
 function inferRoleFromEmail(email: string, explicitRole?: UserRole): UserRole {
@@ -210,38 +199,11 @@ function isEmailSuperAdmin(email: string): boolean {
 }
 
 function loadSavedAuthState(): Partial<AuthState> | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)
-  } catch (err) {
-    console.warn('Gagal membaca auth state dari localStorage:', err)
-    return null
-  }
+  return null
 }
 
-function persistAuthState(currState: AuthState) {
-  if (typeof window === 'undefined') return
-  try {
-    if (currState.isAuthenticated && currState.user) {
-      localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({
-          user: currState.user,
-          profile: currState.profile,
-          role: currState.role,
-          isSuperAdmin: currState.isSuperAdmin,
-          selectedChildId: currState.selectedChildId,
-          isAuthenticated: true,
-        })
-      )
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY)
-    }
-  } catch (err) {
-    console.warn('Gagal menyimpan auth state ke localStorage:', err)
-  }
+function persistAuthState(_currState: AuthState) {
+  // In-memory only: no localStorage persistence
 }
 
 // Initial state setup
@@ -439,16 +401,19 @@ async function autoProvisionUser(
       // Sync ke tabel students Supabase
       try {
         const sb = supabase as any
-        await sb.from('students').upsert([
-          {
-            profile_id: rawUser.id,
-            nis: newStudent.nis,
-            origin_school: newStudent.school,
-            grade_level: 'SMA',
-            class_id: newStudent.classId,
-            status: 'aktif',
-          },
-        ])
+        await sb.from('students').upsert(
+          [
+            {
+              profile_id: rawUser.id,
+              nis: newStudent.nis,
+              origin_school: newStudent.school,
+              grade_level: 'SMA',
+              class_id: newStudent.classId,
+              status: 'aktif',
+            },
+          ],
+          { onConflict: 'profile_id' }
+        )
       } catch (err) {
         console.info('Supabase student insert local fallback:', err)
       }
@@ -651,7 +616,20 @@ export const authStore = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('tc_bimbel_supabase_auth_token')
-        supabase.auth.signOut().catch(() => {})
+        const keysToRemove: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+        if (isSupabaseConfigured()) {
+          supabase.auth.signInWithPassword({
+            email: demoInfo.email,
+            password: demoInfo.defaultPassword,
+          }).catch(() => {})
+        }
       } catch {}
     }
 
@@ -834,51 +812,9 @@ export const authStore = {
         }
       }
 
-      // 2. Jika tidak ada sesi Supabase (atau sesi Supabase usang dibersihkan), gunakan savedState
-      if (currentSavedState?.user && currentSavedState?.isAuthenticated) {
-        const demoUser = currentSavedState.user
-        const provisioned = await autoProvisionUser(
-          {
-            id: demoUser.id,
-            email: demoUser.email,
-            user_metadata: {
-              full_name: demoUser.fullName,
-              isSuperAdmin: demoUser.isSuperAdmin,
-            },
-          },
-          demoUser.role
-        )
-
-        const isSuper = Boolean(
-          currentSavedState.isSuperAdmin ||
-          demoUser.isSuperAdmin ||
-          provisioned.isSuperAdmin ||
-          provisioned.profile.is_super_admin ||
-          isEmailSuperAdmin(demoUser.email || '')
-        )
-
-        state = {
-          user: {
-            ...demoUser,
-            isSuperAdmin: isSuper,
-          },
-          profile: {
-            ...provisioned.profile,
-            is_super_admin: isSuper,
-            isSuperAdmin: isSuper,
-          },
-          role: demoUser.role,
-          isSuperAdmin: isSuper,
-          studentProfile: provisioned.student,
-          parentProfile: provisioned.parent,
-          children: provisioned.children,
-          selectedChildId:
-            provisioned.children[0]?.id || state.selectedChildId || null,
-          adminStaff: state.adminStaff,
-          isAuthenticated: true,
-          isLoading: false,
-          error: null,
-        }
+      // 2. Jika tidak ada sesi Supabase, pertahankan sesi in-memory aktif (misal dari quickLogin)
+      if (state.user && state.isAuthenticated) {
+        state.isLoading = false
         notify()
         return
       }
@@ -1066,16 +1002,19 @@ export const authStore = {
           if (autoRole === 'student' && provisioned.student) {
             try {
               const sb = supabase as any
-              await sb.from('students').upsert([
-                {
-                  profile_id: authUser.id,
-                  nis: provisioned.student.nis,
-                  origin_school: provisioned.student.school,
-                  grade_level: 'SMA',
-                  class_id: provisioned.student.classId,
-                  status: 'aktif',
-                },
-              ])
+              await sb.from('students').upsert(
+                [
+                  {
+                    profile_id: authUser.id,
+                    nis: provisioned.student.nis,
+                    origin_school: provisioned.student.school,
+                    grade_level: 'SMA',
+                    class_id: provisioned.student.classId,
+                    status: 'aktif',
+                  },
+                ],
+                { onConflict: 'profile_id' }
+              )
             } catch (err) {
               console.info('Supabase student sync on auto-signup note:', err)
             }
@@ -1231,6 +1170,14 @@ export const authStore = {
       try {
         localStorage.removeItem(AUTH_STORAGE_KEY)
         localStorage.removeItem('tc_bimbel_supabase_auth_token')
+        const keysToRemove: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
       } catch {}
     }
 
@@ -1624,54 +1571,48 @@ if (typeof window !== 'undefined') {
   try {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        const freshSaved = loadSavedAuthState()
-        if (state.isAuthenticated && !freshSaved?.user) {
-          authStore.logout()
+        if (state.isAuthenticated) {
+          authStore.clearSession()
         }
       } else if (event === 'SIGNED_IN' && session?.user) {
-        // Safe deferred sync
-        setTimeout(() => {
-          const freshSaved = loadSavedAuthState()
-          const sessionEmail = (session.user.email || '').toLowerCase()
-          const savedEmail = (freshSaved?.user?.email || '').toLowerCase()
+        autoProvisionUser(session.user).then((provisioned) => {
+          const isSuper = Boolean(
+            provisioned.isSuperAdmin ||
+            session.user.user_metadata?.is_super_admin ||
+            session.user.user_metadata?.isSuperAdmin ||
+            session.user.email?.toLowerCase().includes('pimpinan') ||
+            provisioned.profile.is_super_admin
+          )
 
-          // Abaikan jika pengguna sedang aktif dengan sesi peran demo yang berbeda
-          if (freshSaved?.isAuthenticated && savedEmail && savedEmail !== sessionEmail) {
-            return
-          }
-
-          autoProvisionUser(session.user).then((provisioned) => {
-            const isSuper = Boolean(
-              provisioned.isSuperAdmin ||
-              session.user.user_metadata?.is_super_admin ||
-              session.user.user_metadata?.isSuperAdmin ||
-              session.user.email?.toLowerCase().includes('pimpinan') ||
-              provisioned.profile.is_super_admin
-            )
-
-            state.user = {
+          state = {
+            ...state,
+            user: {
               id: session.user.id,
               email: session.user.email || '',
               fullName: provisioned.profile.full_name,
               role: provisioned.profile.role,
               phone: provisioned.profile.phone_number || undefined,
               isSuperAdmin: isSuper,
-            }
-            state.profile = {
+            },
+            profile: {
               ...provisioned.profile,
               is_super_admin: isSuper,
               isSuperAdmin: isSuper,
-            }
-            state.role = provisioned.profile.role
-            state.isSuperAdmin = isSuper
-            state.studentProfile = provisioned.student
-            state.parentProfile = provisioned.parent
-            state.children = provisioned.children
-            state.adminStaff = state.adminStaff
-            state.isAuthenticated = true
-            notify()
-          })
-        }, 0)
+            },
+            role: provisioned.profile.role,
+            isSuperAdmin: isSuper,
+            studentProfile: provisioned.student,
+            parentProfile: provisioned.parent,
+            children: provisioned.children,
+            selectedChildId:
+              provisioned.children[0]?.id || state.selectedChildId || null,
+            adminStaff: state.adminStaff,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          }
+          notify()
+        })
       }
     })
   } catch (err) {

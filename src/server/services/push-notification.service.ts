@@ -95,26 +95,25 @@ export const pushNotificationService = {
 
       memorySubscriptions.set(input.endpoint, item)
 
-      // Sync ke Supabase jika client tersedia
-      try {
-        const client = await getServerDbClient()
+      // Sync ke Supabase di latar belakang jika client tersedia
+      getServerDbClient().then((client) => {
         if (client && typeof client.from === 'function') {
           for (const uid of allUserIds) {
-            await client.from('push_subscriptions').upsert(
-              {
-                user_id: uid,
-                endpoint: input.endpoint,
-                keys: input.keys,
-                user_agent: input.userAgent || null,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'endpoint' }
-            )
+            Promise.resolve(
+              client.from('push_subscriptions').upsert(
+                {
+                  user_id: uid,
+                  endpoint: input.endpoint,
+                  keys: input.keys,
+                  user_agent: input.userAgent || null,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'endpoint' }
+              )
+            ).catch(() => {})
           }
         }
-      } catch (dbErr) {
-        // Fallback silently to memory store for test environments
-      }
+      }).catch(() => {})
 
       return { success: true }
     } catch (err: any) {
@@ -148,7 +147,19 @@ export const pushNotificationService = {
   async getSubscriptionsForUsers(userIds: string[]): Promise<PushSubscriptionItem[]> {
     if (!userIds || userIds.length === 0) return []
 
-    // 1. Coba ambil dari Supabase
+    // 1. Coba ambil dari memory store terlebih dahulu
+    const userSet = new Set(userIds)
+    const memResult: PushSubscriptionItem[] = []
+    for (const sub of memorySubscriptions.values()) {
+      if (userSet.has(sub.userId) || (sub.userIds && sub.userIds.some((id) => userSet.has(id)))) {
+        memResult.push(sub)
+      }
+    }
+    if (memResult.length > 0) {
+      return memResult
+    }
+
+    // 2. Ambil dari Supabase
     try {
       const client = await getServerDbClient()
       if (client && typeof client.from === 'function') {
@@ -173,15 +184,7 @@ export const pushNotificationService = {
       // Fallback to memory store
     }
 
-    // 2. Ambil dari memory store
-    const userSet = new Set(userIds)
-    const result: PushSubscriptionItem[] = []
-    for (const sub of memorySubscriptions.values()) {
-      if (userSet.has(sub.userId) || (sub.userIds && sub.userIds.some((id) => userSet.has(id)))) {
-        result.push(sub)
-      }
-    }
-    return result
+    return []
   },
 
   async removeStaleSubscriptions(endpoints: string[]): Promise<boolean> {

@@ -112,6 +112,15 @@ export function setupRealtimeNotifications(
   }
 
   // 1. Channel broadcast:announcements
+  if (typeof client.getChannels === 'function') {
+    const existing = client.getChannels().find((c) => c.topic === 'realtime:broadcast:announcements')
+    if (existing && typeof client.removeChannel === 'function') {
+      try {
+        client.removeChannel(existing)
+      } catch {}
+    }
+  }
+
   const broadcastChannel = client.channel('broadcast:announcements')
   broadcastChannel
     .on('broadcast', { event: 'announcement' }, handleIncomingNotification)
@@ -122,7 +131,17 @@ export function setupRealtimeNotifications(
 
   // 2. Channel user-notifications:${userId} (only for valid non-empty string userId)
   if (userId && typeof userId === 'string' && userId.trim() !== '') {
-    const userChannel = client.channel(`user-notifications:${userId.trim()}`)
+    const cleanUserId = userId.trim()
+    if (typeof client.getChannels === 'function') {
+      const existingUserCh = client.getChannels().find((c) => c.topic === `realtime:user-notifications:${cleanUserId}`)
+      if (existingUserCh && typeof client.removeChannel === 'function') {
+        try {
+          client.removeChannel(existingUserCh)
+        } catch {}
+      }
+    }
+
+    const userChannel = client.channel(`user-notifications:${cleanUserId}`)
     userChannel
       .on('broadcast', { event: 'notification' }, handleIncomingNotification)
       .on(
@@ -131,7 +150,7 @@ export function setupRealtimeNotifications(
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${userId.trim()}`,
+          filter: `user_id=eq.${cleanUserId}`,
         },
         handleIncomingNotification
       )

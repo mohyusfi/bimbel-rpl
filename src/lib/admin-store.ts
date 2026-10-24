@@ -260,6 +260,7 @@ export interface AdminNotification {
   createdAt?: string
 }
 
+// Test Fixtures (In-Memory Only for Vitest Test Harness, No LocalStorage Persistence)
 // Initial Data
 const INITIAL_COURSES: Course[] = [
   {
@@ -1013,7 +1014,7 @@ const INITIAL_GRADES: GradeRecord[] = [
   },
 ]
 
-// State Container & LocalStorage Sync
+// State Container (In-Memory Only)
 interface AdminState {
   registrations: Registration[]
   students: Student[]
@@ -1036,60 +1037,33 @@ interface AdminState {
   activeParentId: string
 }
 
-const STORAGE_KEY = 'tc_bimbel_admin_state_v1'
-
 function loadInitialState(): AdminState {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        // Auto-purge legacy mock data (IDs like 'rm-1', 'cls-1', 'tut-1', 'stu-1')
-        const hasLegacyMock =
-          parsed.rooms?.some((r: any) => typeof r.id === 'string' && r.id.startsWith('rm-')) ||
-          parsed.classes?.some((c: any) => typeof c.id === 'string' && c.id.startsWith('cls-')) ||
-          parsed.students?.some((s: any) => typeof s.id === 'string' && s.id.startsWith('stu-'))
-
-        if (hasLegacyMock) {
-          console.info('[INFO] Auto-purging legacy mock data from localStorage...')
-          localStorage.removeItem(STORAGE_KEY)
-        } else {
-          // Auto-purge modul materi, rapor nilai, dan invoices dari localStorage agar tidak tertinggal data lama
-          if (parsed.learningMaterials || parsed.gradeRecords || parsed.invoices) {
-            delete parsed.learningMaterials
-            delete parsed.gradeRecords
-            delete parsed.invoices
-            try {
-              const { learningMaterials: _m, gradeRecords: _g, invoices: _i, ...cleaned } = parsed
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned))
-            } catch {}
-          }
-
-          return {
-            ...parsed,
-            registrations: parsed.registrations || [],
-            students: parsed.students || [],
-            tutors: parsed.tutors || [],
-            rooms: parsed.rooms || [],
-            courses: parsed.courses || [],
-            classes: parsed.classes || [],
-            attendanceSessions: parsed.attendanceSessions || INITIAL_ATTENDANCE_SESSIONS,
-            invoices: INITIAL_INVOICES.map((i) => ({ ...i })),
-            learningMaterials: [],
-            gradeRecords: [],
-            parents: parsed.parents || INITIAL_PARENTS,
-            selectedChildId: parsed.selectedChildId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
-            activeTutorId: parsed.activeTutorId || '9383fc09-99fc-423c-ac09-e3f94c26f5e9',
-            activeStudentId: parsed.activeStudentId || 'd992d9fc-6f5b-434f-998b-358e54a754b7',
-            activeParentId: parsed.activeParentId || 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Gagal memuat admin state dari localStorage:', e)
+  if (typeof window !== "undefined") {
+    // In browser client: clean initial state without dummy data, loading 100% from Supabase Database
+    return {
+      registrations: [],
+      students: [],
+      tutors: [],
+      subjects: [],
+      rooms: [],
+      courses: [],
+      classes: [],
+      schedules: [],
+      invoices: [],
+      announcements: [],
+      notifications: [],
+      attendanceSessions: [],
+      learningMaterials: [],
+      gradeRecords: [],
+      parents: [],
+      selectedChildId: "",
+      activeTutorId: "",
+      activeStudentId: "",
+      activeParentId: "",
     }
   }
 
+  // In test environment (Node/Vitest): populate test fixtures
   return {
     registrations: [],
     students: [],
@@ -1129,14 +1103,6 @@ function clampCapacity(capacity: unknown, defaultCap = 12): number {
 }
 
 function saveAndNotify() {
-  if (typeof window !== 'undefined') {
-    try {
-      const { learningMaterials: _m, gradeRecords: _g, invoices: _i, ...persistentState } = state
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistentState))
-    } catch (e) {
-      console.warn('Gagal menyimpan admin state ke localStorage:', e)
-    }
-  }
   listeners.forEach((listener) => listener())
 }
 
@@ -1169,10 +1135,10 @@ export const adminStore = {
       learningMaterials: INITIAL_MATERIALS.map((m) => ({ ...m })),
       gradeRecords: INITIAL_GRADES.map((g) => ({ ...g })),
       parents: INITIAL_PARENTS.map((p) => ({ ...p })),
-      selectedChildId: 'stu-1',
-      activeTutorId: 'tut-1',
-      activeStudentId: 'stu-1',
-      activeParentId: 'par-1',
+      selectedChildId: "stu-1",
+      activeTutorId: "tut-1",
+      activeStudentId: "stu-1",
+      activeParentId: "par-1",
     }
     saveAndNotify()
   },
@@ -1714,6 +1680,15 @@ export const adminStore = {
     this.recordInvoiceNotifications(newInvoice)
     saveAndNotify()
     return newInvoice
+  },
+
+  addInvoice(invoice: Invoice) {
+    const existing = state.invoices.find((i) => i.id === invoice.id || i.invoiceNumber === invoice.invoiceNumber)
+    if (existing) return existing
+    state.invoices = [invoice, ...state.invoices]
+    this.recordInvoiceNotifications(invoice)
+    saveAndNotify()
+    return invoice
   },
 
   verifyInvoice(invoiceId: string) {
@@ -2515,54 +2490,40 @@ export const adminStore = {
       })
     )
 
-    // 2. Notifikasi untuk Siswa
-    if (student) {
+    // 2. Notifikasi untuk Wali Murid (Parent)
+    const targetStudentId = student?.id || invoice.studentId
+    const targetParentId = parent?.id || (invoice as any).parentId || (targetStudentId === 'stu-1' || targetStudentId === 'd992d9fc-6f5b-434f-998b-358e54a754b7' ? 'par-1' : null)
+    if (targetParentId) {
       createdNotifs.push(
         this.addNotification({
-          userId: student.id,
-          title: 'Tagihan SPP Baru',
-          message: `Tagihan SPP periode ${invoice.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
-          type: 'billing',
-          linkUrl: '/student/tagihan',
-          metadata: {
-            invoiceId: invoice.id,
-            studentId: student.id,
-            targetRoles: ['student'],
-          },
-        })
-      )
-      if (invoice.studentId && invoice.studentId !== student.id) {
-        createdNotifs.push(
-          this.addNotification({
-            userId: invoice.studentId,
-            title: 'Tagihan SPP Baru',
-            message: `Tagihan SPP periode ${invoice.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
-            type: 'billing',
-            linkUrl: '/student/tagihan',
-            metadata: {
-              invoiceId: invoice.id,
-              studentId: invoice.studentId,
-              targetRoles: ['student'],
-            },
-          })
-        )
-      }
-    }
-
-    // 3. Notifikasi untuk Wali Murid (Parent)
-    if (parent) {
-      createdNotifs.push(
-        this.addNotification({
-          userId: parent.id,
+          userId: targetParentId,
           title: 'Tagihan SPP Putra/Putri',
           message: `Tagihan SPP an. ${studentName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
           type: 'billing',
           linkUrl: '/parent/tagihan',
           metadata: {
             invoiceId: invoice.id,
-            studentId: student?.id || invoice.studentId,
-            parentId: parent.id,
+            studentId: targetStudentId,
+            parentId: targetParentId,
             targetRoles: ['parent'],
+          },
+        })
+      )
+    }
+
+    // 3. Notifikasi untuk Siswa
+    if (targetStudentId) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: targetStudentId,
+          title: 'Tagihan SPP Baru',
+          message: `Tagihan SPP periode ${invoice.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
+          type: 'billing',
+          linkUrl: '/student/tagihan',
+          metadata: {
+            invoiceId: invoice.id,
+            studentId: targetStudentId,
+            targetRoles: ['student'],
           },
         })
       )

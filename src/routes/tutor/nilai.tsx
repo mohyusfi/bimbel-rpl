@@ -27,7 +27,7 @@ export const Route = createFileRoute('/tutor/nilai')({
 
 const CATEGORIES = ['Semua Kategori', 'Try Out', 'Kuis', 'Tugas'] as const
 
-export function TutorNilaiPage() {
+function TutorNilaiPage() {
   const { grades, classes, students, tutor } = useTutorDashboardData()
   const { addGradeRecord, updateGradeRecord } = useAdminMutations()
 

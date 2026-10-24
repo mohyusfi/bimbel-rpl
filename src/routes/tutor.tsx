@@ -23,6 +23,7 @@ function TutorLayout() {
   const tutor = session?.tutor || {
     name: 'Kak Dian Pratiwi, S.Si',
     specialization: 'Fisika & UTBK',
+    subjects: ['Fisika & UTBK'],
   }
 
   const navGroups = [

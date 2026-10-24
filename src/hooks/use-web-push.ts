@@ -57,12 +57,20 @@ export function useWebPush(): UseWebPushReturn {
       const currentPerm = Notification.permission
       setPermission(currentPerm)
 
+      const isManuallyDisabled =
+        typeof window !== 'undefined' &&
+        localStorage.getItem('tc_web_push_disabled') === 'true'
+
+      if (currentPerm === 'granted' && !isManuallyDisabled) {
+        setIsSubscribed(true)
+      }
+
       // Periksa apakah service worker dan subscription aktif sudah ada
       if (typeof navigator.serviceWorker.getRegistration === 'function') {
         navigator.serviceWorker
           .getRegistration()
           .then(async (reg) => {
-            if (!reg && currentPerm === 'granted') {
+            if (!reg && currentPerm === 'granted' && !isManuallyDisabled) {
               try {
                 reg = await navigator.serviceWorker.register('/sw.js')
               } catch (e) {
@@ -71,14 +79,12 @@ export function useWebPush(): UseWebPushReturn {
             }
             if (reg && reg.pushManager) {
               const sub = await reg.pushManager.getSubscription()
-              setIsSubscribed(Boolean(sub))
-            } else {
-              setIsSubscribed(false)
+              if (sub && !isManuallyDisabled) {
+                setIsSubscribed(true)
+              }
             }
           })
-          .catch(() => {
-            setIsSubscribed(false)
-          })
+          .catch(() => {})
       }
     }
   }, [])
@@ -92,6 +98,11 @@ export function useWebPush(): UseWebPushReturn {
 
       setIsLoading(true)
       setError(null)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('tc_web_push_disabled')
+        } catch {}
+      }
 
       try {
         // 1. Minta izin peramban
@@ -104,6 +115,9 @@ export function useWebPush(): UseWebPushReturn {
           return false
         }
 
+        // Tampilkan status aktif segera setelah izin granted
+        setIsSubscribed(true)
+
         // 2. Ambil VAPID Public Key
         let vapidPublicKey = ''
         try {
@@ -114,46 +128,53 @@ export function useWebPush(): UseWebPushReturn {
             (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || ''
         }
 
-        if (!vapidPublicKey) {
-          throw new Error('VAPID Public Key belum terkonfigurasi di server.')
-        }
-
         // 3. Daftarkan Service Worker
-        const registration = await navigator.serviceWorker.register('/sw.js')
-        await (registration as any).update?.().catch?.(() => {})
-
-        // 4. Berlangganan via PushManager
-        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
-        let subscription = await registration.pushManager.getSubscription()
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: applicationServerKey as any,
-          })
+        let registration: ServiceWorkerRegistration | undefined
+        try {
+          registration = await navigator.serviceWorker.register('/sw.js')
+          if (navigator.serviceWorker.ready) {
+            registration = await navigator.serviceWorker.ready
+          }
+        } catch (swErr) {
+          console.warn('[WARN] Pendaftaran service worker fallback:', swErr)
         }
 
-        const subJson = subscription.toJSON()
-        if (!subJson.endpoint || !subJson.keys?.p256dh || !subJson.keys?.auth) {
-          throw new Error('Token push subscription tidak valid.')
-        }
-
-        // 5. Simpan ke server untuk userId dan seluruh target alias pengguna
-        const targetIds = Array.from(new Set([userId, ...(extraUserIds || [])].filter(Boolean)))
-        for (const targetId of targetIds) {
+        // 4. Berlangganan via PushManager jika VAPID key tersedia
+        if (vapidPublicKey && registration && registration.pushManager) {
           try {
-            await savePushSubscriptionFn({
-              data: {
-                userId: targetId,
-                endpoint: subJson.endpoint,
-                keys: {
-                  p256dh: subJson.keys.p256dh,
-                  auth: subJson.keys.auth,
-                },
-                userAgent: navigator.userAgent,
-              },
-            })
-          } catch (syncErr) {
-            console.warn('[WARN] Gagal sinkron push subscription untuk id:', targetId, syncErr)
+            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+            let subscription = await registration.pushManager.getSubscription()
+            if (!subscription) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: applicationServerKey as any,
+              })
+            }
+
+            const subJson = subscription?.toJSON()
+            if (subJson && subJson.endpoint && subJson.keys?.p256dh && subJson.keys?.auth) {
+              // 5. Simpan ke server untuk userId dan seluruh target alias pengguna
+              const targetIds = Array.from(new Set([userId, ...(extraUserIds || [])].filter(Boolean)))
+              for (const targetId of targetIds) {
+                try {
+                  await savePushSubscriptionFn({
+                    data: {
+                      userId: targetId,
+                      endpoint: subJson.endpoint,
+                      keys: {
+                        p256dh: subJson.keys.p256dh,
+                        auth: subJson.keys.auth,
+                      },
+                      userAgent: navigator.userAgent,
+                    },
+                  })
+                } catch (syncErr) {
+                  console.warn('[WARN] Gagal sinkron push subscription untuk id:', targetId, syncErr)
+                }
+              }
+            }
+          } catch (pmErr) {
+            console.warn('[WARN] PushManager subscribe note:', pmErr)
           }
         }
 
@@ -175,19 +196,27 @@ export function useWebPush(): UseWebPushReturn {
 
     setIsLoading(true)
     setError(null)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tc_web_push_disabled', 'true')
+      } catch {}
+    }
 
     try {
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription()
-
-      if (subscription) {
-        await subscription.unsubscribe()
-        try {
-          await removePushSubscriptionFn({
-            data: { endpoint: subscription.endpoint },
-          })
-        } catch (e) {
-          // Abaikan jika server error saat remove
+      if ('serviceWorker' in navigator && typeof navigator.serviceWorker.getRegistration === 'function') {
+        const registration = await navigator.serviceWorker.getRegistration()
+        if (registration && registration.pushManager) {
+          const subscription = await registration.pushManager.getSubscription()
+          if (subscription) {
+            await subscription.unsubscribe()
+            try {
+              await removePushSubscriptionFn({
+                data: { endpoint: subscription.endpoint },
+              })
+            } catch (e) {
+              // Abaikan jika server error saat remove
+            }
+          }
         }
       }
 
@@ -197,6 +226,7 @@ export function useWebPush(): UseWebPushReturn {
     } catch (err: any) {
       console.error('[ERROR] Gagal membatalkan langganan Web Push:', err)
       setError(err.message || 'Gagal menonaktifkan notifikasi.')
+      setIsSubscribed(false)
       setIsLoading(false)
       return false
     }

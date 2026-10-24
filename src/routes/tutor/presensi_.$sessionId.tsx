@@ -30,7 +30,7 @@ export const Route = createFileRoute('/tutor/presensi_/$sessionId')({
   component: TutorPresensiDetailPage,
 })
 
-export function TutorPresensiDetailPage() {
+function TutorPresensiDetailPage() {
   const { sessionId } = Route.useParams()
   const { sessions, students } = useTutorDashboardData()
   const { saveSessionAttendance } = useAdminMutations()

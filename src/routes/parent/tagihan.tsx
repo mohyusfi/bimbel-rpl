@@ -24,6 +24,7 @@ import type { Invoice } from '~/lib/admin-store'
 import { formatRupiah, cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/tagihan')({
+  ssr: false,
   component: ParentBillingPage,
 })
 
