@@ -1,7 +1,6 @@
 import { supabase, createSupabaseClient } from '~/lib/supabase/client'
 import { ensureAdminSession } from './master-data.service'
 import { validateReceiptFile } from '~/lib/receipt-validator'
-import { pushNotificationService } from './push-notification.service'
 import type { Invoice as StoreInvoice } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -886,6 +885,7 @@ export const billingService = {
     // Kirim Web Push Notification secara aman ke akun siswa & wali murid
     try {
       const recipientUserIds = [invoice.studentId, (invoice as any).parentId].filter(Boolean) as string[]
+      const { pushNotificationService } = await import('./push-notification.service')
       await pushNotificationService.sendToUsers(recipientUserIds, {
         title: notifTitle,
         message: notifMsg,
@@ -966,6 +966,7 @@ export const billingService = {
     // Kirim Web Push Notification penolakan pembayaran
     try {
       const recipientUserIds = [invoice.studentId, (invoice as any).parentId].filter(Boolean) as string[]
+      const { pushNotificationService } = await import('./push-notification.service')
       await pushNotificationService.sendToUsers(recipientUserIds, {
         title: 'Bukti Pembayaran SPP Ditolak',
         message: `Bukti pembayaran tagihan ${invoice.invoiceNumber} ditolak: "${cleanReason}".`,

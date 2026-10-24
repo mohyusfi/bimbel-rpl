@@ -1,7 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import { isSessionLockedForTutor, calculateAttendancePercentage } from '~/lib/attendance-helpers'
 import { ensureAdminSession } from './master-data.service'
-import { pushNotificationService } from './push-notification.service'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -166,6 +165,9 @@ export const attendanceService = {
           }
 
           if (targetParentProfileIds.length > 0) {
+            const { pushNotificationService } = await import(
+              './push-notification.service'
+            )
             await pushNotificationService.sendToUsers(targetParentProfileIds, {
               title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
               message: `Putra/Putri Anda tercatat tidak hadir (Alpa) pada sesi ${topic || 'bimbingan belajar'}.`,

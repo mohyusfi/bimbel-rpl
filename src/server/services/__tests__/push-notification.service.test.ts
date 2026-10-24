@@ -16,9 +16,9 @@ describe('PushNotificationService (TDD & Vercel-Safe Push)', () => {
   })
 
   describe('1. VAPID Configuration & Initialization', () => {
-    it('menginisialisasi webpush dengan VAPID credentials yang valid', () => {
+    it('menginisialisasi webpush dengan VAPID credentials yang valid', async () => {
       const setVapidSpy = vi.spyOn(webpush, 'setVapidDetails').mockImplementation(() => {})
-      const isReady = pushNotificationService.initVapid()
+      const isReady = await pushNotificationService.initVapid()
 
       expect(isReady).toBe(true)
       expect(setVapidSpy).toHaveBeenCalledWith(
@@ -28,11 +28,11 @@ describe('PushNotificationService (TDD & Vercel-Safe Push)', () => {
       )
     })
 
-    it('mengembalikan false secara aman jika VAPID keys belum terkonfigurasi', () => {
+    it('mengembalikan false secara aman jika VAPID keys belum terkonfigurasi', async () => {
       delete process.env.VAPID_PUBLIC_KEY
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      const isReady = pushNotificationService.initVapid()
+      const isReady = await pushNotificationService.initVapid()
       expect(isReady).toBe(false)
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[WARN] VAPID keys'))
     })

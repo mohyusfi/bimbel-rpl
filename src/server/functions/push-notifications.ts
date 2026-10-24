@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { pushNotificationService } from '~/server/services/push-notification.service'
 
 export const getVapidPublicKeyFn = createServerFn({ method: 'GET' }).handler(async () => {
   const publicKey =
@@ -21,6 +20,9 @@ export const savePushSubscriptionFn = createServerFn({ method: 'POST' })
     })
   )
   .handler(async ({ data }) => {
+    const { pushNotificationService } = await import(
+      '~/server/services/push-notification.service'
+    )
     return await pushNotificationService.subscribe(data)
   })
 
@@ -31,5 +33,8 @@ export const removePushSubscriptionFn = createServerFn({ method: 'POST' })
     })
   )
   .handler(async ({ data }) => {
+    const { pushNotificationService } = await import(
+      '~/server/services/push-notification.service'
+    )
     return await pushNotificationService.unsubscribe(data.endpoint)
   })

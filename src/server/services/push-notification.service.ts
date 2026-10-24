@@ -1,4 +1,3 @@
-import webpush from 'web-push'
 import { supabase } from '~/lib/supabase/client'
 
 export interface PushSubscriptionItem {
@@ -18,6 +17,17 @@ export interface SendPushPayload {
   tag?: string
 }
 
+async function getWebPushClient() {
+  if (typeof window !== 'undefined') return null
+  try {
+    const mod = await import('web-push')
+    return (mod as any).default || mod
+  } catch (err) {
+    console.warn('[WARN] Gagal memuat modul web-push:', err)
+    return null
+  }
+}
+
 // In-memory fallback cache for local dev / tests
 const memorySubscriptions: Map<string, PushSubscriptionItem> = new Map()
 
@@ -27,7 +37,7 @@ export const pushNotificationService = {
     memorySubscriptions.clear()
   },
 
-  initVapid(): boolean {
+  async initVapid(): Promise<boolean> {
     const publicKey = process.env.VAPID_PUBLIC_KEY
     const privateKey = process.env.VAPID_PRIVATE_KEY
     const subject = process.env.VAPID_SUBJECT || 'mailto:admin@tadulakocendekia.sch.id'
@@ -38,7 +48,9 @@ export const pushNotificationService = {
     }
 
     try {
-      webpush.setVapidDetails(subject, publicKey, privateKey)
+      const client = await getWebPushClient()
+      if (!client) return false
+      client.setVapidDetails(subject, publicKey, privateKey)
       return true
     } catch (err: any) {
       console.error('[ERROR] Gagal menginisialisasi VAPID details:', err?.message || err)
@@ -177,7 +189,13 @@ export const pushNotificationService = {
       return { deliveredCount: 0, failedCount: 0 }
     }
 
-    if (!this.initVapid()) {
+    const isReady = await this.initVapid()
+    if (!isReady) {
+      return { deliveredCount: 0, failedCount: 0 }
+    }
+
+    const client = await getWebPushClient()
+    if (!client) {
       return { deliveredCount: 0, failedCount: 0 }
     }
 
@@ -198,7 +216,7 @@ export const pushNotificationService = {
     await Promise.allSettled(
       subscriptions.map(async (sub) => {
         try {
-          await webpush.sendNotification(
+          await client.sendNotification(
             {
               endpoint: sub.endpoint,
               keys: sub.keys as { p256dh: string; auth: string },

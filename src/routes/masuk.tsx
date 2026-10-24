@@ -22,7 +22,6 @@ import { MobileDrawer } from '~/components/landing/MobileDrawer'
 import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
 
 export const Route = createFileRoute('/masuk')({
-  ssr: false,
   component: LoginPage,
 })
 
