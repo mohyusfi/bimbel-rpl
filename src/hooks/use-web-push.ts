@@ -31,7 +31,7 @@ export interface UseWebPushReturn {
   isSubscribed: boolean
   isLoading: boolean
   error: string | null
-  subscribeToPush: (userId: string) => Promise<boolean>
+  subscribeToPush: (userId: string, extraUserIds?: string[]) => Promise<boolean>
   unsubscribeFromPush: () => Promise<boolean>
 }
 
@@ -54,22 +54,37 @@ export function useWebPush(): UseWebPushReturn {
     setIsSupported(supported)
 
     if (supported) {
-      setPermission(Notification.permission)
+      const currentPerm = Notification.permission
+      setPermission(currentPerm)
 
-      // Periksa apakah subscription aktif sudah ada
-      navigator.serviceWorker.ready
-        .then((reg) => reg.pushManager.getSubscription())
-        .then((sub) => {
-          setIsSubscribed(!!sub)
-        })
-        .catch(() => {
-          setIsSubscribed(false)
-        })
+      // Periksa apakah service worker dan subscription aktif sudah ada
+      if (typeof navigator.serviceWorker.getRegistration === 'function') {
+        navigator.serviceWorker
+          .getRegistration()
+          .then(async (reg) => {
+            if (!reg && currentPerm === 'granted') {
+              try {
+                reg = await navigator.serviceWorker.register('/sw.js')
+              } catch (e) {
+                // ignore
+              }
+            }
+            if (reg && reg.pushManager) {
+              const sub = await reg.pushManager.getSubscription()
+              setIsSubscribed(Boolean(sub))
+            } else {
+              setIsSubscribed(false)
+            }
+          })
+          .catch(() => {
+            setIsSubscribed(false)
+          })
+      }
     }
   }, [])
 
   const subscribeToPush = React.useCallback(
-    async (userId: string): Promise<boolean> => {
+    async (userId: string, extraUserIds?: string[]): Promise<boolean> => {
       if (!isSupported) {
         setError('Peramban Anda tidak mendukung Web Push Notification.')
         return false
@@ -104,33 +119,43 @@ export function useWebPush(): UseWebPushReturn {
         }
 
         // 3. Daftarkan Service Worker
-        await navigator.serviceWorker.register('/sw.js')
-        const registration = await navigator.serviceWorker.ready
+        const registration = await navigator.serviceWorker.register('/sw.js')
+        await (registration as any).update?.().catch?.(() => {})
 
         // 4. Berlangganan via PushManager
         const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: applicationServerKey as any,
-        })
+        let subscription = await registration.pushManager.getSubscription()
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey as any,
+          })
+        }
 
         const subJson = subscription.toJSON()
         if (!subJson.endpoint || !subJson.keys?.p256dh || !subJson.keys?.auth) {
           throw new Error('Token push subscription tidak valid.')
         }
 
-        // 5. Simpan ke server
-        await savePushSubscriptionFn({
-          data: {
-            userId,
-            endpoint: subJson.endpoint,
-            keys: {
-              p256dh: subJson.keys.p256dh,
-              auth: subJson.keys.auth,
-            },
-            userAgent: navigator.userAgent,
-          },
-        })
+        // 5. Simpan ke server untuk userId dan seluruh target alias pengguna
+        const targetIds = Array.from(new Set([userId, ...(extraUserIds || [])].filter(Boolean)))
+        for (const targetId of targetIds) {
+          try {
+            await savePushSubscriptionFn({
+              data: {
+                userId: targetId,
+                endpoint: subJson.endpoint,
+                keys: {
+                  p256dh: subJson.keys.p256dh,
+                  auth: subJson.keys.auth,
+                },
+                userAgent: navigator.userAgent,
+              },
+            })
+          } catch (syncErr) {
+            console.warn('[WARN] Gagal sinkron push subscription untuk id:', targetId, syncErr)
+          }
+        }
 
         setIsSubscribed(true)
         setIsLoading(false)

@@ -1382,7 +1382,16 @@ export function useCreateInvoiceMutation() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      adminStore.recordInvoiceNotifications({
+        id: data.id,
+        studentId: variables.studentId,
+        studentName: variables.studentName,
+        programName: variables.programName,
+        amount: variables.amount,
+        dueDate: variables.dueDate,
+        invoiceNumber: data.invoiceNumber,
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })

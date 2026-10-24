@@ -123,20 +123,52 @@ export function DashboardShell({
   }, [])
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { profile, user } = useAuth()
-  const currentUserId = profile?.id || user?.id
+  const { profile, user, studentProfile, parentProfile, children: authChildren } = useAuth()
+
+  const currentUserId =
+    role === 'student'
+      ? studentProfile?.id || profile?.id || user?.id
+      : role === 'parent'
+      ? parentProfile?.id || profile?.id || user?.id
+      : profile?.id || user?.id
+
+  const allUserIds = React.useMemo(() => {
+    const ids = new Set<string>()
+    if (user?.id) ids.add(user.id)
+    if (profile?.id) ids.add(profile.id)
+    if (studentProfile?.id) ids.add(studentProfile.id)
+    if (parentProfile?.id) ids.add(parentProfile.id)
+    if (authChildren && role === 'parent') {
+      authChildren.forEach((c) => ids.add(c.id))
+    }
+    return Array.from(ids)
+  }, [user?.id, profile?.id, studentProfile?.id, parentProfile?.id, authChildren, role])
+
+  const childIds = React.useMemo(() => {
+    if (role !== 'parent') return undefined
+    const ids: string[] = []
+    if (parentProfile?.studentIds) ids.push(...parentProfile.studentIds)
+    if (authChildren) ids.push(...authChildren.map((c) => c.id))
+    return Array.from(new Set(ids))
+  }, [role, parentProfile, authChildren])
 
   const {
     notifications,
     unreadCount: unreadNotifsCount,
     markAsRead,
     markAllAsRead,
-  } = useRealtimeNotifications({ userId: currentUserId, role })
+  } = useRealtimeNotifications({
+    userId: currentUserId,
+    role,
+    childIds,
+    relevantUserIds: allUserIds,
+  })
 
   const {
     isSupported: isPushSupported,
     isSubscribed: isPushSubscribed,
     isLoading: isPushLoading,
+    error: pushError,
     subscribeToPush,
     unsubscribeFromPush,
   } = useWebPush()
@@ -310,6 +342,7 @@ export function DashboardShell({
           <div className="grid grid-cols-2 gap-1.5">
             <Link
               to="/masuk"
+              onClick={() => authStore.clearSession()}
               className="flex items-center justify-center gap-1.5 py-1.5 text-xs text-[#555555] hover:text-[#000000] hover:bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] transition-colors"
               title="Ganti Portal Role (Demo)"
             >
@@ -488,12 +521,18 @@ export function DashboardShell({
                           <button
                             type="button"
                             disabled={isPushLoading}
-                            onClick={() => currentUserId && subscribeToPush(currentUserId)}
+                            onClick={() => subscribeToPush(currentUserId || 'active-user', allUserIds)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[6px] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
                           >
                             <span>{isPushLoading ? 'Mengaktifkan...' : 'Aktifkan'}</span>
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {pushError && (
+                      <div className="px-5 py-2 bg-[#FFF1F2] border-b border-[#F43F5E]/20 text-[11px] text-[#901B14]">
+                        {pushError}
                       </div>
                     )}
 

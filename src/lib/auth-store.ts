@@ -647,6 +647,14 @@ export const authStore = {
     const targetRole: UserRole = isSuper ? 'admin' : roleOrSuper
     const demoInfo = isSuper ? DEMO_ACCOUNTS.super_admin : DEMO_ACCOUNTS[targetRole]
 
+    // Bersihkan sesi Supabase lama agar tidak terjadi pembajakan peran (role poisoning)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('tc_bimbel_supabase_auth_token')
+        supabase.auth.signOut().catch(() => {})
+      } catch {}
+    }
+
     const matchedStaff = state.adminStaff.find(
       (s) => s.email.toLowerCase() === demoInfo.email.toLowerCase()
     )
@@ -662,32 +670,7 @@ export const authStore = {
       }
     }
 
-    const syntheticUser = {
-      id: `usr-${isSuper ? 'super_admin' : targetRole}-${Date.now().toString().slice(-4)}`,
-      email: demoInfo.email,
-      user_metadata: {
-        full_name: demoInfo.name,
-        phone: demoInfo.phone,
-        role: targetRole,
-        is_super_admin: isSuper,
-      },
-    }
-
     const adminState = adminStore.getState()
-    const nowIso = new Date().toISOString()
-    const profile: ProfileRow = {
-      id: syntheticUser.id,
-      email: demoInfo.email,
-      full_name: demoInfo.name,
-      role: targetRole,
-      phone_number: demoInfo.phone,
-      is_super_admin: isSuper,
-      isSuperAdmin: isSuper,
-      status: matchedStaff?.status || 'aktif',
-      created_at: nowIso,
-      updated_at: nowIso,
-    }
-
     let studentRecord: Student | null = null
     let parentRecord: ParentProfile | null = null
     let mappedChildren: Student[] = []
@@ -722,6 +705,38 @@ export const authStore = {
       adminStore.setActiveTutorId(tutorId)
     }
 
+    const resolvedUserId =
+      targetRole === 'student' && studentRecord?.id
+        ? studentRecord.id
+        : targetRole === 'parent' && parentRecord?.id
+        ? parentRecord.id
+        : `usr-${isSuper ? 'super_admin' : targetRole}-${Date.now().toString().slice(-4)}`
+
+    const syntheticUser = {
+      id: resolvedUserId,
+      email: demoInfo.email,
+      user_metadata: {
+        full_name: demoInfo.name,
+        phone: demoInfo.phone,
+        role: targetRole,
+        is_super_admin: isSuper,
+      },
+    }
+
+    const nowIso = new Date().toISOString()
+    const profile: ProfileRow = {
+      id: syntheticUser.id,
+      email: demoInfo.email,
+      full_name: demoInfo.name,
+      role: targetRole,
+      phone_number: demoInfo.phone,
+      is_super_admin: isSuper,
+      isSuperAdmin: isSuper,
+      status: matchedStaff?.status || 'aktif',
+      created_at: nowIso,
+      updated_at: nowIso,
+    }
+
     state = {
       user: {
         id: syntheticUser.id,
@@ -753,52 +768,75 @@ export const authStore = {
     notify()
 
     try {
+      const currentSavedState = loadSavedAuthState()
+
       // 1. Cek sesi Supabase jika ada
       const { data, error } = await supabase.auth.getSession()
       if (!error && data?.session?.user) {
         const user = data.session.user
-        const provisioned = await autoProvisionUser(user)
-        const isSuper = Boolean(
-          provisioned.isSuperAdmin ||
-          provisioned.profile.is_super_admin ||
-          user.user_metadata?.is_super_admin ||
-          user.user_metadata?.isSuperAdmin ||
-          isEmailSuperAdmin(user.email || '')
+        const sessionEmail = (user.email || '').toLowerCase()
+        const savedEmail = (currentSavedState?.user?.email || '').toLowerCase()
+
+        // Jika savedState ada dan email berbeda, bersihkan sesi Supabase yang usang
+        // untuk mencegah sesi akun sebelumnya membajak peran (role poisoning).
+        const isSessionMismatched = Boolean(
+          currentSavedState?.isAuthenticated &&
+          currentSavedState?.role &&
+          savedEmail &&
+          sessionEmail !== savedEmail
         )
 
-        state = {
-          user: {
-            id: user.id,
-            email: user.email || '',
-            fullName: provisioned.profile.full_name,
+        if (isSessionMismatched) {
+          try {
+            await supabase.auth.signOut().catch(() => {})
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('tc_bimbel_supabase_auth_token')
+            }
+          } catch {}
+        } else {
+          const provisioned = await autoProvisionUser(user)
+          const isSuper = Boolean(
+            provisioned.isSuperAdmin ||
+            provisioned.profile.is_super_admin ||
+            user.user_metadata?.is_super_admin ||
+            user.user_metadata?.isSuperAdmin ||
+            isEmailSuperAdmin(user.email || '')
+          )
+
+          state = {
+            user: {
+              id: user.id,
+              email: user.email || '',
+              fullName: provisioned.profile.full_name,
+              role: provisioned.profile.role,
+              phone: provisioned.profile.phone_number || undefined,
+              isSuperAdmin: isSuper,
+            },
+            profile: {
+              ...provisioned.profile,
+              is_super_admin: isSuper,
+              isSuperAdmin: isSuper,
+            },
             role: provisioned.profile.role,
-            phone: provisioned.profile.phone_number || undefined,
             isSuperAdmin: isSuper,
-          },
-          profile: {
-            ...provisioned.profile,
-            is_super_admin: isSuper,
-            isSuperAdmin: isSuper,
-          },
-          role: provisioned.profile.role,
-          isSuperAdmin: isSuper,
-          studentProfile: provisioned.student,
-          parentProfile: provisioned.parent,
-          children: provisioned.children,
-          selectedChildId:
-            provisioned.children[0]?.id || state.selectedChildId || null,
-          adminStaff: state.adminStaff,
-          isAuthenticated: true,
-          isLoading: false,
-          error: null,
+            studentProfile: provisioned.student,
+            parentProfile: provisioned.parent,
+            children: provisioned.children,
+            selectedChildId:
+              provisioned.children[0]?.id || state.selectedChildId || null,
+            adminStaff: state.adminStaff,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          }
+          notify()
+          return
         }
-        notify()
-        return
       }
 
-      // 2. Jika tidak ada sesi Supabase tetapi ada demo user di localStorage
-      if (savedState?.user && savedState?.isAuthenticated) {
-        const demoUser = savedState.user
+      // 2. Jika tidak ada sesi Supabase (atau sesi Supabase usang dibersihkan), gunakan savedState
+      if (currentSavedState?.user && currentSavedState?.isAuthenticated) {
+        const demoUser = currentSavedState.user
         const provisioned = await autoProvisionUser(
           {
             id: demoUser.id,
@@ -812,7 +850,7 @@ export const authStore = {
         )
 
         const isSuper = Boolean(
-          savedState.isSuperAdmin ||
+          currentSavedState.isSuperAdmin ||
           demoUser.isSuperAdmin ||
           provisioned.isSuperAdmin ||
           provisioned.profile.is_super_admin ||
@@ -1091,6 +1129,13 @@ export const authStore = {
     }
 
     // C. Fallback Akun Demo / Akun Cepat Simulasi
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('tc_bimbel_supabase_auth_token')
+        supabase.auth.signOut().catch(() => {})
+      } catch {}
+    }
+
     const isSuperDemo = isSuperAdminEmail || cleanEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase()
     const demo = isSuperDemo
       ? DEMO_ACCOUNTS.super_admin
@@ -1122,11 +1167,18 @@ export const authStore = {
       }
     }
 
+    const resolvedUserId =
+      matchedRole === 'student' && provisioned.student?.id
+        ? provisioned.student.id
+        : matchedRole === 'parent' && provisioned.parent?.id
+        ? provisioned.parent.id
+        : syntheticUser.id
+
     const finalIsSuper = Boolean(isSuperDemo || provisioned.isSuperAdmin)
 
     state = {
       user: {
-        id: syntheticUser.id,
+        id: resolvedUserId,
         email: cleanEmail,
         fullName: provisioned.profile.full_name,
         role: provisioned.profile.role,
@@ -1135,6 +1187,7 @@ export const authStore = {
       },
       profile: {
         ...provisioned.profile,
+        id: resolvedUserId,
         is_super_admin: finalIsSuper,
         isSuperAdmin: finalIsSuper,
       },
@@ -1571,12 +1624,22 @@ if (typeof window !== 'undefined') {
   try {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        if (state.isAuthenticated && !savedState?.user) {
+        const freshSaved = loadSavedAuthState()
+        if (state.isAuthenticated && !freshSaved?.user) {
           authStore.logout()
         }
       } else if (event === 'SIGNED_IN' && session?.user) {
         // Safe deferred sync
         setTimeout(() => {
+          const freshSaved = loadSavedAuthState()
+          const sessionEmail = (session.user.email || '').toLowerCase()
+          const savedEmail = (freshSaved?.user?.email || '').toLowerCase()
+
+          // Abaikan jika pengguna sedang aktif dengan sesi peran demo yang berbeda
+          if (freshSaved?.isAuthenticated && savedEmail && savedEmail !== sessionEmail) {
+            return
+          }
+
           autoProvisionUser(session.user).then((provisioned) => {
             const isSuper = Boolean(
               provisioned.isSuperAdmin ||

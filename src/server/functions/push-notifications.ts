@@ -11,6 +11,7 @@ export const savePushSubscriptionFn = createServerFn({ method: 'POST' })
   .validator(
     z.object({
       userId: z.string().min(1),
+      extraUserIds: z.array(z.string()).optional(),
       endpoint: z.string().url(),
       keys: z.object({
         p256dh: z.string().min(1),

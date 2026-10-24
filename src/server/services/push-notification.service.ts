@@ -3,6 +3,7 @@ import { supabase } from '~/lib/supabase/client'
 export interface PushSubscriptionItem {
   id?: string
   userId: string
+  userIds?: string[]
   endpoint: string
   keys: { p256dh: string; auth: string }
   userAgent?: string | null
@@ -69,6 +70,7 @@ export const pushNotificationService = {
 
   async subscribe(input: {
     userId: string
+    extraUserIds?: string[]
     endpoint: string
     keys: { p256dh: string; auth: string }
     userAgent?: string
@@ -78,9 +80,12 @@ export const pushNotificationService = {
         return { success: false, error: 'Data langganan tidak lengkap.' }
       }
 
+      const allUserIds = Array.from(new Set([input.userId, ...(input.extraUserIds || [])].filter(Boolean)))
+
       const item: PushSubscriptionItem = {
         id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         userId: input.userId,
+        userIds: allUserIds,
         endpoint: input.endpoint,
         keys: input.keys,
         userAgent: input.userAgent || null,
@@ -94,16 +99,18 @@ export const pushNotificationService = {
       try {
         const client = await getServerDbClient()
         if (client && typeof client.from === 'function') {
-          await client.from('push_subscriptions').upsert(
-            {
-              user_id: input.userId,
-              endpoint: input.endpoint,
-              keys: input.keys,
-              user_agent: input.userAgent || null,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'endpoint' }
-          )
+          for (const uid of allUserIds) {
+            await client.from('push_subscriptions').upsert(
+              {
+                user_id: uid,
+                endpoint: input.endpoint,
+                keys: input.keys,
+                user_agent: input.userAgent || null,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'endpoint' }
+            )
+          }
         }
       } catch (dbErr) {
         // Fallback silently to memory store for test environments
@@ -170,7 +177,7 @@ export const pushNotificationService = {
     const userSet = new Set(userIds)
     const result: PushSubscriptionItem[] = []
     for (const sub of memorySubscriptions.values()) {
-      if (userSet.has(sub.userId)) {
+      if (userSet.has(sub.userId) || (sub.userIds && sub.userIds.some((id) => userSet.has(id)))) {
         result.push(sub)
       }
     }

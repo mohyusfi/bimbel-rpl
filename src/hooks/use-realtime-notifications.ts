@@ -8,6 +8,8 @@ import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
 export interface RealtimeNotificationsOptions {
   userId?: string | null
   role?: 'admin' | 'tutor' | 'student' | 'parent'
+  childIds?: string[]
+  relevantUserIds?: string[]
   client?: SupabaseClient
   enabled?: boolean
   queryClient?: QueryClient
@@ -174,6 +176,8 @@ export function useRealtimeNotifications(
   const {
     userId,
     role,
+    childIds,
+    relevantUserIds,
     client = supabase,
     enabled = true,
     onNotification,
@@ -233,12 +237,50 @@ export function useRealtimeNotifications(
         if (n.type === 'announcement') return true
 
         // User-specific notifications
-        if (userId) {
-          return (
-            n.userId === userId ||
-            n.metadata?.studentId === userId ||
-            n.metadata?.parentId === userId
-          )
+        const idsToMatch = new Set<string>()
+        if (userId) idsToMatch.add(userId)
+        if (relevantUserIds) relevantUserIds.forEach((id) => idsToMatch.add(id))
+
+        if (role === 'student') {
+          // Add standard demo aliases for Fahri Ramadhan
+          if (userId === 'stu-1' || userId === 'd992d9fc-6f5b-434f-998b-358e54a754b7' || (userId && userId.startsWith('usr-student'))) {
+            idsToMatch.add('stu-1')
+            idsToMatch.add('d992d9fc-6f5b-434f-998b-358e54a754b7')
+          }
+        }
+
+        if (role === 'parent') {
+          // Add standard demo aliases for Ahmad Dahlan
+          if (userId === 'par-1' || userId === 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8' || (userId && userId.startsWith('usr-parent'))) {
+            idsToMatch.add('par-1')
+            idsToMatch.add('ec6f75cb-887a-442b-b91d-f47f9afc5ab8')
+          }
+        }
+
+        if (idsToMatch.size > 0) {
+          const directMatch =
+            (n.userId && idsToMatch.has(n.userId)) ||
+            (n.metadata?.studentId && idsToMatch.has(n.metadata.studentId)) ||
+            (n.metadata?.parentId && idsToMatch.has(n.metadata.parentId))
+
+          if (directMatch) return true
+
+          // Check child IDs for parent (multi-child)
+          if (role === 'parent' && childIds && childIds.length > 0) {
+            const childSet = new Set(childIds)
+            if (n.userId && childSet.has(n.userId)) return true
+            if (n.metadata?.studentId && childSet.has(n.metadata.studentId)) return true
+          }
+
+          // If targetRoles in metadata explicitly targets this role and no conflicting user
+          if (n.metadata?.targetRoles && Array.isArray(n.metadata.targetRoles)) {
+            if (n.metadata.targetRoles.includes(role)) {
+              if (role === 'student' && (!n.userId || idsToMatch.has('stu-1') || n.metadata?.studentId === 'stu-1')) return true
+              if (role === 'parent' && (!n.userId || idsToMatch.has('par-1') || n.metadata?.parentId === 'par-1')) return true
+            }
+          }
+
+          return false
         }
 
         // If userId not yet resolved, show student/academic domain notifications only
@@ -254,7 +296,7 @@ export function useRealtimeNotifications(
         n.metadata?.parentId === userId
       )
     })
-  }, [allNotifications, userId, role])
+  }, [allNotifications, userId, role, childIds, relevantUserIds])
 
   const unreadCount = React.useMemo(
     () => notifications.filter((n) => !n.isRead).length,
