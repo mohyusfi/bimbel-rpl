@@ -28,6 +28,15 @@ async function getWebPushClient() {
   }
 }
 
+async function getServerDbClient() {
+  try {
+    const { getIsolatedAdminClient } = await import('./billing.service')
+    return await getIsolatedAdminClient()
+  } catch (e) {
+    return supabase
+  }
+}
+
 // In-memory fallback cache for local dev / tests
 const memorySubscriptions: Map<string, PushSubscriptionItem> = new Map()
 
@@ -83,8 +92,9 @@ export const pushNotificationService = {
 
       // Sync ke Supabase jika client tersedia
       try {
-        if (supabase && typeof supabase.from === 'function') {
-          await supabase.from('push_subscriptions').upsert(
+        const client = await getServerDbClient()
+        if (client && typeof client.from === 'function') {
+          await client.from('push_subscriptions').upsert(
             {
               user_id: input.userId,
               endpoint: input.endpoint,
@@ -113,8 +123,9 @@ export const pushNotificationService = {
       memorySubscriptions.delete(endpoint)
 
       try {
-        if (supabase && typeof supabase.from === 'function') {
-          await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
+        const client = await getServerDbClient()
+        if (client && typeof client.from === 'function') {
+          await client.from('push_subscriptions').delete().eq('endpoint', endpoint)
         }
       } catch (dbErr) {
         // Fallback silently to memory store for test environments
@@ -132,8 +143,9 @@ export const pushNotificationService = {
 
     // 1. Coba ambil dari Supabase
     try {
-      if (supabase && typeof supabase.from === 'function') {
-        const { data, error } = await supabase
+      const client = await getServerDbClient()
+      if (client && typeof client.from === 'function') {
+        const { data, error } = await client
           .from('push_subscriptions')
           .select('id, user_id, endpoint, keys, user_agent, created_at, updated_at')
           .in('user_id', userIds)

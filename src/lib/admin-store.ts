@@ -1711,6 +1711,7 @@ export const adminStore = {
       status: 'belum_dibayar',
     }
     state.invoices = [newInvoice, ...state.invoices]
+    this.recordInvoiceNotifications(newInvoice)
     saveAndNotify()
     return newInvoice
   },
@@ -2455,6 +2456,84 @@ export const adminStore = {
           createdAt: now,
           metadata: {
             sessionId,
+            studentId: student?.id,
+            parentId: parent.id,
+            targetRoles: ['parent'],
+          },
+        })
+      )
+    }
+
+    return createdNotifs
+  },
+
+  // INVOICE BILLING NOTIFICATIONS (BILL-01 & Web Push Sync)
+  recordInvoiceNotifications(invoice: {
+    id: string
+    studentId: string
+    studentName?: string
+    programName: string
+    amount: number
+    dueDate: string
+    invoiceNumber?: string
+  }): AdminNotification[] {
+    const createdNotifs: AdminNotification[] = []
+    const invNum = invoice.invoiceNumber || invoice.id
+    const formattedAmount = `Rp ${Number(invoice.amount).toLocaleString('id-ID')}`
+    const student = state.students.find(
+      (s) => s.id === invoice.studentId || (s as any).profileId === invoice.studentId
+    )
+    const studentName = invoice.studentName || student?.name || 'Siswa'
+    const parent = state.parents.find(
+      (p) =>
+        (student && p.studentIds?.includes(student.id)) ||
+        p.id === (invoice as any).parentId ||
+        (student && p.phone === student.parentPhone)
+    )
+
+    // 1. Notifikasi untuk Admin (Tata Usaha)
+    createdNotifs.push(
+      this.addNotification({
+        title: 'Tagihan SPP Diterbitkan',
+        message: `Tagihan ${invNum} untuk ${studentName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
+        type: 'billing',
+        linkUrl: '/admin/pembayaran',
+        metadata: {
+          invoiceId: invoice.id,
+          studentId: invoice.studentId,
+        },
+      })
+    )
+
+    // 2. Notifikasi untuk Siswa
+    if (student) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: student.id,
+          title: 'Tagihan SPP Baru',
+          message: `Tagihan SPP periode ${invoice.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
+          type: 'billing',
+          linkUrl: '/student/tagihan',
+          metadata: {
+            invoiceId: invoice.id,
+            studentId: student.id,
+            targetRoles: ['student'],
+          },
+        })
+      )
+    }
+
+    // 3. Notifikasi untuk Wali Murid (Parent)
+    if (parent) {
+      createdNotifs.push(
+        this.addNotification({
+          userId: parent.id,
+          title: 'Tagihan SPP Putra/Putri',
+          message: `Tagihan SPP an. ${studentName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
+          type: 'billing',
+          linkUrl: '/parent/tagihan',
+          metadata: {
+            invoiceId: invoice.id,
             studentId: student?.id,
             parentId: parent.id,
             targetRoles: ['parent'],

@@ -880,7 +880,16 @@ export function useAdminMutations() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      adminStore.recordInvoiceNotifications({
+        id: data.id,
+        studentId: variables.studentId,
+        studentName: variables.studentName,
+        programName: variables.programName,
+        amount: variables.amount,
+        dueDate: variables.dueDate,
+        invoiceNumber: data.invoiceNumber,
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -895,7 +904,13 @@ export function useAdminMutations() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, invoiceId) => {
+      adminStore.addNotification({
+        title: 'Pembayaran SPP Terverifikasi',
+        message: `Pembayaran tagihan ${invoiceId} berhasil diverifikasi lunas. Kwitansi: ${data.receiptNumber}.`,
+        type: 'billing',
+        linkUrl: '/admin/pembayaran',
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
