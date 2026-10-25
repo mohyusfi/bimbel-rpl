@@ -182,30 +182,24 @@ function StudentProfilePage() {
           </div>
         </div>
 
-        {/* User Card (Avatar + Name + Role + Status) */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-14 h-14 rounded-full bg-[#000000] text-[#FFFFFF] font-display font-extrabold text-xl flex items-center justify-center shrink-0 border border-[#D2D2D2]">
-              {userInitials}
-            </div>
-            <div className="min-w-0">
-              <h2 className="font-display font-bold text-lg text-[#000000] truncate">
-                {userDisplayName || 'Fahri Ramadhan'}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-[#555555]">
-                <span className="font-mono font-medium text-[#000000]">
-                  NIS: {studentProfile?.nis || 'TC-2026-001'}
-                </span>
-                <span className="text-[#D2D2D2]">|</span>
-                <span className="font-medium text-[#CB2957]">
-                  {studentProfile?.className || 'Kelas 12 UTBK Intensif'}
-                </span>
-              </div>
-            </div>
+        {/* User Card (Avatar + Name + Role) */}
+        <div className="flex items-center gap-3.5">
+          <div className="w-14 h-14 rounded-full bg-[#000000] text-[#FFFFFF] font-display font-extrabold text-xl flex items-center justify-center shrink-0 border border-[#D2D2D2]">
+            {userInitials}
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#166534]">
-            <CheckCircle2 className="w-4 h-4 text-[#166534]" />
-            <span>Aktif</span>
+          <div className="min-w-0">
+            <h2 className="font-display font-bold text-lg text-[#000000] truncate">
+              {userDisplayName || 'Fahri Ramadhan'}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-[#555555]">
+              <span className="font-mono font-medium text-[#000000]">
+                NIS: {studentProfile?.nis || 'TC-2026-001'}
+              </span>
+              <span className="text-[#D2D2D2]">|</span>
+              <span className="font-medium text-[#CB2957]">
+                {studentProfile?.className || 'Kelas 12 UTBK Intensif'}
+              </span>
+            </div>
           </div>
         </div>
 
