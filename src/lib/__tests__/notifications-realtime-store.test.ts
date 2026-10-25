@@ -177,8 +177,8 @@ describe('Tiket 07 — Notifikasi Waktu-Nyata (Supabase Realtime) & Broadcast Bi
     })
   })
 
-  describe('4. Event Trigger Presensi Alpa', () => {
-    it('otomatis mendispatch notifikasi type "attendance" saat siswa tercatat alpa', () => {
+  describe('4. Event Trigger Presensi', () => {
+    it('otomatis mendispatch notifikasi type "attendance" ke orang tua saat presensi disimpan', () => {
       const schedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(schedule.id, '2026-11-20')
 
@@ -201,11 +201,11 @@ describe('Tiket 07 — Notifikasi Waktu-Nyata (Supabase Realtime) & Broadcast Bi
 
       const latest = afterNotifs[0]
       expect(latest.type).toBe('attendance')
-      expect(latest.title).toContain('Peringatan Ketidakhadiran')
-      expect(latest.message).toContain('Ketidakhadiran (Alpa): Siswa Fahri Ramadhan tidak hadir pada sesi')
-      expect(latest.userId).toBe('stu-1')
+      expect(latest.title).toContain('Alpa')
+      expect(latest.message).toContain('Fahri Ramadhan')
+      expect(latest.message).toContain('Alpa')
+      expect(latest.userId).toBe('par-1')
       expect(latest.metadata?.targetRoles).toContain('parent')
-      expect(latest.metadata?.targetRoles).toContain('student')
     })
   })
 

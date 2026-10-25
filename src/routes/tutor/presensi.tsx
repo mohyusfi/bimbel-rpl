@@ -86,7 +86,7 @@ function TutorPresensiPage() {
   const [entries, setEntries] = React.useState<AttendanceEntry[]>([])
   const [isSaving, setIsSaving] = React.useState<boolean>(false)
 
-  // Cek apakah sesi terpilih terkunci (Audit Lock 24h)
+  // Cek apakah sesi terpilih terkunci (Audit Lock 2 jam)
   const isLocked = React.useMemo(() => {
     if (!selectedSession) return false
     return isSessionLockedForTutor(selectedSession)
@@ -170,8 +170,8 @@ function TutorPresensiPage() {
 
       toast.success('Presensi sesi bimbingan berhasil disimpan ke arsip sistem!', {
         description: anyAlpa
-          ? 'Data kehadiran otomatis masuk ke arsip. Peringatan alpa otomatis diteruskan ke notifikasi orang tua.'
-          : 'Data kehadiran siswa otomatis masuk ke daftar riwayat arsip dan dapat ditinjau kapan saja.',
+          ? 'Data kehadiran otomatis masuk ke arsip. Status kehadiran dan peringatan alpa diteruskan ke notifikasi orang tua/wali.'
+          : 'Data kehadiran siswa otomatis masuk ke daftar riwayat arsip dan diteruskan ke notifikasi orang tua/wali.',
       })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal menyimpan presensi'
@@ -424,7 +424,7 @@ function TutorPresensiPage() {
                       Peringatan: {countAlpa} Siswa Tercatat Alpa (Tanpa Keterangan)
                     </p>
                     <p className="text-xs text-[#555555] leading-relaxed">
-                      Menyimpan presensi dengan siswa berstatus Alpa akan otomatis mengirimkan notifikasi ketidakhadiran ke akun orang tua/wali siswa terkait.
+                      Menyimpan presensi pada sesi ini akan mengirimkan notifikasi status kehadiran setiap siswa (termasuk Alpa) ke akun orang tua/wali terkait. Notifikasi hanya dikirim sekali, pada penyimpanan pertama sesi.
                     </p>
                   </div>
                 </div>

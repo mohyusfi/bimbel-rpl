@@ -4,24 +4,24 @@ import { attendanceService } from '../attendance.service'
 import { isSessionLockedForTutor } from '~/lib/attendance-helpers'
 
 describe('Regression: Simpan Presensi Sesi & Transisi ke Riwayat', () => {
-  it('menolak edit presensi sesi yang telah melewati grace period 24 jam (Audit Lock) via isSessionLockedForTutor', () => {
+  it('menolak edit presensi sesi yang telah melewati grace period 2 jam (Audit Lock) via isSessionLockedForTutor', () => {
     const now = new Date()
-    const twentyFiveHoursAgo = new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString()
-    const fiveHoursAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString()
+    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString()
+    const oneHourAgo = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString()
 
-    // Sesi selesai lebih dari 24 jam yang lalu -> Harus TERKUNCI (true)
+    // Sesi selesai lebih dari 2 jam yang lalu -> Harus TERKUNCI (true)
     const lockedSession = {
       isCompleted: true,
       sessionDate: '2026-10-20',
-      completedAt: twentyFiveHoursAgo,
+      completedAt: threeHoursAgo,
     }
     expect(isSessionLockedForTutor(lockedSession, now)).toBe(true)
 
-    // Sesi baru selesai 5 jam yang lalu (dalam grace period) -> Tidak terkunci (false)
+    // Sesi baru selesai 1 jam yang lalu (dalam grace period) -> Tidak terkunci (false)
     const openSession = {
       isCompleted: true,
       sessionDate: '2026-10-23',
-      completedAt: fiveHoursAgo,
+      completedAt: oneHourAgo,
     }
     expect(isSessionLockedForTutor(openSession, now)).toBe(false)
 

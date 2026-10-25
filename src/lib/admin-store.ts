@@ -1,5 +1,6 @@
 import { supabase } from './supabase/client'
 import { isSessionLockedForTutor } from './attendance-helpers'
+import { buildAttendanceNotifications } from './attendance-notifications'
 
 export type PackageCode = 'UTBK' | 'SMA' | 'SMP' | 'SD'
 
@@ -1669,28 +1670,25 @@ export const adminStore = {
         p.name === student?.parentName
     )
 
-    state.notifications = [
-      {
-        id: `notif-${Date.now()}`,
-        userId: student?.id || inv.studentId,
-        title: 'Pembayaran SPP Terverifikasi Lunas',
-        message: `Pembayaran SPP ${inv.id} Terverifikasi Lunas. Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
-        timestamp: 'Baru saja',
-        isRead: false,
-        type: 'billing',
-        linkUrl: '/parent/tagihan',
-        metadata: {
-          invoiceId: inv.id,
-          receiptNumber: inv.receiptNumber,
-          studentId: inv.studentId,
-          studentName: inv.studentName,
-          parentId: parent?.id,
-          parentName: parent?.name,
-          targetRoles: ['student', 'parent', 'admin'],
-        },
+    this.addNotification({
+      id: `notif-inv-${inv.id}-verified`,
+      userId: student?.id || inv.studentId,
+      title: 'Pembayaran SPP Terverifikasi Lunas',
+      message: `Pembayaran SPP ${inv.id} Terverifikasi Lunas. Kwitansi ${inv.receiptNumber} resmi terbit untuk siswa ${inv.studentName} (${inv.programName}).`,
+      timestamp: 'Baru saja',
+      isRead: false,
+      type: 'billing',
+      linkUrl: '/parent/tagihan',
+      metadata: {
+        invoiceId: inv.id,
+        receiptNumber: inv.receiptNumber,
+        studentId: inv.studentId,
+        studentName: inv.studentName,
+        parentId: parent?.id,
+        parentName: parent?.name,
+        targetRoles: ['student', 'parent', 'admin'],
       },
-      ...state.notifications,
-    ]
+    })
 
     saveAndNotify()
     return true
@@ -1712,28 +1710,25 @@ export const adminStore = {
         p.name === student?.parentName
     )
 
-    state.notifications = [
-      {
-        id: `notif-${Date.now()}`,
-        userId: student?.id || inv.studentId,
-        title: 'Bukti Pembayaran SPP Ditolak',
-        message: `Bukti Pembayaran SPP Ditolak untuk tagihan ${inv.id} (${inv.studentName} - ${inv.programName}). Alasan: ${reason}`,
-        timestamp: 'Baru saja',
-        isRead: false,
-        type: 'billing',
-        linkUrl: '/parent/tagihan',
-        metadata: {
-          invoiceId: inv.id,
-          studentId: inv.studentId,
-          studentName: inv.studentName,
-          parentId: parent?.id,
-          parentName: parent?.name,
-          rejectedReason: reason,
-          targetRoles: ['student', 'parent', 'admin'],
-        },
+    this.addNotification({
+      id: `notif-inv-${inv.id}-rejected`,
+      userId: student?.id || inv.studentId,
+      title: 'Bukti Pembayaran SPP Ditolak',
+      message: `Bukti Pembayaran SPP Ditolak untuk tagihan ${inv.id} (${inv.studentName} - ${inv.programName}). Alasan: ${reason}`,
+      timestamp: 'Baru saja',
+      isRead: false,
+      type: 'billing',
+      linkUrl: '/parent/tagihan',
+      metadata: {
+        invoiceId: inv.id,
+        studentId: inv.studentId,
+        studentName: inv.studentName,
+        parentId: parent?.id,
+        parentName: parent?.name,
+        rejectedReason: reason,
+        targetRoles: ['student', 'parent', 'admin'],
       },
-      ...state.notifications,
-    ]
+    })
 
     saveAndNotify()
     return true
@@ -1839,10 +1834,10 @@ export const adminStore = {
     const session = state.attendanceSessions.find((s) => s.id === sessionId)
     if (!session) return false
 
-    // Pemeriksaan Audit Lock & 24h Grace Period
+    // Pemeriksaan Audit Lock & 2h Grace Period
     if (isSessionLockedForTutor(session)) {
       throw new Error(
-        'Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 24 jam dan telah dikunci untuk menjaga integritas data presensi.'
+        'Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 2 jam dan telah dikunci untuk menjaga integritas data presensi.'
       )
     }
 
@@ -1857,6 +1852,9 @@ export const adminStore = {
       seenStudentIds.add(entry.studentId)
     }
 
+    // Simpan notifikasi hanya pada penyimpanan PERTAMA sesi ini (anti-spam).
+    const isFirstSave = !session.isCompleted
+
     session.topic = topic
     session.entries = entries
     session.isCompleted = true
@@ -1864,41 +1862,47 @@ export const adminStore = {
       session.completedAt = new Date().toISOString()
     }
 
-    const alpaEntries = entries.filter((e) => e.status === 'alpa')
-    if (alpaEntries.length > 0) {
-      alpaEntries.forEach((alpa) => {
+    if (isFirstSave) {
+      const recipients = entries.map((entry) => {
         const student = state.students.find(
-          (s) => s.id === alpa.studentId || s.name === alpa.studentName
+          (s) => s.id === entry.studentId || s.name === entry.studentName
         )
         const parent = state.parents.find(
           (p) =>
             (student ? p.studentIds.includes(student.id) : false) ||
             p.name === student?.parentName
         )
-
-        state.notifications = [
-          {
-            id: `notif-${Date.now()}-${alpa.studentId}`,
-            userId: student?.id || alpa.studentId,
-            title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-            message: `Ketidakhadiran (Alpa): Siswa ${alpa.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
-            timestamp: 'Baru saja',
-            isRead: false,
-            type: 'attendance',
-            linkUrl: '/student/presensi',
-            metadata: {
-              studentId: alpa.studentId,
-              studentName: alpa.studentName,
-              parentId: parent?.id,
-              parentName: parent?.name || student?.parentName,
-              sessionId: session.id,
-              sessionName: session.subjectName,
-              targetRoles: ['student', 'parent', 'admin'],
-            },
-          },
-          ...state.notifications,
-        ]
+        return { studentId: entry.studentId, parentProfileId: parent?.id || '' }
       })
+
+      const drafts = buildAttendanceNotifications({
+        session: {
+          id: session.id,
+          subjectName: session.subjectName,
+          dayOfWeek: session.dayOfWeek,
+          startTime: session.startTime,
+        },
+        entries,
+        recipients,
+      })
+
+      if (drafts.length > 0) {
+        // Ganti notifikasi presensi lama untuk sesi ini (anti-duplikat).
+        state.notifications = state.notifications.filter(
+          (n) => !(n.type === 'attendance' && (n.metadata?.sessionId === session.id || n.data?.sessionId === session.id))
+        )
+        for (const draft of drafts) {
+          this.addNotification({
+            id: `notif-att-${session.id}-${draft.metadata.studentId}`,
+            userId: draft.userId,
+            title: draft.title,
+            message: draft.message,
+            type: 'attendance',
+            linkUrl: draft.linkUrl,
+            metadata: draft.metadata,
+          })
+        }
+      }
     }
 
     saveAndNotify()
@@ -1929,28 +1933,25 @@ export const adminStore = {
           p.name === student?.parentName
       )
 
-      state.notifications = [
-        {
-          id: `notif-${Date.now()}-${entry.studentId}`,
-          userId: student?.id || entry.studentId,
-          title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-          message: `Ketidakhadiran (Alpa): Siswa ${entry.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
-          timestamp: 'Baru saja',
-          isRead: false,
-          type: 'attendance',
-          linkUrl: '/student/presensi',
-          metadata: {
-            studentId: entry.studentId,
-            studentName: entry.studentName,
-            parentId: parent?.id,
-            parentName: parent?.name || student?.parentName,
-            sessionId: session.id,
-            sessionName: session.subjectName,
-            targetRoles: ['student', 'parent', 'admin'],
-          },
+      this.addNotification({
+        id: `notif-alpa-${session.id}-${entry.studentId}`,
+        userId: student?.id || entry.studentId,
+        title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
+        message: `Ketidakhadiran (Alpa): Siswa ${entry.studentName} tidak hadir pada sesi ${session.subjectName} (${session.dayOfWeek}, ${session.startTime} WITA).`,
+        timestamp: 'Baru saja',
+        isRead: false,
+        type: 'attendance',
+        linkUrl: '/student/presensi',
+        metadata: {
+          studentId: entry.studentId,
+          studentName: entry.studentName,
+          parentId: parent?.id,
+          parentName: parent?.name || student?.parentName,
+          sessionId: session.id,
+          sessionName: session.subjectName,
+          targetRoles: ['student', 'parent', 'admin'],
         },
-        ...state.notifications,
-      ]
+      })
     }
 
     saveAndNotify()
@@ -2043,29 +2044,26 @@ export const adminStore = {
         p.name === student?.parentName
     )
 
-    state.notifications = [
-      {
-        id: `notif-${Date.now()}`,
-        userId: newGrade.studentId,
-        title: 'Nilai Evaluasi Rapor Baru',
-        message: `Nilai ${newGrade.assessmentTitle} (${newGrade.score}/100) telah diinput untuk siswa ${newGrade.studentName}.`,
-        timestamp: 'Baru saja',
-        isRead: false,
-        type: 'academic',
-        linkUrl: '/student/rapor',
-        metadata: {
-          gradeId: newGrade.id,
-          studentId: newGrade.studentId,
-          studentName: newGrade.studentName,
-          parentId: parent?.id,
-          classId: newGrade.classId,
-          score: newGrade.score,
-          assessmentTitle: newGrade.assessmentTitle,
-          targetRoles: ['student', 'parent', 'admin'],
-        },
+    this.addNotification({
+      id: `notif-grade-${newGrade.id}`,
+      userId: newGrade.studentId,
+      title: 'Nilai Evaluasi Rapor Baru',
+      message: `Nilai ${newGrade.assessmentTitle} (${newGrade.score}/100) telah diinput untuk siswa ${newGrade.studentName}.`,
+      timestamp: 'Baru saja',
+      isRead: false,
+      type: 'academic',
+      linkUrl: '/student/rapor',
+      metadata: {
+        gradeId: newGrade.id,
+        studentId: newGrade.studentId,
+        studentName: newGrade.studentName,
+        parentId: parent?.id,
+        classId: newGrade.classId,
+        score: newGrade.score,
+        assessmentTitle: newGrade.assessmentTitle,
+        targetRoles: ['student', 'parent', 'admin'],
       },
-      ...state.notifications,
-    ]
+    })
 
     saveAndNotify()
     return newGrade
@@ -2187,6 +2185,9 @@ export const adminStore = {
 
   deleteAnnouncement(id: string) {
     state.announcements = state.announcements.filter((a) => a.id !== id && a.title !== id)
+    state.notifications = state.notifications.filter(
+      (n) => n.metadata?.announcementId !== id && n.id !== id && n.data?.id !== id
+    )
     saveAndNotify()
     return true
   },
@@ -2226,8 +2227,9 @@ export const adminStore = {
           (n.type === 'announcement' ? n.id : null)
         if (existingAnnId === annId) return true
       }
-      // Deduplikasi ketat berdasarkan kesamaan judul dan isi pesan
-      if (n.title === input.title && n.message === input.message) return true
+      // Deduplikasi berdasarkan kesamaan judul dan isi pesan hanya untuk notif non-announcement
+      // Untuk announcement, gunakan announcementId sebagai sumber kebenaran
+      if (!annId && n.title === input.title && n.message === input.message) return true
       return false
     })
     if (existing) return existing
@@ -2283,7 +2285,14 @@ export const adminStore = {
         timestamp: 'Baru saja',
         isRead: false,
         type: 'announcement',
-        linkUrl: '/admin/pengumuman',
+        linkUrl:
+          r.role === 'student'
+            ? '/student'
+            : r.role === 'parent'
+            ? '/parent'
+            : r.role === 'tutor'
+            ? '/tutor'
+            : '/admin/pengumuman',
         metadata: {
           announcementId: ann.id,
           targetAudience: ann.targetAudience,
@@ -2293,26 +2302,28 @@ export const adminStore = {
       })
     }
 
-    // Always push notification for general/admin broadcast
-    const generalNotif: AdminNotification = {
-      id: `notif-ann-${ann.id}-admin`,
-      title: ann.title,
-      message:
-        ann.content.length > 140
-          ? `${ann.content.substring(0, 137)}...`
-          : ann.content,
-      type: 'announcement',
-      timestamp: 'Baru saja',
-      isRead: false,
-      linkUrl: '/admin/pengumuman',
-      metadata: {
-        announcementId: ann.id,
-        targetAudience: ann.targetAudience,
-        recipientRole: 'admin',
-      },
-      data: ann,
+    // Hanya buat notifikasi personal tata usaha jika pengumuman memang menyasar semua audiens
+    if (target === 'Semua') {
+      const generalNotif: AdminNotification = {
+        id: `notif-ann-${ann.id}-admin`,
+        title: ann.title,
+        message:
+          ann.content.length > 140
+            ? `${ann.content.substring(0, 137)}...`
+            : ann.content,
+        type: 'announcement',
+        timestamp: 'Baru saja',
+        isRead: false,
+        linkUrl: '/admin/pengumuman',
+        metadata: {
+          announcementId: ann.id,
+          targetAudience: ann.targetAudience,
+          recipientRole: 'admin',
+        },
+        data: ann,
+      }
+      newNotifs.push(generalNotif)
     }
-    newNotifs.push(generalNotif)
 
     state.notifications = [...newNotifs, ...state.notifications]
     saveAndNotify()
@@ -2322,13 +2333,30 @@ export const adminStore = {
         const channel = supabase.channel('broadcast:announcements')
         channel.subscribe((status) => {
           if (status === 'SUBSCRIBED') {
+            const expectedRole =
+              target === 'Siswa'
+                ? 'student'
+                : target === 'Orang Tua'
+                ? 'parent'
+                : target === 'Tutor'
+                ? 'tutor'
+                : undefined
+
             channel
               .send({
                 type: 'broadcast',
                 event: 'announcement',
                 payload: {
-                  ...generalNotif,
+                  id: ann.id,
+                  title: ann.title,
+                  message: ann.content,
+                  type: 'announcement',
                   targetAudience: ann.targetAudience,
+                  metadata: {
+                    announcementId: ann.id,
+                    targetAudience: ann.targetAudience,
+                    recipientRole: expectedRole,
+                  },
                 },
               })
               .then(() => {
@@ -2414,6 +2442,7 @@ export const adminStore = {
     if (student) {
       createdNotifs.push(
         this.addNotification({
+          id: `notif-alpa-${sessionId}-${student.id}-student`,
           userId: student.id,
           title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
           message: `Ketidakhadiran (Alpa): Anda tidak hadir pada sesi ${subj}.`,
@@ -2432,6 +2461,7 @@ export const adminStore = {
     if (parent) {
       createdNotifs.push(
         this.addNotification({
+          id: `notif-alpa-${sessionId}-${student?.id || studentId}-parent`,
           userId: parent.id,
           title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
           message: `Ketidakhadiran (Alpa): Putra/Putri Anda (${student?.name || 'Siswa'}) tidak hadir pada sesi ${subj}.`,
@@ -2486,6 +2516,7 @@ export const adminStore = {
     // 1. Notifikasi untuk Admin (Tata Usaha)
     createdNotifs.push(
       this.addNotification({
+        id: `notif-inv-${invoice.id}-admin`,
         title: 'Tagihan SPP Diterbitkan',
         message: `Tagihan ${invNum} untuk ${studentName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
         type: 'billing',
@@ -2504,6 +2535,7 @@ export const adminStore = {
     if (targetParentId) {
       createdNotifs.push(
         this.addNotification({
+          id: `notif-inv-${invoice.id}-parent`,
           userId: targetParentId,
           title: 'Tagihan SPP Putra/Putri',
           message: `Tagihan SPP an. ${studentName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,
@@ -2523,6 +2555,7 @@ export const adminStore = {
     if (targetStudentId) {
       createdNotifs.push(
         this.addNotification({
+          id: `notif-inv-${invoice.id}-student`,
           userId: targetStudentId,
           title: 'Tagihan SPP Baru',
           message: `Tagihan SPP periode ${invoice.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${invoice.dueDate}.`,

@@ -232,6 +232,7 @@ export interface SessionItem {
     status: 'hadir' | 'sakit' | 'izin' | 'alpa'
     note?: string
   }>
+  completedAt?: string | Date
   createdAt?: string | Date
 }
 
@@ -259,6 +260,7 @@ export interface SessionJoinedRow {
   session_date: string
   topic: string | null
   is_completed: boolean
+  completed_at: string | null
   created_at: string
   classes: { id: string; class_name: string } | null
   rooms: { id: string; room_name: string } | null
@@ -270,6 +272,16 @@ export interface SessionJoinedRow {
     end_time: string
     subject_name: string | null
   } | null
+  attendances: Array<{
+    status: string | null
+    notes: string | null
+    student_id: string
+    students: {
+      id: string
+      nis: string | null
+      profiles: { full_name: string | null } | null
+    } | null
+  }> | null
 }
 
 export const scheduleService = {
@@ -277,7 +289,6 @@ export const scheduleService = {
    * Mengambil semua jadwal bimbingan aktif dari database Supabase
    */
   async getSchedules(): Promise<ScheduleItem[]> {
-    await ensureAdminSession()
     const { data, error } = await supabase
       .from('schedules')
       .select(`
@@ -642,8 +653,6 @@ export const scheduleService = {
       return []
     }
 
-    await ensureAdminSession()
-
     let query = supabase
       .from('sessions')
       .select(`
@@ -655,11 +664,13 @@ export const scheduleService = {
         session_date,
         topic,
         is_completed,
+        completed_at,
         created_at,
         classes ( id, class_name ),
         rooms ( id, room_name ),
         tutors ( id, profiles ( full_name ) ),
-        schedules ( id, day_of_week, start_time, end_time, subject_name )
+        schedules ( id, day_of_week, start_time, end_time, subject_name ),
+        attendances ( status, notes, student_id, students ( id, nis, profiles ( full_name ) ) )
       `)
       .order('session_date', { ascending: true })
 
@@ -677,23 +688,40 @@ export const scheduleService = {
     }
 
     const rows = data as unknown as SessionJoinedRow[]
-    return rows.map((s) => ({
-      id: s.id,
-      scheduleId: s.schedule_id || undefined,
-      classId: s.class_id,
-      className: s.classes?.class_name || 'Rombel Kelas',
-      subjectName: s.schedules?.subject_name || s.topic || 'Sesi Bimbingan',
-      tutorId: s.tutor_id || undefined,
-      tutorName: s.tutors?.profiles?.full_name || 'Tutor Bimbel',
-      roomId: s.room_id || undefined,
-      roomName: s.rooms?.room_name || 'Ruang Belajar',
-      sessionDate: s.session_date,
-      topic: s.topic || 'Sesi Bimbingan',
-      isCompleted: s.is_completed,
-      dayOfWeek: s.schedules?.day_of_week,
-      startTime: s.schedules?.start_time,
-      endTime: s.schedules?.end_time,
-      createdAt: s.created_at,
-    }))
+    return rows.map(mapSessionJoinedRow)
   },
+}
+
+/**
+ * Pemetaan baris join `sessions` (+ `attendances`) menjadi `SessionItem`.
+ * Dipisah sebagai fungsi murni agar pemuatan entri presensi dapat diuji
+ * tanpa ketergantungan ke basis data.
+ */
+export function mapSessionJoinedRow(s: SessionJoinedRow): SessionItem {
+  return {
+    id: s.id,
+    scheduleId: s.schedule_id || undefined,
+    classId: s.class_id,
+    className: s.classes?.class_name || 'Rombel Kelas',
+    subjectName: s.schedules?.subject_name || s.topic || 'Sesi Bimbingan',
+    tutorId: s.tutor_id || undefined,
+    tutorName: s.tutors?.profiles?.full_name || 'Tutor Bimbel',
+    roomId: s.room_id || undefined,
+    roomName: s.rooms?.room_name || 'Ruang Belajar',
+    sessionDate: s.session_date,
+    topic: s.topic || 'Sesi Bimbingan',
+    isCompleted: s.is_completed,
+    completedAt: s.completed_at || undefined,
+    dayOfWeek: s.schedules?.day_of_week,
+    startTime: s.schedules?.start_time,
+    endTime: s.schedules?.end_time,
+    entries: (s.attendances || []).map((a) => ({
+      studentId: a.student_id,
+      studentName: a.students?.profiles?.full_name || a.students?.nis || 'Siswa',
+      nis: a.students?.nis || '',
+      status: (a.status || 'hadir') as 'hadir' | 'sakit' | 'izin' | 'alpa',
+      note: a.notes || undefined,
+    })),
+    createdAt: s.created_at,
+  }
 }
