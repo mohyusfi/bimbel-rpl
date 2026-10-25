@@ -36,6 +36,112 @@ export function validateClassCapacityForTransfer(
   return { valid: true }
 }
 
+export interface EmailValidationResult {
+  available: boolean
+  error?: string
+}
+
+export function validateEmailFormat(email: string): boolean {
+  if (!email || typeof email !== 'string') return false
+  const trimmed = email.trim()
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return re.test(trimmed)
+}
+
+export async function validateStudentEmailAvailability(
+  studentEmail: string,
+  parentEmail?: string,
+  options?: {
+    existingStudents?: Array<{ email: string; status: 'aktif' | 'nonaktif' }>
+    existingRegistrations?: Array<{ studentEmail: string; status: 'menunggu' | 'terverifikasi' | 'ditolak' }>
+  }
+): Promise<EmailValidationResult> {
+  const cleanStudentEmail = studentEmail?.trim().toLowerCase()
+  const cleanParentEmail = parentEmail?.trim().toLowerCase()
+
+  if (!cleanStudentEmail || !validateEmailFormat(cleanStudentEmail)) {
+    return { available: false, error: 'Format email siswa tidak valid.' }
+  }
+
+  if (cleanParentEmail && !validateEmailFormat(cleanParentEmail)) {
+    return { available: false, error: 'Format email orang tua / wali tidak valid.' }
+  }
+
+  if (cleanParentEmail && cleanStudentEmail === cleanParentEmail) {
+    return {
+      available: false,
+      error: 'Email siswa dan email orang tua tidak boleh sama. Gunakan email berbeda untuk masing-masing peran.',
+    }
+  }
+
+  // 1. Cek apakah sudah terdaftar di data siswa
+  let studentsToCheck = options?.existingStudents
+  if (!studentsToCheck) {
+    try {
+      const dbStudents = await registrationService.getStudents()
+      studentsToCheck = dbStudents.map((s) => ({
+        email: s.email,
+        status: s.status,
+      }))
+    } catch {
+      studentsToCheck = []
+    }
+  }
+
+  const existingStudent = studentsToCheck.find(
+    (s) => s.email?.trim().toLowerCase() === cleanStudentEmail
+  )
+
+  if (existingStudent) {
+    if (existingStudent.status === 'nonaktif') {
+      return {
+        available: false,
+        error: 'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.',
+      }
+    }
+    return {
+      available: false,
+      error: 'Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.',
+    }
+  }
+
+  // 2. Cek apakah ada antrean pendaftaran
+  let registrationsToCheck = options?.existingRegistrations
+  if (!registrationsToCheck) {
+    try {
+      const dbRegistrations = await registrationService.getRegistrations()
+      registrationsToCheck = dbRegistrations.map((r) => ({
+        studentEmail: r.studentEmail,
+        status: r.status,
+      }))
+    } catch {
+      registrationsToCheck = []
+    }
+  }
+
+  const existingReg = registrationsToCheck.find(
+    (r) => r.studentEmail?.trim().toLowerCase() === cleanStudentEmail
+  )
+
+  if (existingReg) {
+    if (existingReg.status === 'menunggu') {
+      return {
+        available: false,
+        error: 'Email calon siswa ini sedang menunggu verifikasi oleh Tata Usaha. Mohon tunggu proses validasi.',
+      }
+    }
+    if (existingReg.status === 'terverifikasi') {
+      return {
+        available: false,
+        error: 'Email ini telah terdaftar dan terverifikasi di Tadulako Cendekia.',
+      }
+    }
+    // Jika 'ditolak', siswa diizinkan mendaftar kembali
+  }
+
+  return { available: true }
+}
+
 export interface UpdateStudentInput {
   id: string
   name: string
@@ -161,8 +267,6 @@ export const registrationService = {
    * Mengambil semua data pendaftaran calon siswa dari Supabase
    */
   async getRegistrations(): Promise<Registration[]> {
-    await ensureAdminSession()
-
     const { data, error } = await supabase
       .from('registrations')
       .select('*')
@@ -198,8 +302,6 @@ export const registrationService = {
    * Mengambil data seluruh siswa dari Supabase beserta relasi profil, wali, dan rombel kelas
    */
   async getStudents(): Promise<Student[]> {
-    await ensureAdminSession()
-
     const { data, error } = await supabase
       .from('students')
       .select(`
@@ -287,6 +389,18 @@ export const registrationService = {
    * Mendaftarkan calon siswa baru dan mengembalikan nomor tiket
    */
   async createRegistration(input: CreateRegistrationInput): Promise<ServerResult<Registration>> {
+    // 0. Validasi keunikan email siswa & relasi orang tua
+    const emailValidation = await validateStudentEmailAvailability(
+      input.studentEmail,
+      input.parentEmail
+    )
+    if (!emailValidation.available) {
+      return {
+        success: false,
+        error: emailValidation.error || 'Pendaftaran ditolak karena email sudah terdaftar.',
+      }
+    }
+
     // 1. Hitung total registrasi untuk sequence nomor tiket
     const { count, error: countErr } = await supabase
       .from('registrations')

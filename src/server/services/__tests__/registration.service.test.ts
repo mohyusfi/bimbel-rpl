@@ -3,6 +3,8 @@ import {
   generateRegistrationNumber,
   generateStudentNis,
   validateClassCapacityForTransfer,
+  validateStudentEmailAvailability,
+  validateEmailFormat,
   registrationService,
   clampCapacity,
 } from '../registration.service'
@@ -79,6 +81,93 @@ describe('RegistrationService — TDD Unit Tests', () => {
       expect(res.success).toBe(false)
       if (!res.success) {
         expect(res.error).toContain('tidak ditemukan')
+      }
+    })
+  })
+
+  describe('validasi keunikan email calon siswa (validateStudentEmailAvailability)', () => {
+    it('memvalidasi format email yang benar dan menolak format salah', () => {
+      expect(validateEmailFormat('siswa@contoh.com')).toBe(true)
+      expect(validateEmailFormat('siswa.baru@tadulako.sch.id')).toBe(true)
+      expect(validateEmailFormat('bukan-email')).toBe(false)
+      expect(validateEmailFormat('siswa@')).toBe(false)
+      expect(validateEmailFormat('@domain.com')).toBe(false)
+    })
+
+    it('menolak jika email siswa dan email orang tua sama persis', async () => {
+      const res = await validateStudentEmailAvailability('sama@contoh.com', 'sama@contoh.com')
+      expect(res.available).toBe(false)
+      expect(res.error).toContain('tidak boleh sama')
+    })
+
+    it('menolak jika email sudah terdaftar sebagai siswa aktif', async () => {
+      const res = await validateStudentEmailAvailability('akbar@contoh.com', 'ortu@contoh.com', {
+        existingStudents: [
+          { email: 'akbar@contoh.com', status: 'aktif' },
+        ],
+      })
+      expect(res.available).toBe(false)
+      expect(res.error).toContain('siswa aktif')
+    })
+
+    it('menolak jika email tercatat sebagai siswa nonaktif dan memberikan arahan ke Tata Usaha', async () => {
+      const res = await validateStudentEmailAvailability('alumni@contoh.com', 'ortu@contoh.com', {
+        existingStudents: [
+          { email: 'alumni@contoh.com', status: 'nonaktif' },
+        ],
+      })
+      expect(res.available).toBe(false)
+      expect(res.error).toContain('siswa nonaktif')
+      expect(res.error).toContain('Tata Usaha')
+    })
+
+    it('menolak jika email calon siswa sedang menunggu verifikasi admin', async () => {
+      const res = await validateStudentEmailAvailability('pending@contoh.com', 'ortu@contoh.com', {
+        existingRegistrations: [
+          { studentEmail: 'pending@contoh.com', status: 'menunggu' },
+        ],
+      })
+      expect(res.available).toBe(false)
+      expect(res.error).toContain('menunggu verifikasi')
+    })
+
+    it('mengizinkan pendaftaran jika email sebelumnya pernah ditolak (status ditolak)', async () => {
+      const res = await validateStudentEmailAvailability('ditolak@contoh.com', 'ortu@contoh.com', {
+        existingRegistrations: [
+          { studentEmail: 'ditolak@contoh.com', status: 'ditolak' },
+        ],
+        existingStudents: [],
+      })
+      expect(res.available).toBe(true)
+      expect(res.error).toBeUndefined()
+    })
+
+    it('mengizinkan email orang tua yang sama untuk anak kedua (multi-child)', async () => {
+      const res = await validateStudentEmailAvailability('anak2@contoh.com', 'ortu.setia@contoh.com', {
+        existingStudents: [
+          { email: 'anak1@contoh.com', status: 'aktif' },
+        ],
+        existingRegistrations: [],
+      })
+      expect(res.available).toBe(true)
+      expect(res.error).toBeUndefined()
+    })
+
+    it('menolak createRegistration jika email siswa dan orang tua sama', async () => {
+      const res = await registrationService.createRegistration({
+        studentName: 'Siswa Test',
+        studentEmail: 'sama@contoh.com',
+        studentPhone: '081234567890',
+        studentSchool: 'SMAN 1 Palu',
+        packageCode: 'UTBK',
+        packageName: 'Intensif UTBK-SNBT',
+        parentName: 'Ortu Test',
+        parentEmail: 'sama@contoh.com',
+        parentPhone: '081234567891',
+      })
+      expect(res.success).toBe(false)
+      if (!res.success) {
+        expect(res.error).toContain('tidak boleh sama')
       }
     })
   })

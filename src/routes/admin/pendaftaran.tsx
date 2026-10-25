@@ -90,6 +90,8 @@ function AdminPendaftaranPage() {
     parentJob: '',
     parentAddress: '',
   })
+  const [addModalError, setAddModalError] = React.useState<string | null>(null)
+  const [isAdding, setIsAdding] = React.useState(false)
 
   // Filtered dataset
   const filteredData = registrations.filter((reg) => {
@@ -262,32 +264,79 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
   // Submit manual registration
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await addRegistration({
-      studentName: newForm.studentName,
-      studentEmail: newForm.studentEmail,
-      studentPhone: newForm.studentPhone,
-      studentSchool: newForm.studentSchool,
-      packageCode: newForm.packageCode,
-      packageName: PACKAGE_NAMES[newForm.packageCode],
-      parentName: newForm.parentName,
-      parentEmail: newForm.parentEmail,
-      parentPhone: newForm.parentPhone,
-      parentJob: newForm.parentJob,
-      parentAddress: newForm.parentAddress,
-    })
-    setIsAddModalOpen(false)
-    setNewForm({
-      studentName: '',
-      studentEmail: '',
-      studentPhone: '',
-      studentSchool: '',
-      packageCode: 'UTBK',
-      parentName: '',
-      parentEmail: '',
-      parentPhone: '',
-      parentJob: '',
-      parentAddress: '',
-    })
+    setAddModalError(null)
+
+    const emailLower = newForm.studentEmail.trim().toLowerCase()
+    const parentEmailLower = newForm.parentEmail.trim().toLowerCase()
+
+    if (emailLower === parentEmailLower) {
+      setAddModalError('Email siswa dan email orang tua tidak boleh sama. Gunakan email berbeda.')
+      return
+    }
+
+    // Validasi lokal terhadap data siswa aktif dan nonaktif
+    const adminState = adminStore.getState()
+    const duplicateStudent = adminState.students.find(
+      (s) => s.email.trim().toLowerCase() === emailLower
+    )
+    if (duplicateStudent) {
+      if (duplicateStudent.status === 'nonaktif') {
+        setAddModalError(
+          'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan ubah status siswa di menu Data Siswa untuk pengaktifan kembali.'
+        )
+      } else {
+        setAddModalError('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+      }
+      return
+    }
+
+    // Validasi terhadap antrean pendaftaran
+    const duplicatePending = adminState.registrations.find(
+      (r) =>
+        r.studentEmail.trim().toLowerCase() === emailLower &&
+        r.status === 'menunggu'
+    )
+    if (duplicatePending) {
+      setAddModalError(
+        'Email calon siswa ini sedang menunggu verifikasi oleh Tata Usaha.'
+      )
+      return
+    }
+
+    setIsAdding(true)
+    try {
+      await addRegistration({
+        studentName: newForm.studentName.trim(),
+        studentEmail: newForm.studentEmail.trim(),
+        studentPhone: newForm.studentPhone.trim(),
+        studentSchool: newForm.studentSchool.trim(),
+        packageCode: newForm.packageCode,
+        packageName: PACKAGE_NAMES[newForm.packageCode],
+        parentName: newForm.parentName.trim(),
+        parentEmail: newForm.parentEmail.trim(),
+        parentPhone: newForm.parentPhone.trim(),
+        parentJob: newForm.parentJob.trim() || undefined,
+        parentAddress: newForm.parentAddress.trim() || 'Kota Palu',
+      })
+      setIsAddModalOpen(false)
+      setNewForm({
+        studentName: '',
+        studentEmail: '',
+        studentPhone: '',
+        studentSchool: '',
+        packageCode: 'UTBK',
+        parentName: '',
+        parentEmail: '',
+        parentPhone: '',
+        parentJob: '',
+        parentAddress: '',
+      })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan pendaftaran manual.'
+      setAddModalError(msg)
+    } finally {
+      setIsAdding(false)
+    }
   }
 
   // Quick Filter Cards data
@@ -814,7 +863,12 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
       {/* MODAL 3: Tambah Pendaftar Manual */}
       <Dialog.Root
         open={isAddModalOpen}
-        onOpenChange={(open) => !open && setIsAddModalOpen(false)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddModalOpen(false)
+            setAddModalError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -828,6 +882,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   render={
                     <button
                       type="button"
+                      onClick={() => setAddModalError(null)}
                       className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
                     />
                   }
@@ -837,6 +892,16 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
               </div>
 
               <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
+                {addModalError && (
+                  <div
+                    className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                    role="alert"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{addModalError}</span>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <h4 className="font-bold text-[#000000] text-xs tracking-wide uppercase border-b border-[#D2D2D2] pb-1">
                     Data Calon Siswa
@@ -851,12 +916,13 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                       required
                       placeholder="Contoh: Andi Muh. Akbar"
                       value={newForm.studentName}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setNewForm((prev) => ({
                           ...prev,
                           studentName: e.target.value,
                         }))
-                      }
+                        if (addModalError) setAddModalError(null)
+                      }}
                       className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
                     />
                   </div>
@@ -871,29 +937,32 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                         required
                         placeholder="081234567890"
                         value={newForm.studentPhone}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewForm((prev) => ({
                             ...prev,
                             studentPhone: e.target.value,
                           }))
-                        }
+                          if (addModalError) setAddModalError(null)
+                        }}
                         className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="font-medium text-[#000000]">
-                        Email Siswa
+                        Email Siswa *
                       </label>
                       <input
                         type="email"
+                        required
                         placeholder="siswa@contoh.com"
                         value={newForm.studentEmail}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewForm((prev) => ({
                             ...prev,
                             studentEmail: e.target.value,
                           }))
-                        }
+                          if (addModalError) setAddModalError(null)
+                        }}
                         className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
                       />
                     </div>
@@ -975,15 +1044,38 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                         required
                         placeholder="08114567890"
                         value={newForm.parentPhone}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setNewForm((prev) => ({
                             ...prev,
                             parentPhone: e.target.value,
                           }))
-                        }
+                          if (addModalError) setAddModalError(null)
+                        }}
                         className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="font-medium text-[#000000]">
+                        Email Orang Tua / Wali *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="ortu@contoh.com"
+                        value={newForm.parentEmail}
+                        onChange={(e) => {
+                          setNewForm((prev) => ({
+                            ...prev,
+                            parentEmail: e.target.value,
+                          }))
+                          if (addModalError) setAddModalError(null)
+                        }}
+                        className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-medium text-[#000000]">
                         Pekerjaan Orang Tua
@@ -1001,40 +1093,43 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                         className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
-                      Alamat Domisili Siswa
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Jl. Tadulako No. 12, Besusu Tengah"
-                      value={newForm.parentAddress}
-                      onChange={(e) =>
-                        setNewForm((prev) => ({
-                          ...prev,
-                          parentAddress: e.target.value,
-                        }))
-                      }
-                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
-                    />
+                    <div className="space-y-1">
+                      <label className="font-medium text-[#000000]">
+                        Alamat Domisili Siswa
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Jl. Tadulako No. 12, Besusu Tengah"
+                        value={newForm.parentAddress}
+                        onChange={(e) =>
+                          setNewForm((prev) => ({
+                            ...prev,
+                            parentAddress: e.target.value,
+                          }))
+                        }
+                        className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                   <button
                     type="button"
-                    onClick={() => setIsAddModalOpen(false)}
+                    onClick={() => {
+                      setIsAddModalOpen(false)
+                      setAddModalError(null)
+                    }}
                     className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                    disabled={isAdding}
+                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 transition-colors cursor-pointer"
                   >
-                    Simpan Pendaftar
+                    {isAdding ? 'Menyimpan...' : 'Simpan Pendaftar'}
                   </button>
                 </div>
               </form>
