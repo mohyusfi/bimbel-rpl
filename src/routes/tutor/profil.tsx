@@ -314,23 +314,25 @@ function TutorProfilePage() {
                 <label className="block text-xs font-semibold text-[#555555]">
                   Kata Sandi Saat Ini (Lama)
                 </label>
-                <div className="relative max-w-md">
-                  <input
-                    type={showOldPass ? 'text' : 'password'}
-                    required
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full px-3.5 py-2.5 pr-10 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                    placeholder="Masukkan kata sandi lama Anda"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOldPass(!showOldPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
-                    aria-label="Toggle password visibility"
-                  >
-                    {showOldPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="relative">
+                    <input
+                      type={showOldPass ? 'text' : 'password'}
+                      required
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      className="w-full px-3.5 py-2.5 pr-10 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                      placeholder="Masukkan kata sandi lama Anda"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPass(!showOldPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showOldPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
