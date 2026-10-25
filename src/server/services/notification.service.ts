@@ -22,6 +22,12 @@ export interface NotificationInboxQuery {
   email?: string
 }
 
+export interface MarkNotificationReadInput {
+  notificationIds?: string[]
+  userIds?: string[]
+  email?: string
+}
+
 interface NotificationRow {
   id: string
   user_id: string | null
@@ -128,6 +134,90 @@ export const notificationService = {
       return { success: true, data: rows }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal memuat kotak masuk notifikasi.'
+      return { success: false, error: msg }
+    }
+  },
+
+  async markAsRead(
+    input: MarkNotificationReadInput
+  ): Promise<ServerResult<{ count: number }>> {
+    try {
+      const dbClient = (await getInboxDbClient()) as any
+
+      const userIds = new Set<string>()
+      for (const id of input.userIds || []) {
+        if (typeof id === 'string' && isUuid(id.trim())) {
+          userIds.add(id.trim())
+        }
+      }
+
+      if (input.email && input.email.trim() !== '') {
+        try {
+          const { data: profiles } = await dbClient
+            .from('profiles')
+            .select('id')
+            .eq('email', input.email.trim())
+          for (const p of (profiles || []) as Array<{ id?: string }>) {
+            if (p?.id && isUuid(p.id)) userIds.add(p.id)
+          }
+        } catch (profileErr) {
+          console.warn('[WARN] Gagal resolusi profile_id untuk markAsRead:', profileErr)
+        }
+      }
+
+      const notifIds = (input.notificationIds || []).filter(
+        (id) => typeof id === 'string' && isUuid(id.trim())
+      )
+      const announcementIds = (input.notificationIds || []).filter(
+        (id) => typeof id === 'string' && !isUuid(id.trim())
+      )
+
+      let updatedCount = 0
+
+      // 1. Update berdasarkan user_id (mark all unread milik pengguna ini)
+      if (userIds.size > 0) {
+        const { data, error } = await dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .in('user_id', Array.from(userIds))
+          .eq('is_read', false)
+          .select('id')
+
+        if (!error && Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      // 2. Update berdasarkan ID notifikasi spesifik
+      if (notifIds.length > 0) {
+        const { data, error } = await dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .in('id', notifIds)
+          .eq('is_read', false)
+          .select('id')
+
+        if (!error && Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      // 3. Update berdasarkan announcementId di metadata jika ID bukan UUID
+      for (const annId of announcementIds) {
+        const { data } = await dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .filter('metadata->>announcementId', 'eq', annId)
+          .eq('is_read', false)
+          .select('id')
+        if (Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      return { success: true, data: { count: updatedCount } }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal memperbarui status notifikasi.'
       return { success: false, error: msg }
     }
   },

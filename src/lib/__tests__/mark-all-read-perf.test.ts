@@ -6,6 +6,11 @@ import { adminStore, type AdminNotification } from '~/lib/admin-store'
 import { useRealtimeNotifications } from '~/hooks/use-realtime-notifications'
 import { ADMIN_KEYS } from '~/hooks/use-admin-data'
 
+vi.mock('~/server/functions/notification-inbox', () => ({
+  markNotificationsReadFn: vi.fn().mockResolvedValue({ success: true, data: { count: 5 } }),
+  getNotificationInboxFn: vi.fn().mockResolvedValue({ success: true, data: [] }),
+}))
+
 function renderHookInSSR<T>(hookFn: () => T, queryClient: QueryClient): T {
   let result!: T
   function TestHarness() {

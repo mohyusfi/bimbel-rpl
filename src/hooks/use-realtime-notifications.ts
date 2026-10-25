@@ -534,29 +534,22 @@ export function useRealtimeNotifications(
       // 2. Tandai di store lokal
       adminStore.markNotificationRead(id)
 
-      // 3. Persist update di Supabase secara efisien (hanya baris yang belum dibaca)
+      // 3. Persist update di database via Server Function
       try {
-        if (client && typeof client.from === 'function') {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-          if (isUuid) {
-            await client
-              .from('notifications')
-              .update({ is_read: true })
-              .eq('id', id)
-              .eq('is_read', false)
-          } else {
-            await client
-              .from('notifications')
-              .update({ is_read: true })
-              .filter('metadata->>announcementId', 'eq', id)
-              .eq('is_read', false)
-          }
-        }
+        const { markNotificationsReadFn } = await import(
+          '~/server/functions/notification-inbox'
+        )
+        await markNotificationsReadFn({
+          data: {
+            notificationIds: [id],
+            email: userEmail,
+          },
+        })
       } catch (err) {
-        console.warn('[WARN] Gagal update status is_read notifikasi di Supabase:', err)
+        console.warn('[WARN] Gagal update status is_read notifikasi di server:', err)
       }
     },
-    [client, queryClient]
+    [queryClient, userEmail]
   )
 
   const markAllAsRead = React.useCallback(async () => {
@@ -580,32 +573,29 @@ export function useRealtimeNotifications(
     // 3. Update store lokal dalam 1x panggilan batch (mencegah O(N) re-render cascade)
     adminStore.markAllNotificationsRead(userId || undefined, unreadTargetIds)
 
-    // 4. Persist update is_read = true di Supabase secara efisien & non-blocking
+    // 4. Persist update is_read = true di database via Server Function
     try {
-      if (client && typeof client.from === 'function') {
-        if (userId) {
-          await client
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('user_id', userId)
-            .eq('is_read', false)
-        } else if (unreadTargetIds.length > 0) {
-          await client
-            .from('notifications')
-            .update({ is_read: true })
-            .in('id', unreadTargetIds)
-            .eq('is_read', false)
-        } else {
-          await client
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('is_read', false)
-        }
-      }
+      const { markNotificationsReadFn } = await import(
+        '~/server/functions/notification-inbox'
+      )
+      const allUserIds = Array.from(
+        new Set(
+          [userId, ...(relevantUserIds || []), ...(childIds || [])]
+            .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+            .map((v) => v.trim())
+        )
+      )
+      await markNotificationsReadFn({
+        data: {
+          userIds: allUserIds,
+          email: userEmail,
+          notificationIds: unreadTargetIds,
+        },
+      })
     } catch (err) {
-      console.warn('[WARN] Gagal update status markAllAsRead di Supabase:', err)
+      console.warn('[WARN] Gagal update status markAllAsRead di server:', err)
     }
-  }, [client, notifications, queryClient, userId])
+  }, [childIds, notifications, queryClient, relevantUserIds, userEmail, userId])
 
   return {
     notifications,
