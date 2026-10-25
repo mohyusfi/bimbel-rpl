@@ -1,18 +1,16 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
-  User,
-  Mail,
-  Phone,
-  Shield,
-  Lock,
-  Eye,
-  EyeOff,
+  Pencil,
+  X,
   CheckCircle2,
   AlertCircle,
   Save,
   KeyRound,
   Loader2,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useAuth } from '~/hooks/use-auth'
 
@@ -33,12 +31,15 @@ function AdminProfilePage() {
     updatePassword,
   } = useAuth()
 
-  // Pengalihan untuk Super Admin: Super Admin dikecualikan dari fitur profil
+  // Pengalihan untuk Super Admin (Super Admin tidak memiliki fitur profil mandiri)
   React.useEffect(() => {
     if (isSuperAdmin) {
       navigate({ to: '/admin' })
     }
   }, [isSuperAdmin, navigate])
+
+  // State Edit Mode Toggle
+  const [isEditing, setIsEditing] = React.useState(false)
 
   // State Form Profil
   const [fullName, setFullName] = React.useState('')
@@ -65,8 +66,8 @@ function AdminProfilePage() {
     }
   }, [user, profile])
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleProfileSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     setProfileSuccess(null)
     setProfileError(null)
     setIsProfileSubmitting(true)
@@ -78,6 +79,7 @@ function AdminProfilePage() {
       })
       if (res.success) {
         setProfileSuccess('[OK] Data profil berhasil diperbarui.')
+        setIsEditing(false)
       } else {
         setProfileError(res.error || '[ERROR] Gagal memperbarui data profil.')
       }
@@ -126,139 +128,185 @@ function AdminProfilePage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl pb-10">
-      {/* Header Halaman */}
-      <div className="border-b border-[#D2D2D2] pb-4">
-        <h1 className="font-display font-bold text-2xl text-[#000000] tracking-tight">
-          Profil Saya & Keamanan Akun
-        </h1>
-        <p className="text-xs text-[#555555] mt-1">
-          Kelola data diri staf administrasi Tata Usaha dan perbarui kata sandi masuk secara mandiri.
-        </p>
-      </div>
-
-      {/* Ringkasan Akun */}
-      <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-14 h-14 rounded-[8px] bg-[#000000] text-[#FFFFFF] font-display font-bold text-xl flex items-center justify-center shrink-0">
-            {userInitials}
-          </div>
-          <div className="min-w-0">
-            <h2 className="font-display font-bold text-lg text-[#000000] truncate">
-              {userDisplayName || 'Staf Tata Usaha'}
-            </h2>
-            <p className="text-xs text-[#555555] flex items-center gap-2 mt-0.5">
-              <span>{user?.email || 'admin@tadulakocendekia.sch.id'}</span>
-              <span className="text-[#D2D2D2]">|</span>
-              <span className="font-medium text-[#CB2957]">Staf Tata Usaha</span>
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-[#166534]">
-          <CheckCircle2 className="w-4 h-4 text-[#166534]" />
-          <span>Status Akun Aktif</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Formulir 1: Edit Data Diri */}
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-5 space-y-4">
-          <div className="border-b border-[#D2D2D2] pb-3">
-            <h3 className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
-              <User className="w-4 h-4 text-[#CB2957]" />
-              <span>Informasi Data Diri</span>
-            </h3>
+    <div className="max-w-4xl space-y-6 pb-12">
+      {/* Unified White Card Container (sesuai referensi UI) */}
+      <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[16px] p-6 sm:p-8 shadow-xs space-y-7">
+        {/* Top Header: Title & Edit Mode Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#EAEAEA]">
+          <div>
+            <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#000000] tracking-tight">
+              Profile Information
+            </h1>
             <p className="text-xs text-[#555555] mt-0.5">
-              Perbarui nama lengkap dan nomor telepon kontak operasional Anda.
+              Kelola data diri staf tata usaha dan perbarui kata sandi akun masuk portal.
             </p>
           </div>
 
-          {profileSuccess && (
-            <div className="p-3 bg-[#F0FDF4] border border-[#86EFAC] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#166534]">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{profileSuccess}</span>
-            </div>
-          )}
+          <div>
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileSuccess(null)
+                  setProfileError(null)
+                  setIsEditing(true)
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#FFFFFF] bg-[#000000] hover:bg-[#292524] rounded-[8px] transition-colors cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setProfileError(null)
+                    if (user) {
+                      setFullName(user.fullName || profile?.full_name || '')
+                      setPhone(user.phone || profile?.phone_number || '')
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#555555] bg-[#FFFFFF] border border-[#D2D2D2] hover:bg-[#F6F6F6] rounded-[8px] transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Batal</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleProfileSubmit()}
+                  disabled={isProfileSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#FFFFFF] bg-[#000000] hover:bg-[#292524] rounded-[8px] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isProfileSubmitting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  <span>Simpan</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
-          {profileError && (
-            <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#991B1B]">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{profileError}</span>
+        {/* User Card (Avatar + Name + Role + Status) */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-full bg-[#000000] text-[#FFFFFF] font-display font-extrabold text-xl flex items-center justify-center shrink-0 border border-[#D2D2D2]">
+              {userInitials}
             </div>
-          )}
+            <div className="min-w-0">
+              <h2 className="font-display font-bold text-lg text-[#000000] truncate">
+                {userDisplayName || 'Hj. Nuraini, S.Pd'}
+              </h2>
+              <p className="text-xs text-[#555555] font-medium mt-0.5">
+                Staf Tata Usaha
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#166534]">
+            <CheckCircle2 className="w-4 h-4 text-[#166534]" />
+            <span>Aktif</span>
+          </div>
+        </div>
 
-          <form onSubmit={handleProfileSubmit} className="space-y-4">
+        {profileSuccess && (
+          <div className="p-3 bg-[#F0FDF4] border border-[#86EFAC] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#166534]">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{profileSuccess}</span>
+          </div>
+        )}
+
+        {profileError && (
+          <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#991B1B]">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{profileError}</span>
+          </div>
+        )}
+
+        {/* Section 1: Personal Details */}
+        <div className="space-y-4 pt-2">
+          <h3 className="font-display font-bold text-base text-[#000000]">
+            Personal Details
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
+              <label className="block text-xs font-semibold text-[#555555]">
                 Nama Lengkap
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                  placeholder="Contoh: Hj. Nuraini, S.Pd"
-                />
-              </div>
+              <input
+                type="text"
+                disabled={!isEditing}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={`w-full px-3.5 py-2.5 text-xs rounded-[8px] border transition-colors ${
+                  isEditing
+                    ? 'bg-[#FFFFFF] border-[#000000] text-[#000000] focus:outline-none'
+                    : 'bg-[#F9F9F9] border-[#E5E5E5] text-[#292524] cursor-default'
+                }`}
+                placeholder="Nama Lengkap Staf"
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
+              <label className="block text-xs font-semibold text-[#555555]">
                 Nomor WhatsApp / HP
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                  placeholder="Contoh: 0812-4112-9090"
-                />
-              </div>
+              <input
+                type="text"
+                disabled={!isEditing}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className={`w-full px-3.5 py-2.5 text-xs rounded-[8px] border transition-colors ${
+                  isEditing
+                    ? 'bg-[#FFFFFF] border-[#000000] text-[#000000] focus:outline-none'
+                    : 'bg-[#F9F9F9] border-[#E5E5E5] text-[#292524] cursor-default'
+                }`}
+                placeholder="Nomor Telepon Kontak"
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
-                Alamat Email (Akun Utama)
+              <label className="block text-xs font-semibold text-[#555555]">
+                Alamat Email
               </label>
               <input
                 type="email"
                 disabled
-                value={user?.email || ''}
-                className="w-full px-3 py-2 text-xs text-[#555555] bg-[#F6F6F6] border border-[#D2D2D2] rounded-[8px] cursor-not-allowed"
+                value={user?.email || 'admin@tadulakocendekia.sch.id'}
+                className="w-full px-3.5 py-2.5 text-xs rounded-[8px] border bg-[#F9F9F9] border-[#E5E5E5] text-[#777777] cursor-not-allowed"
               />
-              <p className="text-[11px] text-[#555555]">
-                Alamat email dikelola oleh Pimpinan Lembaga / Super Admin.
+              <p className="text-[11px] text-[#777777]">
+                Email akun dikelola oleh Pimpinan Lembaga (Super Admin).
               </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={isProfileSubmitting}
-              className="w-full py-2.5 px-4 text-xs font-bold text-[#FFFFFF] bg-[#000000] hover:bg-[#292524] rounded-[8px] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {isProfileSubmitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-              <span>Simpan Perubahan Profil</span>
-            </button>
-          </form>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#555555]">
+                Jabatan / Peran Sistem
+              </label>
+              <input
+                type="text"
+                disabled
+                value="Staf Tata Usaha & Operasional"
+                className="w-full px-3.5 py-2.5 text-xs rounded-[8px] border bg-[#F9F9F9] border-[#E5E5E5] text-[#777777] cursor-not-allowed"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Formulir 2: Ubah Kata Sandi */}
-        <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] p-5 space-y-4">
-          <div className="border-b border-[#D2D2D2] pb-3">
+        {/* Section 2: Keamanan & Kata Sandi */}
+        <div className="space-y-4 pt-6 border-t border-[#EAEAEA]">
+          <div>
             <h3 className="font-display font-bold text-base text-[#000000] flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-[#CB2957]" />
-              <span>Ganti Kata Sandi</span>
+              <span>Keamanan & Kata Sandi</span>
             </h3>
             <p className="text-xs text-[#555555] mt-0.5">
-              Masukkan kata sandi lama Anda untuk menetapkan kata sandi baru.
+              Perbarui kata sandi akun secara mandiri menggunakan verifikasi kata sandi lama.
             </p>
           </div>
 
@@ -277,92 +325,96 @@ function AdminProfilePage() {
           )}
 
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
-                Kata Sandi Saat Ini (Lama)
-              </label>
-              <div className="relative">
-                <input
-                  type={showOldPass ? 'text' : 'password'}
-                  required
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-9 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                  placeholder="Masukkan kata sandi lama"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOldPass(!showOldPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
-                  aria-label="Toggle password visibility"
-                >
-                  {showOldPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="block text-xs font-semibold text-[#555555]">
+                  Kata Sandi Saat Ini (Lama)
+                </label>
+                <div className="relative max-w-md">
+                  <input
+                    type={showOldPass ? 'text' : 'password'}
+                    required
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                    placeholder="Masukkan kata sandi lama Anda"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPass(!showOldPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showOldPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#555555]">
+                  Kata Sandi Baru (Minimal 6 Karakter)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                    placeholder="Masukkan kata sandi baru"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#555555]">
+                  Konfirmasi Kata Sandi Baru
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                    placeholder="Ketik ulang kata sandi baru"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
-                Kata Sandi Baru (Minimal 6 Karakter)
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPass ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-9 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                  placeholder="Masukkan kata sandi baru"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPass(!showNewPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
-                  aria-label="Toggle password visibility"
-                >
-                  {showNewPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={isPasswordSubmitting}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-[#FFFFFF] bg-[#CB2957] hover:bg-[#A81E46] rounded-[8px] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isPasswordSubmitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5" />
+                )}
+                <span>Perbarui Kata Sandi</span>
+              </button>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-[#000000]">
-                Konfirmasi Kata Sandi Baru
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPass ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-9 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                  placeholder="Ketik ulang kata sandi baru"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPass(!showConfirmPass)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#000000]"
-                  aria-label="Toggle password visibility"
-                >
-                  {showConfirmPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isPasswordSubmitting}
-              className="w-full py-2.5 px-4 text-xs font-bold text-[#FFFFFF] bg-[#CB2957] hover:bg-[#A81E46] rounded-[8px] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {isPasswordSubmitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Lock className="w-3.5 h-3.5" />
-              )}
-              <span>Perbarui Kata Sandi</span>
-            </button>
           </form>
         </div>
       </div>
