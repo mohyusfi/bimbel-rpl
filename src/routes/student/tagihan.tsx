@@ -154,9 +154,9 @@ function StudentTagihanPage() {
               <button
                 type="button"
                 onClick={() => handleOpenReceipt(inv)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] hover:bg-[#F6F6F6] border border-[#D2D2D2] hover:border-[#000000] rounded-[8px] transition-colors cursor-pointer h-8 whitespace-nowrap"
               >
-                <Receipt className="w-3.5 h-3.5" />
+                <Receipt className="w-3.5 h-3.5 text-[#555555]" />
                 <span>Cetak Kwitansi</span>
               </button>
             </div>
@@ -169,7 +169,7 @@ function StudentTagihanPage() {
               <button
                 type="button"
                 onClick={() => handleOpenUpload(inv)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#FFFFFF] bg-[#CB2957] rounded-[8px] hover:bg-[#A81F45] transition-colors cursor-pointer shadow-none"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer shadow-none h-8 whitespace-nowrap"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>{inv.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
@@ -181,7 +181,10 @@ function StudentTagihanPage() {
         if (inv.status === 'menunggu') {
           return (
             <div className="text-right">
-              <span className="inline-flex items-center gap-1 text-xs text-[#555555] italic">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#555555] bg-[#F6F6F6] rounded-[6px] select-none h-8"
+                title="Bukti transfer sedang diverifikasi oleh staf tata usaha bimbel"
+              >
                 <Clock className="w-3.5 h-3.5 text-[#8C5806]" />
                 <span>Sedang Diverifikasi</span>
               </span>
@@ -390,23 +393,27 @@ function StudentTagihanPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenReceipt(row)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] hover:bg-[#F6F6F6] border border-[#D2D2D2] hover:border-[#000000] rounded-[8px] transition-colors cursor-pointer h-8"
                   >
-                    <Receipt className="w-3.5 h-3.5" />
+                    <Receipt className="w-3.5 h-3.5 text-[#555555]" />
                     <span>Cetak Kwitansi</span>
                   </button>
                 ) : row.status === 'belum_dibayar' || row.status === 'ditolak' ? (
                   <button
                     type="button"
                     onClick={() => handleOpenUpload(row)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#FFFFFF] bg-[#CB2957] rounded-[8px] hover:bg-[#A81F45] transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] rounded-[8px] transition-colors cursor-pointer shadow-none h-8"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>{row.status === 'ditolak' ? 'Unggah Ulang Bukti' : 'Unggah Bukti Transfer'}</span>
                   </button>
                 ) : (
-                  <span className="text-xs text-[#555555] italic">
-                    Sedang Diverifikasi
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#555555] bg-[#F6F6F6] rounded-[6px] select-none h-8"
+                    title="Bukti transfer sedang diverifikasi oleh staf tata usaha bimbel"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-[#8C5806]" />
+                    <span>Sedang Diverifikasi</span>
                   </span>
                 )}
               </div>
