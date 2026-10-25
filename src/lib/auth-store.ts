@@ -230,6 +230,8 @@ let state: AuthState = {
 
 const listeners = new Set<() => void>()
 
+let initializePromise: Promise<void> | null = null
+
 function notify() {
   persistAuthState(state)
   listeners.forEach((listener) => {
@@ -831,6 +833,22 @@ export const authStore = {
       state.isLoading = false
       notify()
     }
+  },
+
+  /**
+   * Menginisialisasi state auth sekali saja (memoized). Dipakai route guard
+   * (beforeLoad) agar pemulihan sesi Supabase ter-persist selesai sebelum
+   * memutuskan redirect — mencegah hard refresh membuang pengguna ke /masuk.
+   */
+  ensureInitialized(): Promise<void> {
+    if (!initializePromise) {
+      initializePromise = this.initialize().catch((err) => {
+        // Jangan cache kegagalan: biarkan percobaan berikutnya menginisialisasi ulang.
+        initializePromise = null
+        throw err
+      })
+    }
+    return initializePromise
   },
 
   async login(

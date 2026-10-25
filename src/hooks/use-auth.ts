@@ -21,7 +21,7 @@ export function useAuth() {
   React.useEffect(() => {
     if (!isInitialized) {
       isInitialized = true
-      authStore.initialize()
+      authStore.ensureInitialized().catch(() => {})
     }
   }, [])
 

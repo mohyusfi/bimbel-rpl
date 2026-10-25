@@ -80,11 +80,15 @@ export function validateRouteAccess(
  * TanStack Router beforeLoad Guard Helper
  */
 export function createRouteGuard(expectedRole: UserRole) {
-  return ({ location }: { location: { href: string; pathname: string } }) => {
+  return async ({ location }: { location: { href: string; pathname: string } }) => {
     // Pada saat build-time / SSR prerendering, biarkan lolos
     if (typeof window === 'undefined') {
       return
     }
+
+    // Tunggu pemulihan sesi ter-persist selesai sebelum memutuskan redirect,
+    // agar hard refresh tidak salah membuang pengguna ke /masuk.
+    await authStore.ensureInitialized()
 
     const check = validateRouteAccess(location.pathname, undefined, expectedRole)
     if (!check.allowed && check.redirectTo) {
