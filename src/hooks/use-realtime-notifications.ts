@@ -332,8 +332,15 @@ export function useRealtimeNotifications(
 
   // Subscribe to adminStore updates
   React.useEffect(() => {
+    let prevCount = adminStore.getState().notifications.length
     const unsubscribeStore = adminStore.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      const currentCount = adminStore.getState().notifications.length
+      // Invalidate query hanya jika ada notifikasi baru masuk atau dihapus
+      // Mencegah refetch storm yang memicu latensi saat menandai notifikasi telah dibaca
+      if (currentCount !== prevCount) {
+        prevCount = currentCount
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      }
     })
     return unsubscribeStore
   }, [queryClient])
@@ -518,16 +525,31 @@ export function useRealtimeNotifications(
 
   const markAsRead = React.useCallback(
     async (id: string) => {
-      adminStore.markNotificationRead(id)
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      // 1. Optimistic update di TanStack Query cache (0ms latency di UI)
+      queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
+        if (!prev) return []
+        return prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      })
 
+      // 2. Tandai di store lokal
+      adminStore.markNotificationRead(id)
+
+      // 3. Persist update di Supabase secara efisien (hanya baris yang belum dibaca)
       try {
         if (client && typeof client.from === 'function') {
           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
           if (isUuid) {
-            await client.from('notifications').update({ is_read: true }).eq('id', id)
+            await client
+              .from('notifications')
+              .update({ is_read: true })
+              .eq('id', id)
+              .eq('is_read', false)
           } else {
-            await client.from('notifications').update({ is_read: true }).filter('metadata->>announcementId', 'eq', id)
+            await client
+              .from('notifications')
+              .update({ is_read: true })
+              .filter('metadata->>announcementId', 'eq', id)
+              .eq('is_read', false)
           }
         }
       } catch (err) {
@@ -538,28 +560,46 @@ export function useRealtimeNotifications(
   )
 
   const markAllAsRead = React.useCallback(async () => {
-    // 1. Mark all unread notifications visible in this portal as read in local store
+    // 1. Kumpulkan seluruh notifikasi unread yang tampil di portal ini
     const unreadTargetIds = notifications.filter((n) => !n.isRead).map((n) => n.id)
-    unreadTargetIds.forEach((id) => {
-      adminStore.markNotificationRead(id)
+    if (unreadTargetIds.length === 0) return
+
+    const targetIdSet = new Set(unreadTargetIds)
+
+    // 2. Optimistic update instan di TanStack Query cache (0ms latency, UI langsung bersih)
+    queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
+      if (!prev) return []
+      return prev.map((n) => {
+        if (targetIdSet.has(n.id) || (userId && n.userId === userId)) {
+          return { ...n, isRead: true }
+        }
+        return n
+      })
     })
 
-    // 2. Call adminStore.markAllNotificationsRead only if user is explicitly resolved
-    if (userId) {
-      adminStore.markAllNotificationsRead(userId)
-    }
+    // 3. Update store lokal dalam 1x panggilan batch (mencegah O(N) re-render cascade)
+    adminStore.markAllNotificationsRead(userId || undefined, unreadTargetIds)
 
-    queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
-
-    // 3. Persist update is_read = true in Supabase database
+    // 4. Persist update is_read = true di Supabase secara efisien & non-blocking
     try {
       if (client && typeof client.from === 'function') {
         if (userId) {
-          await client.from('notifications').update({ is_read: true }).eq('user_id', userId)
+          await client
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', userId)
+            .eq('is_read', false)
         } else if (unreadTargetIds.length > 0) {
-          await client.from('notifications').update({ is_read: true }).in('id', unreadTargetIds)
+          await client
+            .from('notifications')
+            .update({ is_read: true })
+            .in('id', unreadTargetIds)
+            .eq('is_read', false)
         } else {
-          await client.from('notifications').update({ is_read: true }).eq('is_read', false)
+          await client
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('is_read', false)
         }
       }
     } catch (err) {

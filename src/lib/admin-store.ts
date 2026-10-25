@@ -2386,18 +2386,24 @@ export const adminStore = {
     return newNotifs
   },
 
-  markAllNotificationsRead(userId?: string) {
-    if (userId) {
-      state.notifications = state.notifications.map((n) =>
-        n.userId === userId ||
-        n.metadata?.studentId === userId ||
-        n.metadata?.parentId === userId
-          ? { ...n, isRead: true }
-          : n
-      )
-    } else {
-      state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
-    }
+  markAllNotificationsRead(userId?: string, targetIds?: string[]) {
+    const idSet = targetIds && targetIds.length > 0 ? new Set(targetIds) : null
+    state.notifications = state.notifications.map((n) => {
+      if (idSet && idSet.has(n.id)) {
+        return { ...n, isRead: true }
+      }
+      if (userId) {
+        if (
+          n.userId === userId ||
+          n.metadata?.studentId === userId ||
+          n.metadata?.parentId === userId
+        ) {
+          return { ...n, isRead: true }
+        }
+        return n
+      }
+      return { ...n, isRead: true }
+    })
     saveAndNotify()
   },
 
