@@ -30,7 +30,7 @@ export const Route = createFileRoute('/tutor/presensi_/$sessionId')({
   component: TutorPresensiDetailPage,
 })
 
-export function TutorPresensiDetailPage() {
+function TutorPresensiDetailPage() {
   const { sessionId } = Route.useParams()
   const { sessions, students } = useTutorDashboardData()
   const { saveSessionAttendance } = useAdminMutations()
@@ -44,7 +44,7 @@ export function TutorPresensiDetailPage() {
   const [saveSuccess, setSaveSuccess] = React.useState<boolean>(false)
   const [isSaving, setIsSaving] = React.useState<boolean>(false)
 
-  // Cek apakah sesi terpilih terkunci (Audit Lock 24h)
+  // Cek apakah sesi terpilih terkunci (Audit Lock 2 jam)
   const isLocked = React.useMemo(() => {
     if (!session) return false
     return isSessionLockedForTutor(session)
@@ -131,8 +131,8 @@ export function TutorPresensiDetailPage() {
 
       toast.success('Perubahan presensi sesi berhasil disimpan!', {
         description: anyAlpa
-          ? 'Data rekapitulasi kehadiran siswa telah diperbarui. Peringatan ketidakhadiran (Alpa) otomatis diteruskan ke notifikasi orang tua siswa terkait.'
-          : 'Data rekapitulasi kehadiran siswa telah diperbarui secara langsung ke sistem.',
+          ? 'Data rekapitulasi kehadiran siswa telah diperbarui. Peringatan alpa dan status kehadiran lainnya diteruskan ke notifikasi orang tua/wali terkait.'
+          : 'Data rekapitulasi kehadiran siswa telah diperbarui dan diteruskan ke notifikasi orang tua/wali terkait.',
       })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal menyimpan presensi'
@@ -234,19 +234,19 @@ export function TutorPresensiDetailPage() {
             ) : (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#166534]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#166534]" />
-                <span>Tersimpan (Grace Period 24 Jam)</span>
+                <span>Tersimpan (Grace Period 2 Jam)</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* Audit Lock Banner jika sesi telah terkunci > 24 jam */}
+        {/* Audit Lock Banner jika sesi telah terkunci > 2 jam */}
         {isLocked && (
           <div className="flex items-start gap-3 p-4 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-xs text-[#555555]">
             <Lock className="w-4 h-4 text-[#555555] shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <span className="font-semibold text-[#000000] block">
-                Sesi Terkunci Permanen (Batas Toleransi Koreksi 24 Jam Telah Berakhir)
+                Sesi Terkunci Permanen (Batas Toleransi Koreksi 2 Jam Telah Berakhir)
               </span>
               <p className="leading-relaxed">
                 Catatan presensi dan evaluasi topik pada sesi ini berada dalam mode baca-saja (read-only) untuk melindungi integritas arsip rapor siswa. Hubungi Administrator jika memerlukan pembukaan kunci audit resmi.
@@ -350,7 +350,7 @@ export function TutorPresensiDetailPage() {
               Peringatan: {countAlpa} Siswa Tercatat Alpa (Tanpa Keterangan)
             </p>
             <p className="text-xs text-[#555555] leading-relaxed">
-              Menyimpan presensi dengan siswa berstatus Alpa akan otomatis mengirimkan notifikasi ketidakhadiran ke akun orang tua/wali siswa terkait.
+              Pada penyimpanan pertama sesi ini, status kehadiran setiap siswa (termasuk Alpa) otomatis diteruskan ke notifikasi orang tua/wali terkait. Penyuntingan berikutnya dalam masa grace period tidak mengirim ulang notifikasi.
             </p>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
+import { motion } from 'motion/react'
+import { fadeInUp, viewportConfig } from '~/lib/motion'
 
 interface CtaFooterProps {
   onOpenRegister: () => void
@@ -22,7 +24,13 @@ const LOGIN_LINKS = [
 export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
   return (
     <div className="lp-end">
-      <section className="container lp-cta">
+      <motion.section
+        className="container lp-cta"
+        variants={fadeInUp}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportConfig}
+      >
         <h2 className="lp-cta-title">
           Coba satu kelas dulu. <em>Gratis.</em>
         </h2>
@@ -48,7 +56,7 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
             </a>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       <footer className="container lp-footer">
         <div className="lp-footer-grid">

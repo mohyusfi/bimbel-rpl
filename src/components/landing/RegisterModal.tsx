@@ -29,6 +29,7 @@ const INITIAL_FORM_DATA = {
   parentName: '',
   parentEmail: '',
   parentPhone: '',
+  parentJob: '',
   parentAddress: '',
 }
 
@@ -101,6 +102,15 @@ export function RegisterModal({
     // 2. Validasi keunikan email siswa terhadap pendaftar & siswa aktif
     const currentAdminState = adminStore.getState()
     const emailLower = formData.studentEmail.trim().toLowerCase()
+    const parentEmailLower = formData.parentEmail.trim().toLowerCase()
+
+    if (emailLower === parentEmailLower) {
+      setErrorMessage(
+        'Email siswa dan email orang tua tidak boleh sama. Gunakan email berbeda untuk masing-masing peran.'
+      )
+      return
+    }
+
     const duplicateReg = currentAdminState.registrations.some(
       (r) => r.studentEmail.toLowerCase() === emailLower && r.status === 'menunggu'
     )
@@ -111,11 +121,17 @@ export function RegisterModal({
       return
     }
 
-    const duplicateStudent = currentAdminState.students.some(
+    const duplicateStudent = currentAdminState.students.find(
       (s) => s.email.toLowerCase() === emailLower
     )
     if (duplicateStudent) {
-      setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+      if (duplicateStudent.status === 'nonaktif') {
+        setErrorMessage(
+          'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.'
+        )
+      } else {
+        setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+      }
       return
     }
 
@@ -144,8 +160,14 @@ export function RegisterModal({
           parentName: formData.parentName.trim(),
           parentEmail: formData.parentEmail.trim() || undefined,
           parentPhone: formData.parentPhone.trim(),
+          parentJob: formData.parentJob.trim() || undefined,
           parentAddress: formData.parentAddress.trim() || 'Kota Palu',
         })
+        if (!res.success) {
+          setErrorMessage(res.error)
+          setIsSubmitting(false)
+          return
+        }
         if (res.success && res.data) {
           registrationNumber = res.data.registrationNumber
         }
@@ -164,6 +186,7 @@ export function RegisterModal({
         parentName: formData.parentName.trim(),
         parentEmail: formData.parentEmail.trim(),
         parentPhone: formData.parentPhone.trim(),
+        parentJob: formData.parentJob.trim() || undefined,
         parentAddress: formData.parentAddress.trim() || 'Kota Palu',
         registrationNumber,
       })
@@ -327,7 +350,7 @@ export function RegisterModal({
               </div>
             ) : (
               <form id="regForm" onSubmit={handleSubmit}>
-                <div className="modal-body space-y-4">
+                <div className="modal-body space-y-4 scrollbar-none">
                   {errorMessage && (
                     <div
                       className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
@@ -500,6 +523,20 @@ export function RegisterModal({
                         Untuk notifikasi presensi harian & penerbitan kredensial
                       </span>
                     </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="parentJob">
+                      Pekerjaan orang tua / wali
+                    </label>
+                    <input
+                      type="text"
+                      id="parentJob"
+                      className="form-input"
+                      placeholder="Contoh: PNS / Guru / Wiraswasta"
+                      value={formData.parentJob}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="form-group">

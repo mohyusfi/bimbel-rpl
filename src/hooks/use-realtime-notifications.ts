@@ -8,6 +8,9 @@ import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
 export interface RealtimeNotificationsOptions {
   userId?: string | null
   role?: 'admin' | 'tutor' | 'student' | 'parent'
+  userEmail?: string
+  childIds?: string[]
+  relevantUserIds?: string[]
   client?: SupabaseClient
   enabled?: boolean
   queryClient?: QueryClient
@@ -30,6 +33,84 @@ export interface UseRealtimeNotificationsReturn {
 export interface RealtimeNotificationsSubscription {
   channels: RealtimeChannel[]
   unsubscribe: () => void
+}
+
+function notificationDedupKey(n: AdminNotification): string | null {
+  const announcementId =
+    (n.metadata?.announcementId as string) ||
+    (n.type === 'announcement' ? n.id : null)
+  if (announcementId) return `announcement:${announcementId}`
+
+  const invoiceId = n.metadata?.invoiceId as string | undefined
+  if (invoiceId) {
+    const roles = Array.isArray(n.metadata?.targetRoles)
+      ? [...(n.metadata?.targetRoles as string[])].sort().join('|')
+      : ''
+    return `invoice:${invoiceId}:${roles || 'any'}`
+  }
+
+  return null
+}
+
+export function mergeNotificationSources(
+  inbox: AdminNotification[],
+  live: AdminNotification[]
+): AdminNotification[] {
+  const byKey = new Map<string, AdminNotification>()
+
+  for (const n of live) {
+    byKey.set(n.id, n)
+  }
+
+  for (const row of inbox) {
+    const rowKey = notificationDedupKey(row)
+    if (rowKey) {
+      for (const [key, existing] of Array.from(byKey.entries())) {
+        if (notificationDedupKey(existing) === rowKey) {
+          byKey.delete(key)
+        }
+      }
+    }
+    byKey.set(row.id, { ...row, __inbox: true } as AdminNotification)
+  }
+
+  return Array.from(byKey.values())
+}
+
+/**
+ * Membuat queryFn TanStack Query untuk kotak masuk lonceng: memuat notifikasi
+ * persisten milik pengguna dari Supabase lalu menggabungkannya dengan notifikasi
+ * realtime yang sedang ada di store. Bila server tidak terjangkau, fallback ke store.
+ */
+export function createNotificationQueryFn(
+  options: RealtimeNotificationsOptions
+): () => Promise<AdminNotification[]> {
+  return async () => {
+    const live = adminStore.getState().notifications
+    const userIds = Array.from(
+      new Set(
+        [options.userId, ...(options.relevantUserIds || []), ...(options.childIds || [])]
+          .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+          .map((v) => v.trim())
+      )
+    )
+
+    try {
+      const { getNotificationInboxFn } = await import(
+        '~/server/functions/notification-inbox'
+      )
+      const res = await getNotificationInboxFn({
+        data: { userIds, email: options.userEmail },
+      })
+      if (res.success && Array.isArray(res.data)) {
+        return mergeNotificationSources(res.data as AdminNotification[], live)
+      }
+    } catch (err) {
+      console.warn('[WARN] Gagal memuat kotak masuk notifikasi dari server:', err)
+    }
+
+    return live
+  }
 }
 
 /**
@@ -68,8 +149,40 @@ export function setupRealtimeNotifications(
     let addedNotif: AdminNotification | null = null
 
     if (notifData && typeof notifData === 'object' && notifData.title) {
+      let meta = notifData.metadata
+      if (typeof meta === 'string') {
+        try {
+          meta = JSON.parse(meta)
+        } catch {}
+      }
+
       const currentNotifications = adminStore.getState().notifications
-      if (!notifData.id || !currentNotifications.some((n) => n.id === notifData.id)) {
+      const annId =
+        meta?.announcementId ||
+        (notifData.type === 'announcement' ? notifData.id : null)
+
+      const isDuplicate = currentNotifications.some((n) => {
+        if (notifData.id && n.id === notifData.id) return true
+        if (annId) {
+          let existingMeta = n.metadata
+          if (typeof existingMeta === 'string') {
+            try {
+              existingMeta = JSON.parse(existingMeta)
+            } catch {}
+          }
+          const existingAnnId =
+            existingMeta?.announcementId || (n.type === 'announcement' ? n.id : null)
+          if (existingAnnId === annId) return true
+        }
+        // Deduplikasi hanya berdasarkan title+message yang benar-benar identik
+        // (bukan berdasarkan type=announcement saja, karena bisa memblok notif untuk role berbeda)
+        if (n.title === notifData.title && n.message === notifData.message && !annId) {
+          return true
+        }
+        return false
+      })
+
+      if (!isDuplicate) {
         addedNotif = adminStore.addNotification({
           id: notifData.id,
           userId: notifData.userId || notifData.user_id,
@@ -77,7 +190,7 @@ export function setupRealtimeNotifications(
           message: notifData.message || '',
           type: notifData.type || 'general',
           linkUrl: notifData.linkUrl || notifData.link_url,
-          metadata: notifData.metadata,
+          metadata: meta || notifData.metadata,
         })
       }
     }
@@ -95,6 +208,7 @@ export function setupRealtimeNotifications(
         queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.gradeRecords })
       } else if (notifType === 'announcement') {
         queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.announcements })
+        queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
       }
 
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -110,9 +224,30 @@ export function setupRealtimeNotifications(
   }
 
   // 1. Channel broadcast:announcements
+  if (typeof client.getChannels === 'function') {
+    const existing = client.getChannels().find((c) => c.topic === 'realtime:broadcast:announcements')
+    if (existing && typeof client.removeChannel === 'function') {
+      try {
+        client.removeChannel(existing)
+      } catch {}
+    }
+  }
+
   const broadcastChannel = client.channel('broadcast:announcements')
   broadcastChannel
     .on('broadcast', { event: 'announcement' }, handleIncomingNotification)
+    .on('broadcast', { event: 'announcement_deleted' }, (payload: any) => {
+      const annId =
+        payload?.payload?.announcementId ||
+        payload?.payload?.id ||
+        payload?.announcementId ||
+        payload?.id
+      if (annId) {
+        adminStore.deleteAnnouncement(annId)
+      }
+      queryClient?.invalidateQueries({ queryKey: ADMIN_KEYS.announcements })
+      queryClient?.invalidateQueries({ queryKey: ['portal-announcements'] })
+    })
     .on('broadcast', { event: 'notification' }, handleIncomingNotification)
     .subscribe()
 
@@ -120,7 +255,17 @@ export function setupRealtimeNotifications(
 
   // 2. Channel user-notifications:${userId} (only for valid non-empty string userId)
   if (userId && typeof userId === 'string' && userId.trim() !== '') {
-    const userChannel = client.channel(`user-notifications:${userId.trim()}`)
+    const cleanUserId = userId.trim()
+    if (typeof client.getChannels === 'function') {
+      const existingUserCh = client.getChannels().find((c) => c.topic === `realtime:user-notifications:${cleanUserId}`)
+      if (existingUserCh && typeof client.removeChannel === 'function') {
+        try {
+          client.removeChannel(existingUserCh)
+        } catch {}
+      }
+    }
+
+    const userChannel = client.channel(`user-notifications:${cleanUserId}`)
     userChannel
       .on('broadcast', { event: 'notification' }, handleIncomingNotification)
       .on(
@@ -129,7 +274,7 @@ export function setupRealtimeNotifications(
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${userId.trim()}`,
+          filter: `user_id=eq.${cleanUserId}`,
         },
         handleIncomingNotification
       )
@@ -174,6 +319,9 @@ export function useRealtimeNotifications(
   const {
     userId,
     role,
+    userEmail,
+    childIds,
+    relevantUserIds,
     client = supabase,
     enabled = true,
     onNotification,
@@ -210,17 +358,59 @@ export function useRealtimeNotifications(
     }
   }, [userId, client, enabled, queryClient, onNotification])
 
-  // Query notifications from cache / store
+  // Query notifications from DB inbox (persistent) merged with the realtime store
   const { data: allNotifications = [] } = useQuery<AdminNotification[]>({
     queryKey: ADMIN_KEYS.notifications,
-    queryFn: () => adminStore.getState().notifications,
+    queryFn: createNotificationQueryFn({
+      userId,
+      role,
+      userEmail,
+      childIds,
+      relevantUserIds,
+    }),
   })
 
   const notifications = React.useMemo(() => {
     return allNotifications.filter((n) => {
+      const declaredRoles = n.metadata?.targetRoles
+      if (
+        role &&
+        Array.isArray(declaredRoles) &&
+        declaredRoles.length > 0 &&
+        !declaredRoles.includes(role)
+      ) {
+        return false
+      }
+
       // 1. If role is explicitly provided
       if (role === 'admin') {
-        // Admin has full visibility into all notifications
+        // Exclude role-specific personal notifications intended for other roles
+        if (n.type === 'announcement') {
+          const target =
+            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
+          // Sembunyikan dari drawer admin jika pengumuman khusus audiens siswa, wali, atau tutor
+          if (target !== 'Semua' && target !== 'Admin') {
+            return false
+          }
+          const recipientRole = n.metadata?.recipientRole
+          if (recipientRole && recipientRole !== 'admin') {
+            return false
+          }
+          if ((n as any).__inbox) {
+            return true
+          }
+          if (
+            n.userId &&
+            (n.userId.startsWith('stu-') ||
+              n.userId.startsWith('par-') ||
+              n.userId.startsWith('tut-') ||
+              n.userId.startsWith('usr-student') ||
+              n.userId.startsWith('usr-parent') ||
+              n.userId.startsWith('usr-tutor'))
+          ) {
+            return false
+          }
+        }
         return true
       }
 
@@ -229,16 +419,81 @@ export function useRealtimeNotifications(
         if (n.type === 'registration') return false
         if (n.type === 'payment' && !n.userId && !n.metadata?.studentId && !n.metadata?.parentId) return false
 
-        // Broadcast announcements are visible to everyone
-        if (n.type === 'announcement') return true
+        // User-specific IDs resolution
+        const idsToMatch = new Set<string>()
+        if (userId) idsToMatch.add(userId)
+        if (relevantUserIds) relevantUserIds.forEach((id) => idsToMatch.add(id))
 
-        // User-specific notifications
-        if (userId) {
-          return (
-            n.userId === userId ||
-            n.metadata?.studentId === userId ||
-            n.metadata?.parentId === userId
-          )
+        if (role === 'student') {
+          // Add standard demo aliases for Fahri Ramadhan
+          idsToMatch.add('stu-1')
+          idsToMatch.add('d992d9fc-6f5b-434f-998b-358e54a754b7')
+          idsToMatch.add('943d2c13-0a7f-4e5d-b00d-a930e5bbbfdc')
+        }
+
+        if (role === 'parent') {
+          // Add standard demo aliases for Ahmad Dahlan
+          idsToMatch.add('par-1')
+          idsToMatch.add('ec6f75cb-887a-442b-b91d-f47f9afc5ab8')
+        }
+
+        if (role === 'tutor') {
+          idsToMatch.add('tut-1')
+          idsToMatch.add('1dc75962-7771-4c58-85af-5ce40c2eabae')
+        }
+
+        // Broadcast announcements are filtered by target audience and role isolation
+        if (n.type === 'announcement') {
+          const target =
+            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
+          const recipientRole = n.metadata?.recipientRole
+
+          // Must match audience target
+          if (target === 'Siswa' && role !== 'student') return false
+          if (target === 'Orang Tua' && role !== 'parent') return false
+          if (target === 'Tutor' && role !== 'tutor') return false
+
+          // If a specific recipientRole is tagged, must match this role
+          if (recipientRole && recipientRole !== role) return false
+
+          // Baris dari kotak masuk DB sudah ter-scope ke pengguna ini
+          if ((n as any).__inbox) return true
+
+          // If targeted to a specific user, ensure user ID matches
+          if (n.userId && idsToMatch.size > 0 && !idsToMatch.has(n.userId)) {
+            return false
+          }
+
+          return true
+        }
+
+        // Baris dari kotak masuk DB sudah ter-scope ke pengguna ini
+        if ((n as any).__inbox) return true
+
+        if (idsToMatch.size > 0) {
+          const directMatch =
+            (n.userId && idsToMatch.has(n.userId)) ||
+            (n.metadata?.studentId && idsToMatch.has(n.metadata.studentId)) ||
+            (n.metadata?.parentId && idsToMatch.has(n.metadata.parentId))
+
+          if (directMatch) return true
+
+          // Check child IDs for parent (multi-child)
+          if (role === 'parent' && childIds && childIds.length > 0) {
+            const childSet = new Set(childIds)
+            if (n.userId && childSet.has(n.userId)) return true
+            if (n.metadata?.studentId && childSet.has(n.metadata.studentId)) return true
+          }
+
+          // If targetRoles in metadata explicitly targets this role and no conflicting user
+          if (n.metadata?.targetRoles && Array.isArray(n.metadata.targetRoles)) {
+            if (n.metadata.targetRoles.includes(role)) {
+              if (role === 'student' && (!n.userId || idsToMatch.has('stu-1') || n.metadata?.studentId === 'stu-1')) return true
+              if (role === 'parent' && (!n.userId || idsToMatch.has('par-1') || n.metadata?.parentId === 'par-1')) return true
+            }
+          }
+
+          return false
         }
 
         // If userId not yet resolved, show student/academic domain notifications only
@@ -254,7 +509,7 @@ export function useRealtimeNotifications(
         n.metadata?.parentId === userId
       )
     })
-  }, [allNotifications, userId, role])
+  }, [allNotifications, userId, role, childIds, relevantUserIds])
 
   const unreadCount = React.useMemo(
     () => notifications.filter((n) => !n.isRead).length,
@@ -262,29 +517,55 @@ export function useRealtimeNotifications(
   )
 
   const markAsRead = React.useCallback(
-    (id: string) => {
+    async (id: string) => {
       adminStore.markNotificationRead(id)
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+
+      try {
+        if (client && typeof client.from === 'function') {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+          if (isUuid) {
+            await client.from('notifications').update({ is_read: true }).eq('id', id)
+          } else {
+            await client.from('notifications').update({ is_read: true }).filter('metadata->>announcementId', 'eq', id)
+          }
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal update status is_read notifikasi di Supabase:', err)
+      }
     },
-    [queryClient]
+    [client, queryClient]
   )
 
-  const markAllAsRead = React.useCallback(() => {
-    // 1. Mark all unread notifications visible in this portal as read
+  const markAllAsRead = React.useCallback(async () => {
+    // 1. Mark all unread notifications visible in this portal as read in local store
     const unreadTargetIds = notifications.filter((n) => !n.isRead).map((n) => n.id)
     unreadTargetIds.forEach((id) => {
       adminStore.markNotificationRead(id)
     })
 
-    // 2. Call adminStore.markAllNotificationsRead for the user or globally
+    // 2. Call adminStore.markAllNotificationsRead only if user is explicitly resolved
     if (userId) {
       adminStore.markAllNotificationsRead(userId)
-    } else {
-      adminStore.markAllNotificationsRead()
     }
 
     queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
-  }, [notifications, queryClient, userId])
+
+    // 3. Persist update is_read = true in Supabase database
+    try {
+      if (client && typeof client.from === 'function') {
+        if (userId) {
+          await client.from('notifications').update({ is_read: true }).eq('user_id', userId)
+        } else if (unreadTargetIds.length > 0) {
+          await client.from('notifications').update({ is_read: true }).in('id', unreadTargetIds)
+        } else {
+          await client.from('notifications').update({ is_read: true }).eq('is_read', false)
+        }
+      }
+    } catch (err) {
+      console.warn('[WARN] Gagal update status markAllAsRead di Supabase:', err)
+    }
+  }, [client, notifications, queryClient, userId])
 
   return {
     notifications,

@@ -6,7 +6,7 @@ import {
 } from '../attendance-helpers'
 
 describe('Attendance Helpers — TDD Unit Tests', () => {
-  describe('isSessionLockedForTutor (Audit Lock & 24h Grace Period)', () => {
+  describe('isSessionLockedForTutor (Audit Lock & 2h Grace Period)', () => {
     it('mengembalikan false jika sesi belum selesai (isCompleted = false)', () => {
       const session = {
         isCompleted: false,
@@ -15,9 +15,9 @@ describe('Attendance Helpers — TDD Unit Tests', () => {
       expect(isSessionLockedForTutor(session, new Date('2026-10-23T12:00:00Z'))).toBe(false)
     })
 
-    it('mengembalikan false jika sesi baru selesai dalam batas 24 jam (grace period aktif)', () => {
+    it('mengembalikan false jika sesi baru selesai dalam batas 2 jam (grace period aktif)', () => {
       const now = new Date('2026-10-23T12:00:00Z')
-      const completedAt = new Date('2026-10-23T02:00:00Z') // 10 jam yang lalu
+      const completedAt = new Date('2026-10-23T11:00:00Z') // 1 jam yang lalu
       const session = {
         isCompleted: true,
         sessionDate: '2026-10-23',
@@ -26,18 +26,18 @@ describe('Attendance Helpers — TDD Unit Tests', () => {
       expect(isSessionLockedForTutor(session, now)).toBe(false)
     })
 
-    it('mengembalikan true (terkunci) jika sesi selesai lebih dari 24 jam yang lalu', () => {
+    it('mengembalikan true (terkunci) jika sesi selesai lebih dari 2 jam yang lalu', () => {
       const now = new Date('2026-10-23T12:00:00Z')
-      const completedAt = new Date('2026-10-22T10:00:00Z') // 26 jam yang lalu
+      const completedAt = new Date('2026-10-23T09:30:00Z') // 2.5 jam yang lalu
       const session = {
         isCompleted: true,
-        sessionDate: '2026-10-22',
+        sessionDate: '2026-10-23',
         completedAt: completedAt.toISOString(),
       }
       expect(isSessionLockedForTutor(session, now)).toBe(true)
     })
 
-    it('menggunakan sessionDate jika completedAt tidak tersedia: terkunci jika sessionDate > 24 jam yang lalu', () => {
+    it('menggunakan sessionDate jika completedAt tidak tersedia: terkunci jika sessionDate > 2 jam yang lalu', () => {
       const now = new Date('2026-10-25T12:00:00Z')
       const session = {
         isCompleted: true,

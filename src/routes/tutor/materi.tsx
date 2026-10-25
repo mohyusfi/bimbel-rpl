@@ -42,7 +42,7 @@ const CATEGORIES = [
   'Kisi-kisi Ujian',
 ] as const
 
-export function TutorMateriPage() {
+function TutorMateriPage() {
   const { classes, tutor } = useTutorDashboardData()
   const { data: materials = [] } = useTutorMaterials(tutor?.id)
   const { addLearningMaterial, deleteLearningMaterial } = useAdminMutations()

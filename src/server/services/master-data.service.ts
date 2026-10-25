@@ -18,6 +18,14 @@ export function clampCapacity(capacity: unknown, defaultCap = 12): number {
  */
 export async function ensureAdminSession(): Promise<boolean> {
   try {
+    // 1. Jika di browser dan user aktif BUKAN admin, dilarang menimpa sesi login aktif pengguna
+    if (typeof window !== 'undefined') {
+      const activeRole = authStore.getState().role
+      if (activeRole && activeRole !== 'admin') {
+        return false
+      }
+    }
+
     const { data: sessionData } = await supabase.auth.getSession()
     const userEmail = sessionData?.session?.user?.email?.toLowerCase() || ''
     const isAdminEmail =
@@ -30,6 +38,15 @@ export async function ensureAdminSession(): Promise<boolean> {
 
     if (isAdminEmail) {
       return true
+    }
+
+    // 2. Di browser: Hanya sign-in jika memang peran aktif terbukti admin
+    if (typeof window !== 'undefined') {
+      const activeUser = authStore.getState().user
+      const activeRole = authStore.getState().role
+      if (activeRole !== 'admin' && !activeUser?.isSuperAdmin) {
+        return false
+      }
     }
 
     let targetEmail = 'nuraini.tu@tadulakocendekia.sch.id'

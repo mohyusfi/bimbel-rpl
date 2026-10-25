@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { clampCapacity, ensureAdminSession, masterDataService } from '../master-data.service'
+import { authStore } from '~/lib/auth-store'
 
 describe('MasterDataService — Clamping & Mapping Guardrails', () => {
   it('clamping kapasitas menjepit input > 12 menjadi 12', () => {
@@ -30,6 +31,18 @@ describe('MasterDataService — Clamping & Mapping Guardrails', () => {
   it('ensureAdminSession berhasil mengeksekusi autentikasi admin di Supabase', async () => {
     const isAuthed = await ensureAdminSession()
     expect(isAuthed).toBe(true)
+  })
+
+  it('ensureAdminSession TIDAK menimpa peran non-admin (siswa/tutor/wali) dan mencegah role hijacking', async () => {
+    // Simulasikan pengguna sedang login sebagai siswa
+    authStore.quickLogin('student')
+    expect(authStore.getState().role).toBe('student')
+
+    // Panggil ensureAdminSession (misalnya terpanggil oleh service query)
+    const isAuthed = await ensureAdminSession()
+
+    // Peran siswa di authStore harus TETAP 'student', TIDAK boleh berganti menjadi 'admin'
+    expect(authStore.getState().role).toBe('student')
   })
 
   it('berhasil melakukan operasi CRUD ruangan fisik secara persisten dengan auto-session', async () => {

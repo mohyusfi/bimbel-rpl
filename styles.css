@@ -1072,6 +1072,11 @@ img, svg {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.modal-body::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-footer {

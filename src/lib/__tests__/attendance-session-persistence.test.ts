@@ -221,12 +221,12 @@ describe('Tiket 03 — Presensi Digital Sesi Kalender Aktual & Persistensi Audit
       expect(result).toBe(false)
     })
 
-    it('menolak pengubahan presensi jika sesi sudah selesai lebih dari 24 jam yang lalu (Audit Lock)', () => {
+    it('menolak pengubahan presensi jika sesi sudah selesai lebih dari 2 jam yang lalu (Audit Lock)', () => {
       const baseSchedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(baseSchedule.id, '2026-10-15')
 
-      // Tandai sesi selesai 48 jam yang lalu
-      const pastTime = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      // Tandai sesi selesai 3 jam yang lalu
+      const pastTime = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
       session.isCompleted = true
       session.completedAt = pastTime
 
@@ -234,15 +234,15 @@ describe('Tiket 03 — Presensi Digital Sesi Kalender Aktual & Persistensi Audit
         adminStore.saveSessionAttendance(session.id, 'Topik Terkunci', [
           { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
         ])
-      }).toThrow(/Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 24 jam/)
+      }).toThrow(/Pencegahan manipulasi presensi: Sesi bimbingan telah selesai lebih dari 2 jam/)
     })
 
-    it('mengizinkan pengubahan presensi jika sesi baru selesai dalam batas 24 jam (Grace Period aktif)', () => {
+    it('mengizinkan pengubahan presensi jika sesi baru selesai dalam batas 2 jam (Grace Period aktif)', () => {
       const baseSchedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(baseSchedule.id, '2026-10-23')
 
-      // Sesi selesai 2 jam yang lalu
-      const recentTime = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      // Sesi selesai 1 jam yang lalu
+      const recentTime = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
       session.isCompleted = true
       session.completedAt = recentTime
 
@@ -479,125 +479,83 @@ describe('Tiket 03 — Presensi Digital Sesi Kalender Aktual & Persistensi Audit
   })
 
   // =========================================================================
-  // 4. PENANGANAN STATUS ALPA MEMICU NOTIFIKASI PERINGATAN PERWALIAN
+  // 4. NOTIFIKASI PRESENSI KE ORANG TUA/WALI (SEMUA STATUS, PENYIMPANAN PERTAMA)
   // =========================================================================
-  describe('Penanganan Status Alpa Memicu Notifikasi Peringatan Perwalian', () => {
-    it('menerbitkan notifikasi peringatan perwalian saat ada siswa yang tercatat Alpa', () => {
+  describe('Notifikasi Presensi ke Orang Tua/Wali', () => {
+    it('menerbitkan notifikasi ke orang tua untuk semua status pada penyimpanan pertama', () => {
       const schedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(schedule.id, '2026-11-04')
 
       const notifCountBefore = adminStore.getState().notifications.length
 
-      const entriesWithAlpa: AttendanceEntry[] = [
-        {
-          studentId: 'stu-1',
-          studentName: 'Fahri Ramadhan',
-          nis: 'TC-2026-001',
-          status: 'alpa',
-          note: 'Tanpa konfirmasi hadir',
-        },
-        {
-          studentId: 'stu-2',
-          studentName: 'Alya Salsabila',
-          nis: 'TC-2026-002',
-          status: 'hadir',
-        },
+      const entries: AttendanceEntry[] = [
+        { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+        { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'alpa' },
+        { studentId: 'stu-3', studentName: 'Rizki Kurniawan', nis: 'TC-2026-003', status: 'izin' },
       ]
 
-      adminStore.saveSessionAttendance(
-        session.id,
-        'Analisis Soal Mandiri & Kuis Cepat',
-        entriesWithAlpa
-      )
+      adminStore.saveSessionAttendance(session.id, 'Analisis Soal Mandiri & Kuis Cepat', entries)
 
       const notifsAfter = adminStore.getState().notifications
-      expect(notifsAfter.length).toBe(notifCountBefore + 1)
+      const newNotifs = notifsAfter.filter(
+        (n) => n.metadata?.sessionId === session.id && n.type === 'attendance'
+      )
 
-      const latestNotif = notifsAfter[0]
-      expect(latestNotif.title).toBe('Peringatan Ketidakhadiran Siswa (Alpa)')
-      expect(latestNotif.message).toContain('Fahri Ramadhan')
-      expect(latestNotif.message).toContain('Alpa')
-      expect(latestNotif.message).toContain(session.subjectName)
-      expect(latestNotif.message).toContain(session.startTime)
-      expect(['attendance', 'schedule']).toContain(latestNotif.type)
-      expect(latestNotif.isRead).toBe(false)
+      // stu-1 (par-1) dan stu-2 (par-2) punya wali; stu-3 tidak.
+      expect(notifsAfter.length).toBe(notifCountBefore + 2)
+      expect(newNotifs).toHaveLength(2)
+
+      expect(newNotifs.some((n) => n.title.includes('Hadir') && n.message.includes('Fahri'))).toBe(true)
+      expect(newNotifs.some((n) => n.title.includes('Alpa') && n.message.includes('Alya'))).toBe(true)
+      expect(newNotifs.every((n) => n.linkUrl === '/parent/kehadiran')).toBe(true)
+      expect(newNotifs.every((n) => n.isRead === false)).toBe(true)
+      expect(newNotifs[0].metadata?.targetRoles).toEqual(['parent'])
     })
 
-    it('menerbitkan beberapa notifikasi peringatan jika terdapat lebih dari satu siswa yang Alpa', () => {
+    it('hanya mengirim notifikasi pada penyimpanan pertama (anti-spam saat edit ulang)', () => {
       const schedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(schedule.id, '2026-11-05')
 
-      const notifCountBefore = adminStore.getState().notifications.length
-
-      const multiAlpaEntries: AttendanceEntry[] = [
-        {
-          studentId: 'stu-1',
-          studentName: 'Fahri Ramadhan',
-          nis: 'TC-2026-001',
-          status: 'alpa',
-        },
-        {
-          studentId: 'stu-2',
-          studentName: 'Alya Salsabila',
-          nis: 'TC-2026-002',
-          status: 'alpa',
-        },
-        {
-          studentId: 'stu-3',
-          studentName: 'Rizki Kurniawan',
-          nis: 'TC-2026-003',
-          status: 'hadir',
-        },
+      const entries: AttendanceEntry[] = [
+        { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+        { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'hadir' },
       ]
 
-      adminStore.saveSessionAttendance(session.id, 'Pekan Review Materi', multiAlpaEntries)
+      adminStore.saveSessionAttendance(session.id, 'Pekan Review Materi', entries)
+      const countAfterFirst = adminStore.getState().notifications.length
 
-      const notifsAfter = adminStore.getState().notifications
-      // Harus bertambah 2 notifikasi
-      expect(notifsAfter.length).toBe(notifCountBefore + 2)
+      // Edit ulang (status berubah) dalam masa grace period -> tidak boleh menambah notifikasi.
+      adminStore.saveSessionAttendance(session.id, 'Pekan Review Materi (revisi)', [
+        { ...entries[0], status: 'alpa' },
+        { ...entries[1], status: 'hadir' },
+      ])
 
-      const fahriNotif = notifsAfter.find(
-        (n) => n.title.includes('Alpa') && n.message.includes('Fahri Ramadhan')
-      )
-      const alyaNotif = notifsAfter.find(
-        (n) => n.title.includes('Alpa') && n.message.includes('Alya Salsabila')
-      )
-
-      expect(fahriNotif).toBeDefined()
-      expect(alyaNotif).toBeDefined()
+      expect(adminStore.getState().notifications.length).toBe(countAfterFirst)
     })
 
-    it('tidak menerbitkan notifikasi Alpa jika seluruh siswa hadir, sakit, atau izin', () => {
+    it('mengganti notifikasi presensi lama untuk sesi yang sama (anti-duplikat)', () => {
       const schedule = adminStore.getState().schedules[0]
       const session = adminStore.createSessionFromSchedule(schedule.id, '2026-11-06')
 
-      const notifCountBefore = adminStore.getState().notifications.length
-
-      const nonAlpaEntries: AttendanceEntry[] = [
-        {
-          studentId: 'stu-1',
-          studentName: 'Fahri Ramadhan',
-          nis: 'TC-2026-001',
-          status: 'hadir',
-        },
-        {
-          studentId: 'stu-2',
-          studentName: 'Alya Salsabila',
-          nis: 'TC-2026-002',
-          status: 'sakit',
-        },
-        {
-          studentId: 'stu-3',
-          studentName: 'Rizki Kurniawan',
-          nis: 'TC-2026-003',
-          status: 'izin',
-        },
+      const entries: AttendanceEntry[] = [
+        { studentId: 'stu-1', studentName: 'Fahri Ramadhan', nis: 'TC-2026-001', status: 'hadir' },
+        { studentId: 'stu-2', studentName: 'Alya Salsabila', nis: 'TC-2026-002', status: 'hadir' },
       ]
 
-      adminStore.saveSessionAttendance(session.id, 'Review Bab V', nonAlpaEntries)
+      adminStore.saveSessionAttendance(session.id, 'Review Bab V', entries)
+      const countAfterFirst = adminStore.getState().notifications.length
 
-      const notifsAfter = adminStore.getState().notifications
-      expect(notifsAfter.length).toBe(notifCountBefore)
+      // Simulasikan pengiriman ulang "penyimpanan pertama" -> harus mengganti, bukan menumpuk.
+      const stored = adminStore.getState().attendanceSessions.find((s) => s.id === session.id)!
+      stored.isCompleted = false
+      stored.completedAt = undefined
+      adminStore.saveSessionAttendance(session.id, 'Review Bab V', entries)
+
+      const sessionNotifs = adminStore
+        .getState()
+        .notifications.filter((n) => n.metadata?.sessionId === session.id && n.type === 'attendance')
+      expect(sessionNotifs).toHaveLength(2)
+      expect(adminStore.getState().notifications.length).toBe(countAfterFirst)
     })
   })
 

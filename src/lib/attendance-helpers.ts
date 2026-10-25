@@ -8,7 +8,9 @@ export interface SessionLockCandidate {
   completedAt?: string | Date | null
 }
 
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+/** Toleransi koreksi presensi oleh Tutor setelah sesi diselesaikan (2 jam). */
+export const GRACE_PERIOD_HOURS = 2
+const GRACE_PERIOD_MS = GRACE_PERIOD_HOURS * 60 * 60 * 1000
 
 /**
  * Format objek Date ke format string YYYY-MM-DD menggunakan waktu lokal (Kota Palu / WITA).
@@ -24,12 +26,12 @@ export function formatLocalDate(date: Date = new Date()): string {
 /**
  * Menentukan apakah sebuah sesi telah terkunci permanen (audit lock) bagi Tutor.
  *
- * Aturan Bisnis (Grace Period 24 Jam):
+ * Aturan Bisnis (Grace Period 2 Jam):
  * 1. Jika sesi belum selesai (isCompleted = false), sesi selalu dapat diedit (false).
  * 2. Jika sesi sudah selesai (isCompleted = true):
- *    - Jika ada completedAt: toleransi edit adalah 24 jam sejak completedAt.
- *    - Jika tidak ada completedAt: menggunakan akhir hari sessionDate (23:59:59) + 24 jam.
- *    - Melewati batas 24 jam, kembalikan true (terkunci).
+ *    - Jika ada completedAt: toleransi edit adalah 2 jam sejak completedAt.
+ *    - Jika tidak ada completedAt: menggunakan akhir hari sessionDate (23:59:59) + 2 jam.
+ *    - Melewati batas 2 jam, kembalikan true (terkunci).
  */
 export function isSessionLockedForTutor(
   session: SessionLockCandidate,
@@ -44,7 +46,7 @@ export function isSessionLockedForTutor(
   if (session.completedAt) {
     const completedAtMs = new Date(session.completedAt).getTime()
     if (!isNaN(completedAtMs)) {
-      return nowMs - completedAtMs > TWENTY_FOUR_HOURS_MS
+      return nowMs - completedAtMs > GRACE_PERIOD_MS
     }
   }
 
@@ -52,7 +54,7 @@ export function isSessionLockedForTutor(
   const sessionDateObj = new Date(`${session.sessionDate}T23:59:59`)
   const sessionDateMs = sessionDateObj.getTime()
   if (!isNaN(sessionDateMs)) {
-    return nowMs - sessionDateMs > TWENTY_FOUR_HOURS_MS
+    return nowMs - sessionDateMs > GRACE_PERIOD_MS
   }
 
   return false

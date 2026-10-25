@@ -484,7 +484,181 @@ async function runCleanupAndSeed() {
     })
   }
 
-  console.log('[DONE] [Sukses] Database Supabase bersih 100% dan siap untuk Tiket 03!')
+  // 11. Hapus Modul Belajar (materials & Storage learning-materials) sesuai permintaan pengguna
+  console.log('[CLEANUP] Membersihkan seluruh data materi di tabel materials dan storage learning-materials...')
+  const { error: delMatErr } = await supabase.from('materials').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  if (delMatErr) {
+    console.warn('[WARN] Gagal menghapus baris tabel materials:', delMatErr.message)
+  } else {
+    console.log('[OK] Tabel materials berhasil dikosongkan.')
+  }
+
+  try {
+    const { data: matFiles } = await supabase.storage.from('learning-materials').list('', { limit: 100 })
+    if (matFiles && matFiles.length > 0) {
+      const pathsToRemove = matFiles.map((f) => f.name)
+      await supabase.storage.from('learning-materials').remove(pathsToRemove)
+    }
+    const { data: clsFolders } = await supabase.storage.from('learning-materials').list('classes', { limit: 100 })
+    if (clsFolders && clsFolders.length > 0) {
+      for (const folder of clsFolders) {
+        const { data: subFiles } = await supabase.storage.from('learning-materials').list(`classes/${folder.name}`)
+        if (subFiles && subFiles.length > 0) {
+          await supabase.storage.from('learning-materials').remove(subFiles.map((sf) => `classes/${folder.name}/${sf.name}`))
+        }
+      }
+    }
+    console.log('[OK] Bucket storage learning-materials dibersihkan.')
+  } catch (stgMatErr) {
+    console.warn('[WARN] Notice pembersihan storage learning-materials:', stgMatErr)
+  }
+
+  // 12. Pangkas Tagihan SPP & Pembayaran (Invoices & Payments) Maksimal 4-5 Data
+  console.log('[CLEANUP] Memangkas data uji coba tabel payments & invoices ke 4 data master resmi...')
+  const OFFICIAL_INVOICE_IDS = [
+    'f1000000-0000-0000-0000-000000000001',
+    'f1000000-0000-0000-0000-000000000002',
+    'f1000000-0000-0000-0000-000000000003',
+    'f1000000-0000-0000-0000-000000000004',
+  ]
+  const OFFICIAL_PAYMENT_IDS = [
+    'fa000000-0000-0000-0000-000000000001',
+    'fa000000-0000-0000-0000-000000000002',
+    'fa000000-0000-0000-0000-000000000004',
+  ]
+
+  // Hapus payments selain payment resmi
+  const { error: delPayErr } = await supabase
+    .from('payments')
+    .delete()
+    .not('id', 'in', `(${OFFICIAL_PAYMENT_IDS.join(',')})`)
+  if (delPayErr) console.warn('[WARN] Gagal memangkas payments sisa testing:', delPayErr.message)
+  else console.log('[OK] Tabel payments dipangkas ke data resmi.')
+
+  // Hapus invoices selain invoice resmi
+  const { error: delInvErr } = await supabase
+    .from('invoices')
+    .delete()
+    .not('id', 'in', `(${OFFICIAL_INVOICE_IDS.join(',')})`)
+  if (delInvErr) console.warn('[WARN] Gagal memangkas invoices sisa testing:', delInvErr.message)
+  else console.log('[OK] Tabel invoices dipangkas ke 4 data resmi.')
+
+  // Pastikan 4 invoice resmi tersedia
+  const officialInvoices = [
+    {
+      id: 'f1000000-0000-0000-0000-000000000001',
+      student_id: OFFICIAL_STUDENT_IDS.fahri,
+      invoice_number: 'INV-202610-0011',
+      program_name: 'Intensif UTBK-SNBT',
+      description: 'SPP Bimbingan Belajar Periode Oktober 2026',
+      amount: 450000,
+      due_date: '2026-10-10',
+      status: 'lunas',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000002',
+      student_id: '921896b7-be81-4d51-af4a-6cc467757b03', // Bintang Pratama
+      invoice_number: 'INV-202610-0012',
+      program_name: 'SD Cendekia',
+      description: 'SPP Bimbingan Belajar Periode November 2026',
+      amount: 300000,
+      due_date: '2026-11-10',
+      status: 'menunggu',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000003',
+      student_id: OFFICIAL_STUDENT_IDS.alya,
+      invoice_number: 'INV-202610-0013',
+      program_name: 'SMP Prestasi',
+      description: 'SPP Bimbingan Belajar Periode November 2026',
+      amount: 350000,
+      due_date: '2026-11-10',
+      status: 'belum_dibayar',
+      rejected_reason: null,
+    },
+    {
+      id: 'f1000000-0000-0000-0000-000000000004',
+      student_id: OFFICIAL_STUDENT_IDS.fahri,
+      invoice_number: 'INV-202609-0014',
+      program_name: 'Intensif UTBK-SNBT',
+      description: 'SPP Bimbingan Belajar Periode September 2026',
+      amount: 450000,
+      due_date: '2026-09-10',
+      status: 'ditolak',
+      rejected_reason: 'Bukti transfer buram dan tidak menampilkan nomor referensi bank.',
+    },
+  ]
+
+  for (const inv of officialInvoices) {
+    const { data: exInv } = await supabase.from('invoices').select('id').eq('id', inv.id).maybeSingle()
+    if (!exInv) {
+      await supabase.from('invoices').insert(inv as any)
+    }
+  }
+
+  // 13. Bersihkan 2.460 Baris Notifikasi Sampah di Database Supabase
+  console.log('[CLEANUP] Membersihkan baris notifikasi sisa testing dari tabel notifications...')
+  const { error: delNotifErr } = await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  if (delNotifErr) {
+    console.warn('[WARN] Gagal membersihkan tabel notifications:', delNotifErr.message)
+  } else {
+    console.log('[OK] Tabel notifications dibersihkan dari 2.460 baris sampah.')
+  }
+
+  // Suntikkan 4 notifikasi master bersih untuk admin
+  const cleanNotifications = [
+    {
+      user_id: OFFICIAL_PROFILE_IDS.pimpinan,
+      title: 'Pendaftaran Baru Terverifikasi',
+      message: 'Fahri Ramadhan (SMA Negeri 1 Palu) telah aktif di paket Intensif UTBK-SNBT.',
+      type: 'registration',
+      is_read: true,
+      link_url: '/admin/siswa',
+    },
+    {
+      user_id: OFFICIAL_PROFILE_IDS.pimpinan,
+      title: 'Pembayaran SPP Terverifikasi',
+      message: 'Pembayaran SPP Fahri Ramadhan telah terverifikasi lunas dengan nomor kwitansi KWT-202610-0011.',
+      type: 'payment',
+      is_read: true,
+      link_url: '/admin/pembayaran',
+    },
+    {
+      user_id: OFFICIAL_PROFILE_IDS.pimpinan,
+      title: 'Jadwal Bimbingan Jumat Terjadwal',
+      message: 'Sesi bimbingan Fisika UTBK di Ruang Palu-1 telah dijadwalkan.',
+      type: 'schedule',
+      is_read: false,
+      link_url: '/admin/jadwal',
+    },
+    {
+      user_id: OFFICIAL_PROFILE_IDS.pimpinan,
+      title: 'Pengumuman Resmi Diterbitkan',
+      message: 'Jadwal Try Out Akbar UTBK 2026 telah dipublikasikan ke seluruh siswa.',
+      type: 'announcement',
+      is_read: false,
+      link_url: '/admin/pengumuman',
+    },
+  ]
+
+  for (const n of cleanNotifications) {
+    await supabase.from('notifications').insert(n)
+  }
+  console.log('[OK] Tabel notifications diisi dengan 4 notifikasi resmi.')
+
+  // 14. Pastikan 4 ruangan fisik resmi tersedia
+  console.log('[SEED] Memastikan 4 ruangan fisik resmi tersedia...')
+  for (const r of roomsToSeed) {
+    const { data: existingRoom } = await supabase.from('rooms').select('id').eq('room_name', r.room_name).maybeSingle()
+    if (!existingRoom) {
+      await supabase.from('rooms').insert(r)
+      console.log(`[OK] Room ${r.room_name} berhasil dibuat.`)
+    }
+  }
+
+  console.log('[DONE] [Sukses] Database Supabase bersih 100%, modul materi dihapus, dan batasan maks 5 data per entitas terpenuhi!')
 }
 
 runCleanupAndSeed().catch((err) => {

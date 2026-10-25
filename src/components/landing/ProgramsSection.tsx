@@ -1,3 +1,6 @@
+import { motion } from 'motion/react'
+import { fadeInUp, staggerContainer, viewportConfig } from '~/lib/motion'
+
 interface ProgramsSectionProps {
   onSelectProgram: (code: string) => void
 }
@@ -54,17 +57,31 @@ export function ProgramsSection({ onSelectProgram }: ProgramsSectionProps) {
   return (
     <section id="program" className="lp-section">
       <div className="container">
-        <header className="lp-section-head">
+        <motion.header
+          className="lp-section-head"
+          variants={fadeInUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportConfig}
+        >
           <h2 className="lp-h2">Pilih sesuai jenjang anak</h2>
           <p>
             Setiap paket sudah termasuk modul, latihan soal online, dan try out. Tidak ada biaya tambahan.
           </p>
-        </header>
+        </motion.header>
 
-        <ol className="lp-programs">
+        <motion.ol
+          className="lp-programs"
+          variants={staggerContainer(0.09)}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportConfig}
+        >
           {PROGRAMS.map((program) => (
-            <li
+            <motion.li
               key={program.num}
+              variants={fadeInUp}
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
               className={`lp-program${program.isFeatured ? ' is-featured' : ''}`}
             >
               <span className="lp-program-num">{program.num}</span>
@@ -90,9 +107,9 @@ export function ProgramsSection({ onSelectProgram }: ProgramsSectionProps) {
               >
                 {program.btnText}
               </button>
-            </li>
+            </motion.li>
           ))}
-        </ol>
+        </motion.ol>
       </div>
     </section>
   )

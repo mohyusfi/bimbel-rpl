@@ -17,6 +17,7 @@ import { StatusBadge, type BadgeStatus } from '~/components/ui/status-badge'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/kehadiran')({
+  ssr: false,
   component: ParentAttendancePage,
 })
 

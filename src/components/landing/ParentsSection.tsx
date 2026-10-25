@@ -1,4 +1,12 @@
 import { ArrowRight } from 'lucide-react'
+import { motion } from 'motion/react'
+import {
+  fadeInUp,
+  fadeInLeft,
+  fadeInRight,
+  staggerContainer,
+  viewportConfig,
+} from '~/lib/motion'
 
 const BENEFITS = [
   {
@@ -23,13 +31,23 @@ export function ParentsSection() {
   return (
     <section id="orang-tua" className="lp-section lp-parents">
       <div className="container lp-parents-grid">
-        <div className="lp-parents-intro">
+        <motion.div
+          className="lp-parents-intro"
+          variants={fadeInLeft}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportConfig}
+        >
           <h2 className="lp-h2">Anak sudah sampai di kelas? Anda langsung tahu.</h2>
           <p>
             Tidak perlu menelepon tutor atau menunggu rapor akhir semester. Semua kabar penting soal belajar anak bisa Anda lihat dari HP.
           </p>
 
-          <figure className="lp-message">
+          <motion.figure
+            className="lp-message"
+            whileHover={{ scale: 1.01 }}
+            transition={{ duration: 0.2 }}
+          >
             <div className="lp-message-bubble">
               <div className="lp-message-head">
                 <strong>Tadulako Cendekia</strong>
@@ -38,22 +56,32 @@ export function ParentsSection() {
               <p>Fahri sudah hadir di kelas Fisika UTBK hari ini, pukul 16.00–17.30.</p>
               <span className="lp-message-tag">Hadir</span>
             </div>
-            <figcaption>Contoh pesan yang Anda terima di WhatsApp.</figcaption>
-          </figure>
+            <figcaption>Contoh notifikasi presensi langsung di portal orang tua.</figcaption>
+          </motion.figure>
 
           <a href="dashboard.html?role=parent" className="lp-link">
             Lihat contoh halaman orang tua <ArrowRight className="lucide" />
           </a>
-        </div>
+        </motion.div>
 
-        <ul className="lp-benefits">
+        <motion.ul
+          className="lp-benefits"
+          variants={staggerContainer(0.08)}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportConfig}
+        >
           {BENEFITS.map((benefit) => (
-            <li key={benefit.title} className="lp-benefit">
+            <motion.li
+              key={benefit.title}
+              variants={fadeInRight}
+              className="lp-benefit"
+            >
               <h3>{benefit.title}</h3>
               <p>{benefit.desc}</p>
-            </li>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       </div>
     </section>
   )

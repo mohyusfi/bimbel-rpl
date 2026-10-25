@@ -13,11 +13,17 @@ import {
   Calendar,
   MessageSquareQuote,
   CheckCircle2,
+  Megaphone,
+  Pin,
 } from 'lucide-react'
-import { useParentDashboardData } from '~/hooks/use-admin-data'
+import {
+  useParentDashboardData,
+  usePortalAnnouncements,
+} from '~/hooks/use-admin-data'
+import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { StatusBadge } from '~/components/ui/status-badge'
-import { formatRupiah } from '~/lib/utils'
+import { formatRupiah, cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/')({
   component: ParentDashboardOverview,
@@ -25,6 +31,7 @@ export const Route = createFileRoute('/parent/')({
 
 function ParentDashboardOverview() {
   const { selectedChild, childData } = useParentDashboardData()
+  const { data: announcements = [] } = usePortalAnnouncements('parent')
   const {
     student,
     classSchedules,
@@ -85,6 +92,9 @@ function ParentDashboardOverview() {
           </Link>
         </div>
       </div>
+
+      {/* Pengumuman Resmi Bimbel */}
+      <PortalAnnouncementsWidget announcements={announcements} />
 
       {/* Real-time Attendance Banner for Today (ATTEND-02) */}
       <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 sm:p-6 space-y-4">

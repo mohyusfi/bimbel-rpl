@@ -86,3 +86,4 @@ export type NewPayment = InferInsertModel<typeof payments>
 
 export type Notification = InferSelectModel<typeof notifications>
 export type NewNotification = InferInsertModel<typeof notifications>
+

@@ -63,3 +63,11 @@ _Avoid_: Token masuk, Kunci login, Akun publik
 **Plotting Rombel (Class Plotting)**:
 Penetapan penempatan calon siswa terverifikasi ke dalam rombongan belajar aktif (maksimal 12 siswa) yang sesuai dengan paket bimbingan belajar dan ketersediaan kursi ruangan.
 _Avoid_: Penjurusan, Pembagian kelompok, Alokasi kursi manual
+
+**Notifikasi (In-App Notification)**:
+Pemberitahuan lonceng waktu-nyata (*real-time*) pada antarmuka sistem untuk peristiwa penting (verifikasi/penolakan SPP, presensi Alpa siswa, nilai evaluasi baru, dan siaran pengumuman) yang disalurkan via Supabase Realtime.
+_Avoid_: Pesan inbox, SMS gateway, Notif popup mentah, Alert email
+
+**Pengumuman Resmi (Announcement)**:
+Siaran informasi operasional bimbel yang diterbitkan oleh Administrator untuk target audiens tertentu (Semua, Siswa, Orang Tua, atau Tutor) dan didistribusikan secara serentak ke lonceng notifikasi pengguna.
+_Avoid_: Broadcast WA, Buletin, Banner promo, Surat edaran

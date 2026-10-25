@@ -1,6 +1,7 @@
 import { supabase } from '~/lib/supabase/client'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { isSessionLockedForTutor, calculateAttendancePercentage } from '~/lib/attendance-helpers'
-import { ensureAdminSession } from './master-data.service'
+import { buildAttendanceNotifications } from '~/lib/attendance-notifications'
 import type { AttendanceEntry, AttendanceStatus } from '~/lib/admin-store'
 
 export type ServerResult<T> =
@@ -23,10 +24,39 @@ export interface StudentAttendanceSummary {
   attendanceRate: number
 }
 
+interface SessionWithScheduleRow {
+  id: string
+  topic: string | null
+  schedules: {
+    subject_name: string | null
+    day_of_week: string | null
+    start_time: string | null
+  } | null
+}
+
+interface StudentParentRow {
+  id: string
+  profile_id: string | null
+  parents: { id: string; profile_id: string | null } | null
+}
+
+/**
+ * Klien DB dengan hak istimewa untuk operasi tulis notifikasi (insert & delete)
+ * yang melewati RLS. Fallback ke klien anon bila resolusi admin gagal.
+ */
+async function getAttendanceDbClient(): Promise<SupabaseClient> {
+  try {
+    const { getIsolatedAdminClient } = await import('./billing.service')
+    return await getIsolatedAdminClient()
+  } catch {
+    return supabase
+  }
+}
+
 export const attendanceService = {
   /**
    * Menyimpan entri presensi siswa per sesi ke tabel attendances dan menandai sesi selesai di Supabase.
-   * Menegakkan aturan Audit Lock & 24h Grace Period.
+   * Menegakkan aturan Audit Lock & 2h Grace Period.
    */
   async saveSessionAttendance(
     input: SaveSessionAttendanceInput
@@ -58,12 +88,10 @@ export const attendanceService = {
       return { success: true, data: true }
     }
 
-    await ensureAdminSession()
-
     // 2. Ambil data sesi untuk verifikasi status
     const { data: sessionData, error: sessionErr } = await supabase
       .from('sessions')
-      .select('id, session_date, is_completed, created_at')
+      .select('id, session_date, is_completed, completed_at, created_at')
       .eq('id', sessionId)
       .single()
 
@@ -71,28 +99,35 @@ export const attendanceService = {
       return { success: false, error: `Sesi dengan ID "${sessionId}" tidak ditemukan di database.` }
     }
 
-    // 3. Verifikasi Audit Lock & 24h Grace Period
+    const wasCompleted = Boolean(sessionData.is_completed)
+
+    // 3. Verifikasi Audit Lock & 2h Grace Period (dihitung sejak sesi diselesaikan)
     const isLocked = isSessionLockedForTutor({
       isCompleted: sessionData.is_completed,
       sessionDate: sessionData.session_date,
-      completedAt: sessionData.created_at,
+      completedAt: sessionData.completed_at,
     })
 
     if (isLocked) {
       return {
         success: false,
-        error: 'Pencegahan manipulasi presensi: Sesi telah selesai lebih dari 24 jam dan telah dikunci untuk menjaga integritas data presensi.',
+        error: 'Pencegahan manipulasi presensi: Sesi telah selesai lebih dari 2 jam dan telah dikunci untuk menjaga integritas data presensi.',
         code: 'SESSION_AUDIT_LOCKED',
       }
     }
 
     // 4. Update status sesi bimbingan di tabel sessions
+    const sessionUpdate: Record<string, unknown> = {
+      topic: topic.trim(),
+      is_completed: true,
+    }
+    if (!wasCompleted) {
+      sessionUpdate.completed_at = new Date().toISOString()
+    }
+
     const { error: updateSesErr } = await supabase
       .from('sessions')
-      .update({
-        topic: topic.trim(),
-        is_completed: true,
-      })
+      .update(sessionUpdate)
       .eq('id', sessionId)
 
     if (updateSesErr) {
@@ -116,9 +151,88 @@ export const attendanceService = {
       if (upsertErr) {
         return { success: false, error: upsertErr.message }
       }
+
+      // 6. Notifikasi otomatis ke orang tua/wali pada penyimpanan PERTAMA sesi ini
+      //    untuk SEMUA status (hadir/sakit/izin/alpa), anti-spam & anti-duplikat.
+      if (!wasCompleted) {
+        await this.createAttendanceNotifications(sessionId, validEntries)
+      }
     }
 
     return { success: true, data: true }
+  },
+
+  /**
+   * Membuat notifikasi presensi ke orang tua/wali untuk seluruh entri sesi.
+   * Mengganti notifikasi presensi lama milik sesi yang sama agar tidak menumpuk.
+   */
+  async createAttendanceNotifications(
+    sessionId: string,
+    validEntries: AttendanceEntry[]
+  ): Promise<void> {
+    try {
+      const { data: sessionRowRaw } = await supabase
+        .from('sessions')
+        .select('id, topic, schedules ( subject_name, day_of_week, start_time )')
+        .eq('id', sessionId)
+        .single()
+      const sessionRow = sessionRowRaw as unknown as SessionWithScheduleRow | null
+
+      const studentIds = validEntries.map((e) => e.studentId)
+      const { data: studentRowsRaw } = await supabase
+        .from('students')
+        .select('id, profile_id, parents ( id, profile_id )')
+        .in('id', studentIds)
+      const studentRows = (studentRowsRaw || []) as unknown as StudentParentRow[]
+
+      const parentByStudent = new Map<string, string>()
+      for (const s of studentRows) {
+        const parentProfileId = s.parents?.profile_id
+        if (s.id && parentProfileId) parentByStudent.set(s.id, parentProfileId)
+      }
+
+      const drafts = buildAttendanceNotifications({
+        session: {
+          id: sessionId,
+          subjectName: sessionRow?.schedules?.subject_name || sessionRow?.topic || undefined,
+          dayOfWeek: sessionRow?.schedules?.day_of_week || undefined,
+          startTime: sessionRow?.schedules?.start_time || undefined,
+        },
+        entries: validEntries.map((e) => ({
+          studentId: e.studentId,
+          studentName: e.studentName,
+          status: e.status,
+        })),
+        recipients: Array.from(parentByStudent.entries()).map(([studentId, parentProfileId]) => ({
+          studentId,
+          parentProfileId,
+        })),
+      })
+
+      if (drafts.length === 0) return
+
+      const dbClient = await getAttendanceDbClient()
+
+      // Ganti notifikasi presensi lama untuk sesi ini (idempoten, anti-duplikat).
+      await dbClient
+        .from('notifications')
+        .delete()
+        .eq('type', 'attendance')
+        .eq('metadata->>sessionId', sessionId)
+
+      await dbClient.from('notifications').insert(
+        drafts.map((d) => ({
+          user_id: d.userId,
+          title: d.title,
+          message: d.message,
+          type: d.type,
+          link_url: d.linkUrl,
+          metadata: d.metadata,
+        }))
+      )
+    } catch (notifErr) {
+      console.warn('[WARN] Gagal mencatat notifikasi presensi ke orang tua:', notifErr)
+    }
   },
 
   /**

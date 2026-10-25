@@ -46,6 +46,27 @@
   vertical-align: middle;
 }
 
+/* Sembunyikan scrollbar visual di dashboard & utility scrollbar-none */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Dashboard: hilangkan scrollbar visual pada window/body saat berada di dashboard */
+html:has([data-dashboard-shell]),
+body:has([data-dashboard-shell]) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html:has([data-dashboard-shell])::-webkit-scrollbar,
+body:has([data-dashboard-shell])::-webkit-scrollbar {
+  display: none;
+}
+
 /* Full-bleed PPTX Slide Presentation Rules */
 .pptx-viewer-container {
   height: 100%;

@@ -22,7 +22,6 @@ import { MobileDrawer } from '~/components/landing/MobileDrawer'
 import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
 
 export const Route = createFileRoute('/masuk')({
-  ssr: false,
   component: LoginPage,
 })
 
@@ -148,7 +147,8 @@ function LoginPage() {
     try {
       const loginRes = await authStore.login(targetAccount.email, targetAccount.defaultPassword, targetAccount.role)
       if (loginRes.success && loginRes.href) {
-        const dest = redirectPath || loginRes.href
+        const roleHref = loginRes.href || `/${loginRes.role}`
+        const dest = (redirectPath && redirectPath.startsWith(`/${loginRes.role}`)) ? redirectPath : roleHref
         navigate({ to: dest as any })
         return
       }
@@ -164,7 +164,8 @@ function LoginPage() {
 
     const result = authStore.quickLogin(isSuper ? 'super_admin' : role)
     if (result.success && result.href) {
-      const dest = redirectPath || result.href
+      const roleHref = result.href || `/${result.role}`
+      const dest = (redirectPath && redirectPath.startsWith(`/${result.role}`)) ? redirectPath : roleHref
       navigate({ to: dest as any })
     } else if (result.error) {
       setErrorMessage(result.error)
@@ -180,7 +181,8 @@ function LoginPage() {
     try {
       const result = await authStore.login(emailOrId, password, selectedRole.role)
       if (result.success && result.href) {
-        const dest = redirectPath || result.href
+        const roleHref = result.href || `/${result.role}`
+        const dest = (redirectPath && redirectPath.startsWith(`/${result.role}`)) ? redirectPath : roleHref
         navigate({ to: dest as any })
       } else {
         setErrorMessage(

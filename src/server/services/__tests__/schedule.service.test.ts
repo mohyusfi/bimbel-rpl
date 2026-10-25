@@ -2,8 +2,85 @@ import { describe, it, expect } from 'vitest'
 import {
   calculateNextSessionDate,
   validateScheduleConflict,
+  mapSessionJoinedRow,
   type ScheduleItem,
 } from '../schedule.service'
+
+describe('ScheduleService — Pemuatan Entri Presensi (mapSessionJoinedRow)', () => {
+  it('memuat status presensi tersimpan dari join attendances ke dalam entries sesi', () => {
+    const row = {
+      id: 'sess-1',
+      schedule_id: 'sched-1',
+      class_id: 'cls-1',
+      tutor_id: 'tut-1',
+      room_id: 'rm-1',
+      session_date: '2026-10-26',
+      topic: 'Fisika',
+      is_completed: true,
+      completed_at: '2026-10-26T10:00:00Z',
+      created_at: '2026-10-25T10:00:00Z',
+      classes: { id: 'cls-1', class_name: 'UTBK A' },
+      rooms: { id: 'rm-1', room_name: 'Palu-1' },
+      tutors: { id: 'tut-1', profiles: { full_name: 'Kak Dian' } },
+      schedules: {
+        id: 'sched-1',
+        day_of_week: 'Senin',
+        start_time: '16:00',
+        end_time: '17:30',
+        subject_name: 'Fisika UTBK',
+      },
+      attendances: [
+        {
+          status: 'alpa',
+          notes: 'Tanpa keterangan',
+          student_id: 'stu-1',
+          students: { id: 'stu-1', nis: 'TC-001', profiles: { full_name: 'Fahri' } },
+        },
+        {
+          status: 'hadir',
+          notes: null,
+          student_id: 'stu-2',
+          students: { id: 'stu-2', nis: 'TC-002', profiles: { full_name: 'Alya' } },
+        },
+      ],
+    }
+
+    const item = mapSessionJoinedRow(row as never)
+    expect(item.entries).toHaveLength(2)
+    expect(item.entries?.[0]).toMatchObject({
+      studentId: 'stu-1',
+      status: 'alpa',
+      studentName: 'Fahri',
+      nis: 'TC-001',
+      note: 'Tanpa keterangan',
+    })
+    expect(item.entries?.[1].status).toBe('hadir')
+    expect(item.completedAt).toBe('2026-10-26T10:00:00Z')
+  })
+
+  it('menghasilkan entries kosong bila sesi belum memiliki presensi', () => {
+    const row = {
+      id: 'sess-2',
+      schedule_id: null,
+      class_id: 'cls-1',
+      tutor_id: null,
+      room_id: null,
+      session_date: '2026-10-27',
+      topic: null,
+      is_completed: false,
+      completed_at: null,
+      created_at: '2026-10-25T10:00:00Z',
+      classes: null,
+      rooms: null,
+      tutors: null,
+      schedules: null,
+      attendances: null,
+    }
+    const item = mapSessionJoinedRow(row as never)
+    expect(item.entries).toEqual([])
+    expect(item.completedAt).toBeUndefined()
+  })
+})
 
 describe('ScheduleService — Siklus TDD', () => {
   describe('Slice 1: Kalkulasi Tanggal Sesi Terdekat (calculateNextSessionDate)', () => {

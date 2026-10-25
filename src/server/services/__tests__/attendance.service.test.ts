@@ -33,4 +33,16 @@ describe('AttendanceService — TDD Unit Tests', () => {
     const res = await attendanceService.getStudentAttendanceSummary('')
     expect(res.success).toBe(false)
   })
+
+  it('berhasil memproses presensi sesi mock tanpa galat saat ada siswa Alpa', async () => {
+    const res = await attendanceService.saveSessionAttendance({
+      sessionId: 'mock-session-1',
+      topic: 'Matematika Dasar',
+      entries: [
+        { studentId: 'stu-1', studentName: 'Fahri', nis: 'TC-001', status: 'hadir' },
+        { studentId: 'stu-2', studentName: 'Alya', nis: 'TC-002', status: 'alpa' },
+      ],
+    })
+    expect(res.success).toBe(true)
+  })
 })

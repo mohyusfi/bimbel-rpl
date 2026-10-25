@@ -20,24 +20,28 @@ import { Route as AdminJadwalRouteImport } from './routes/admin/jadwal'
 import { Route as AdminPembayaranRouteImport } from './routes/admin/pembayaran'
 import { Route as AdminPendaftaranRouteImport } from './routes/admin/pendaftaran'
 import { Route as AdminPengumumanRouteImport } from './routes/admin/pengumuman'
+import { Route as AdminProfilRouteImport } from './routes/admin/profil'
 import { Route as AdminRuanganRouteImport } from './routes/admin/ruangan'
 import { Route as AdminSiswaRouteImport } from './routes/admin/siswa'
 import { Route as AdminStafRouteImport } from './routes/admin/staf'
 import { Route as AdminTutorRouteImport } from './routes/admin/tutor'
 import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as ParentKehadiranRouteImport } from './routes/parent/kehadiran'
+import { Route as ParentProfilRouteImport } from './routes/parent/profil'
 import { Route as ParentRaporRouteImport } from './routes/parent/rapor'
 import { Route as ParentTagihanRouteImport } from './routes/parent/tagihan'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StudentJadwalRouteImport } from './routes/student/jadwal'
 import { Route as StudentMateriRouteImport } from './routes/student/materi'
 import { Route as StudentNilaiRouteImport } from './routes/student/nilai'
+import { Route as StudentProfilRouteImport } from './routes/student/profil'
 import { Route as StudentTagihanRouteImport } from './routes/student/tagihan'
 import { Route as TutorIndexRouteImport } from './routes/tutor/index'
 import { Route as TutorJadwalRouteImport } from './routes/tutor/jadwal'
 import { Route as TutorMateriRouteImport } from './routes/tutor/materi'
 import { Route as TutorNilaiRouteImport } from './routes/tutor/nilai'
 import { Route as TutorPresensiRouteImport } from './routes/tutor/presensi'
+import { Route as TutorProfilRouteImport } from './routes/tutor/profil'
 import { Route as AdminSiswaStudentIdRouteImport } from './routes/admin/siswa_.$studentId'
 import { Route as StudentPreviewMaterialIdRouteImport } from './routes/student/preview.$materialId'
 import { Route as TutorPresensiSessionIdRouteImport } from './routes/tutor/presensi_.$sessionId'
@@ -98,6 +102,11 @@ const AdminPengumumanRoute = AdminPengumumanRouteImport.update({
   path: '/pengumuman',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminProfilRoute = AdminProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRuanganRoute = AdminRuanganRouteImport.update({
   id: '/ruangan',
   path: '/ruangan',
@@ -126,6 +135,11 @@ const ParentIndexRoute = ParentIndexRouteImport.update({
 const ParentKehadiranRoute = ParentKehadiranRouteImport.update({
   id: '/kehadiran',
   path: '/kehadiran',
+  getParentRoute: () => ParentRoute,
+} as any)
+const ParentProfilRoute = ParentProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => ParentRoute,
 } as any)
 const ParentRaporRoute = ParentRaporRouteImport.update({
@@ -158,6 +172,11 @@ const StudentNilaiRoute = StudentNilaiRouteImport.update({
   path: '/nilai',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentProfilRoute = StudentProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentTagihanRoute = StudentTagihanRouteImport.update({
   id: '/tagihan',
   path: '/tagihan',
@@ -186,6 +205,11 @@ const TutorNilaiRoute = TutorNilaiRouteImport.update({
 const TutorPresensiRoute = TutorPresensiRouteImport.update({
   id: '/presensi',
   path: '/presensi',
+  getParentRoute: () => TutorRoute,
+} as any)
+const TutorProfilRoute = TutorProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => TutorRoute,
 } as any)
 const AdminSiswaStudentIdRoute = AdminSiswaStudentIdRouteImport.update({
@@ -221,21 +245,25 @@ export interface FileRoutesByFullPath {
   '/admin/pembayaran': typeof AdminPembayaranRoute
   '/admin/pendaftaran': typeof AdminPendaftaranRoute
   '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/profil': typeof AdminProfilRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
+  '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
   '/parent/tagihan': typeof ParentTagihanRoute
   '/student/jadwal': typeof StudentJadwalRoute
   '/student/materi': typeof StudentMateriRoute
   '/student/nilai': typeof StudentNilaiRoute
+  '/student/profil': typeof StudentProfilRoute
   '/student/tagihan': typeof StudentTagihanRoute
   '/tutor/jadwal': typeof TutorJadwalRoute
   '/tutor/materi': typeof TutorMateriRoute
   '/tutor/nilai': typeof TutorNilaiRoute
   '/tutor/presensi': typeof TutorPresensiRoute
+  '/tutor/profil': typeof TutorProfilRoute
   '/admin/': typeof AdminIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -252,21 +280,25 @@ export interface FileRoutesByTo {
   '/admin/pembayaran': typeof AdminPembayaranRoute
   '/admin/pendaftaran': typeof AdminPendaftaranRoute
   '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/profil': typeof AdminProfilRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
+  '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
   '/parent/tagihan': typeof ParentTagihanRoute
   '/student/jadwal': typeof StudentJadwalRoute
   '/student/materi': typeof StudentMateriRoute
   '/student/nilai': typeof StudentNilaiRoute
+  '/student/profil': typeof StudentProfilRoute
   '/student/tagihan': typeof StudentTagihanRoute
   '/tutor/jadwal': typeof TutorJadwalRoute
   '/tutor/materi': typeof TutorMateriRoute
   '/tutor/nilai': typeof TutorNilaiRoute
   '/tutor/presensi': typeof TutorPresensiRoute
+  '/tutor/profil': typeof TutorProfilRoute
   '/admin': typeof AdminIndexRoute
   '/parent': typeof ParentIndexRoute
   '/student': typeof StudentIndexRoute
@@ -288,21 +320,25 @@ export interface FileRoutesById {
   '/admin/pembayaran': typeof AdminPembayaranRoute
   '/admin/pendaftaran': typeof AdminPendaftaranRoute
   '/admin/pengumuman': typeof AdminPengumumanRoute
+  '/admin/profil': typeof AdminProfilRoute
   '/admin/ruangan': typeof AdminRuanganRoute
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
+  '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
   '/parent/tagihan': typeof ParentTagihanRoute
   '/student/jadwal': typeof StudentJadwalRoute
   '/student/materi': typeof StudentMateriRoute
   '/student/nilai': typeof StudentNilaiRoute
+  '/student/profil': typeof StudentProfilRoute
   '/student/tagihan': typeof StudentTagihanRoute
   '/tutor/jadwal': typeof TutorJadwalRoute
   '/tutor/materi': typeof TutorMateriRoute
   '/tutor/nilai': typeof TutorNilaiRoute
   '/tutor/presensi': typeof TutorPresensiRoute
+  '/tutor/profil': typeof TutorProfilRoute
   '/admin/': typeof AdminIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
@@ -325,21 +361,25 @@ export interface FileRouteTypes {
     | '/admin/pembayaran'
     | '/admin/pendaftaran'
     | '/admin/pengumuman'
+    | '/admin/profil'
     | '/admin/ruangan'
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
+    | '/parent/profil'
     | '/parent/rapor'
     | '/parent/tagihan'
     | '/student/jadwal'
     | '/student/materi'
     | '/student/nilai'
+    | '/student/profil'
     | '/student/tagihan'
     | '/tutor/jadwal'
     | '/tutor/materi'
     | '/tutor/nilai'
     | '/tutor/presensi'
+    | '/tutor/profil'
     | '/admin/'
     | '/parent/'
     | '/student/'
@@ -356,21 +396,25 @@ export interface FileRouteTypes {
     | '/admin/pembayaran'
     | '/admin/pendaftaran'
     | '/admin/pengumuman'
+    | '/admin/profil'
     | '/admin/ruangan'
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
+    | '/parent/profil'
     | '/parent/rapor'
     | '/parent/tagihan'
     | '/student/jadwal'
     | '/student/materi'
     | '/student/nilai'
+    | '/student/profil'
     | '/student/tagihan'
     | '/tutor/jadwal'
     | '/tutor/materi'
     | '/tutor/nilai'
     | '/tutor/presensi'
+    | '/tutor/profil'
     | '/admin'
     | '/parent'
     | '/student'
@@ -391,21 +435,25 @@ export interface FileRouteTypes {
     | '/admin/pembayaran'
     | '/admin/pendaftaran'
     | '/admin/pengumuman'
+    | '/admin/profil'
     | '/admin/ruangan'
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
     | '/parent/kehadiran'
+    | '/parent/profil'
     | '/parent/rapor'
     | '/parent/tagihan'
     | '/student/jadwal'
     | '/student/materi'
     | '/student/nilai'
+    | '/student/profil'
     | '/student/tagihan'
     | '/tutor/jadwal'
     | '/tutor/materi'
     | '/tutor/nilai'
     | '/tutor/presensi'
+    | '/tutor/profil'
     | '/admin/'
     | '/parent/'
     | '/student/'
@@ -504,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPengumumanRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/profil': {
+      id: '/admin/profil'
+      path: '/profil'
+      fullPath: '/admin/profil'
+      preLoaderRoute: typeof AdminProfilRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/ruangan': {
       id: '/admin/ruangan'
       path: '/ruangan'
@@ -544,6 +599,13 @@ declare module '@tanstack/react-router' {
       path: '/kehadiran'
       fullPath: '/parent/kehadiran'
       preLoaderRoute: typeof ParentKehadiranRouteImport
+      parentRoute: typeof ParentRoute
+    }
+    '/parent/profil': {
+      id: '/parent/profil'
+      path: '/profil'
+      fullPath: '/parent/profil'
+      preLoaderRoute: typeof ParentProfilRouteImport
       parentRoute: typeof ParentRoute
     }
     '/parent/rapor': {
@@ -588,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentNilaiRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/profil': {
+      id: '/student/profil'
+      path: '/profil'
+      fullPath: '/student/profil'
+      preLoaderRoute: typeof StudentProfilRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/tagihan': {
       id: '/student/tagihan'
       path: '/tagihan'
@@ -630,6 +699,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TutorPresensiRouteImport
       parentRoute: typeof TutorRoute
     }
+    '/tutor/profil': {
+      id: '/tutor/profil'
+      path: '/profil'
+      fullPath: '/tutor/profil'
+      preLoaderRoute: typeof TutorProfilRouteImport
+      parentRoute: typeof TutorRoute
+    }
     '/admin/siswa_/$studentId': {
       id: '/admin/siswa_/$studentId'
       path: '/siswa/$studentId'
@@ -666,6 +742,7 @@ interface AdminRouteChildren {
   AdminPembayaranRoute: typeof AdminPembayaranRoute
   AdminPendaftaranRoute: typeof AdminPendaftaranRoute
   AdminPengumumanRoute: typeof AdminPengumumanRoute
+  AdminProfilRoute: typeof AdminProfilRoute
   AdminRuanganRoute: typeof AdminRuanganRoute
   AdminSiswaRoute: typeof AdminSiswaRoute
   AdminStafRoute: typeof AdminStafRoute
@@ -679,6 +756,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPembayaranRoute: AdminPembayaranRoute,
   AdminPendaftaranRoute: AdminPendaftaranRoute,
   AdminPengumumanRoute: AdminPengumumanRoute,
+  AdminProfilRoute: AdminProfilRoute,
   AdminRuanganRoute: AdminRuanganRoute,
   AdminSiswaRoute: AdminSiswaRoute,
   AdminStafRoute: AdminStafRoute,
@@ -691,6 +769,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ParentRouteChildren {
   ParentKehadiranRoute: typeof ParentKehadiranRoute
+  ParentProfilRoute: typeof ParentProfilRoute
   ParentRaporRoute: typeof ParentRaporRoute
   ParentTagihanRoute: typeof ParentTagihanRoute
   ParentIndexRoute: typeof ParentIndexRoute
@@ -698,6 +777,7 @@ interface ParentRouteChildren {
 
 const ParentRouteChildren: ParentRouteChildren = {
   ParentKehadiranRoute: ParentKehadiranRoute,
+  ParentProfilRoute: ParentProfilRoute,
   ParentRaporRoute: ParentRaporRoute,
   ParentTagihanRoute: ParentTagihanRoute,
   ParentIndexRoute: ParentIndexRoute,
@@ -710,6 +790,7 @@ interface StudentRouteChildren {
   StudentJadwalRoute: typeof StudentJadwalRoute
   StudentMateriRoute: typeof StudentMateriRoute
   StudentNilaiRoute: typeof StudentNilaiRoute
+  StudentProfilRoute: typeof StudentProfilRoute
   StudentTagihanRoute: typeof StudentTagihanRoute
   StudentIndexRoute: typeof StudentIndexRoute
   StudentPreviewMaterialIdRoute: typeof StudentPreviewMaterialIdRoute
@@ -719,6 +800,7 @@ const StudentRouteChildren: StudentRouteChildren = {
   StudentJadwalRoute: StudentJadwalRoute,
   StudentMateriRoute: StudentMateriRoute,
   StudentNilaiRoute: StudentNilaiRoute,
+  StudentProfilRoute: StudentProfilRoute,
   StudentTagihanRoute: StudentTagihanRoute,
   StudentIndexRoute: StudentIndexRoute,
   StudentPreviewMaterialIdRoute: StudentPreviewMaterialIdRoute,
@@ -732,6 +814,7 @@ interface TutorRouteChildren {
   TutorMateriRoute: typeof TutorMateriRoute
   TutorNilaiRoute: typeof TutorNilaiRoute
   TutorPresensiRoute: typeof TutorPresensiRoute
+  TutorProfilRoute: typeof TutorProfilRoute
   TutorIndexRoute: typeof TutorIndexRoute
   TutorPresensiSessionIdRoute: typeof TutorPresensiSessionIdRoute
   TutorPreviewMaterialIdRoute: typeof TutorPreviewMaterialIdRoute
@@ -742,6 +825,7 @@ const TutorRouteChildren: TutorRouteChildren = {
   TutorMateriRoute: TutorMateriRoute,
   TutorNilaiRoute: TutorNilaiRoute,
   TutorPresensiRoute: TutorPresensiRoute,
+  TutorProfilRoute: TutorProfilRoute,
   TutorIndexRoute: TutorIndexRoute,
   TutorPresensiSessionIdRoute: TutorPresensiSessionIdRoute,
   TutorPreviewMaterialIdRoute: TutorPreviewMaterialIdRoute,

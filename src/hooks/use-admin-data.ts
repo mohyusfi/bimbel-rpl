@@ -7,6 +7,7 @@ import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
 import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
 import { billingService } from '~/server/services/billing.service'
+import { authStore } from '~/lib/auth-store'
 import {
   adminStore,
   type Registration,
@@ -77,47 +78,84 @@ export const ADMIN_KEYS = {
   session: ['admin', 'session'] as const,
 }
 
+let adminSyncRefCount = 0
+let adminSyncChannel: any = null
+let adminStoreUnsub: (() => void) | null = null
+const registeredQueryClients = new Set<ReturnType<typeof useQueryClient>>()
+
 export function useAdminDataSync() {
   const queryClient = useQueryClient()
 
   React.useEffect(() => {
-    const unsubscribeStore = adminStore.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
-    })
+    registeredQueryClients.add(queryClient)
+    adminSyncRefCount++
 
-    let realtimeChannel: any = null
-    if (typeof window !== 'undefined' && isSupabaseConfigured() && typeof supabase.channel === 'function') {
-      try {
-        realtimeChannel = supabase
-          .channel('public:academic-sync-live')
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'materials' },
-            () => {
-              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.materials })
-              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
-            }
-          )
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'grades' },
-            () => {
-              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.grades })
-              queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
-            }
-          )
-          .subscribe()
-      } catch (err) {
-        console.warn('[WARN] Gagal menginisialisasi realtime academic sync:', err)
+    if (adminSyncRefCount === 1) {
+      adminStoreUnsub = adminStore.subscribe(() => {
+        for (const qc of registeredQueryClients) {
+          try {
+            qc.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+          } catch {}
+        }
+      })
+
+      if (typeof window !== 'undefined' && isSupabaseConfigured() && typeof supabase.channel === 'function') {
+        try {
+          const channels = typeof supabase.getChannels === 'function' ? supabase.getChannels() : []
+          const existing = channels.find((ch: any) => ch.topic === 'realtime:public:academic-sync-live')
+          if (existing && typeof supabase.removeChannel === 'function') {
+            supabase.removeChannel(existing)
+          }
+
+          adminSyncChannel = supabase
+            .channel('public:academic-sync-live')
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'materials' },
+              () => {
+                for (const qc of registeredQueryClients) {
+                  try {
+                    qc.invalidateQueries({ queryKey: ADMIN_KEYS.materials })
+                    qc.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+                  } catch {}
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'grades' },
+              () => {
+                for (const qc of registeredQueryClients) {
+                  try {
+                    qc.invalidateQueries({ queryKey: ADMIN_KEYS.grades })
+                    qc.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+                  } catch {}
+                }
+              }
+            )
+            .subscribe()
+        } catch (err) {
+          console.warn('[WARN] Gagal menginisialisasi realtime academic sync:', err)
+        }
       }
     }
 
     return () => {
-      unsubscribeStore()
-      if (realtimeChannel && typeof supabase.removeChannel === 'function') {
-        try {
-          supabase.removeChannel(realtimeChannel)
-        } catch {}
+      adminSyncRefCount--
+      registeredQueryClients.delete(queryClient)
+
+      if (adminSyncRefCount <= 0) {
+        adminSyncRefCount = 0
+        if (adminStoreUnsub) {
+          adminStoreUnsub()
+          adminStoreUnsub = null
+        }
+        if (adminSyncChannel && typeof supabase.removeChannel === 'function') {
+          try {
+            supabase.removeChannel(adminSyncChannel)
+          } catch {}
+          adminSyncChannel = null
+        }
       }
     }
   }, [queryClient])
@@ -130,13 +168,11 @@ export function useAdminRegistrations() {
     queryFn: async () => {
       try {
         const dbRegs = await registrationService.getRegistrations()
-        if (dbRegs && dbRegs.length > 0) {
-          return dbRegs
-        }
+        return dbRegs || []
       } catch (err) {
-        console.warn('Fallback to local store for registrations:', err)
+        console.warn('[WARN] Gagal mengambil registrations dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().registrations
     },
   })
 }
@@ -148,13 +184,11 @@ export function useAdminStudents() {
     queryFn: async () => {
       try {
         const dbStudents = await registrationService.getStudents()
-        if (dbStudents && dbStudents.length > 0) {
-          return dbStudents
-        }
+        return dbStudents || []
       } catch (err) {
-        console.warn('Fallback to local store for students:', err)
+        console.warn('[WARN] Gagal mengambil students dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().students
     },
   })
 }
@@ -171,20 +205,9 @@ export function useAdminStudentDetail(studentId: string) {
           return res.data
         }
       } catch (err) {
-        console.warn('Fallback student detail:', err)
+        console.warn('[WARN] Gagal mengambil student detail dari Supabase:', err)
       }
-      const localStudent = adminStore.getState().students.find((s) => s.id === studentId)
-      if (!localStudent) return null
-      return {
-        ...localStudent,
-        classDetails: {
-          id: localStudent.classId,
-          name: localStudent.className,
-          capacity: 12,
-          currentStudents: 1,
-        },
-        schedules: [],
-      }
+      return null
     },
     enabled: Boolean(studentId),
   })
@@ -197,13 +220,11 @@ export function useAdminTutors() {
     queryFn: async () => {
       try {
         const dbTutors = await masterDataService.getTutors()
-        if (dbTutors && dbTutors.length > 0) {
-          return dbTutors
-        }
+        return dbTutors || []
       } catch (err) {
-        console.warn('Fallback to local store for tutors:', err)
+        console.warn('[WARN] Gagal mengambil tutors dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().tutors
     },
   })
 }
@@ -212,7 +233,36 @@ export function useAdminSubjects() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.subjects,
-    queryFn: () => adminStore.getState().subjects,
+    queryFn: async () => {
+      try {
+        const tutors = await masterDataService.getTutors()
+        const subjectsMap = new Map<string, Subject>()
+        for (const t of tutors) {
+          if (Array.isArray(t.subjects)) {
+            for (const subj of t.subjects) {
+              const key = subj.trim()
+              if (!key) continue
+              const existing = subjectsMap.get(key)
+              if (existing) {
+                existing.tutorCount = (existing.tutorCount || 1) + 1
+              } else {
+                subjectsMap.set(key, {
+                  id: `sbj-${key.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+                  code: key.toUpperCase().slice(0, 8),
+                  name: key,
+                  level: 'UTBK' as PackageCode,
+                  tutorCount: 1,
+                })
+              }
+            }
+          }
+        }
+        return Array.from(subjectsMap.values())
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil subjects dari Supabase:', err)
+        return []
+      }
+    },
   })
 }
 
@@ -223,13 +273,11 @@ export function useAdminRooms() {
     queryFn: async () => {
       try {
         const dbRooms = await masterDataService.getRooms()
-        if (dbRooms && dbRooms.length > 0) {
-          return dbRooms
-        }
+        return dbRooms || []
       } catch (err) {
-        console.warn('Fallback to local store for rooms:', err)
+        console.warn('[WARN] Gagal mengambil rooms dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().rooms
     },
   })
 }
@@ -241,13 +289,11 @@ export function useAdminCourses() {
     queryFn: async () => {
       try {
         const dbCourses = await masterDataService.getCourses()
-        if (dbCourses && dbCourses.length > 0) {
-          return dbCourses
-        }
+        return dbCourses || []
       } catch (err) {
-        console.warn('Fallback to local store for courses:', err)
+        console.warn('[WARN] Gagal mengambil courses dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().courses
     },
   })
 }
@@ -259,13 +305,11 @@ export function useAdminClasses() {
     queryFn: async () => {
       try {
         const dbClasses = await masterDataService.getClasses()
-        if (dbClasses && dbClasses.length > 0) {
-          return dbClasses
-        }
+        return dbClasses || []
       } catch (err) {
-        console.warn('Fallback to local store for classes:', err)
+        console.warn('[WARN] Gagal mengambil classes dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().classes
     },
   })
 }
@@ -274,7 +318,15 @@ export function useAdminRoom(id?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.rooms, id],
-    queryFn: () => (id ? adminStore.getState().rooms.find((r) => r.id === id) || null : null),
+    queryFn: async () => {
+      if (!id) return null
+      try {
+        const rooms = await masterDataService.getRooms()
+        return rooms.find((r) => r.id === id) || null
+      } catch {
+        return null
+      }
+    },
     enabled: Boolean(id),
   })
 }
@@ -283,7 +335,15 @@ export function useAdminCourse(id?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.courses, id],
-    queryFn: () => (id ? adminStore.getState().courses.find((c) => c.id === id) || null : null),
+    queryFn: async () => {
+      if (!id) return null
+      try {
+        const courses = await masterDataService.getCourses()
+        return courses.find((c) => c.id === id) || null
+      } catch {
+        return null
+      }
+    },
     enabled: Boolean(id),
   })
 }
@@ -292,7 +352,15 @@ export function useAdminClass(id?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.classes, id],
-    queryFn: () => (id ? adminStore.getState().classes.find((c) => c.id === id) || null : null),
+    queryFn: async () => {
+      if (!id) return null
+      try {
+        const classes = await masterDataService.getClasses()
+        return classes.find((c) => c.id === id) || null
+      } catch {
+        return null
+      }
+    },
     enabled: Boolean(id),
   })
 }
@@ -301,7 +369,15 @@ export function useAdminTutor(id?: string) {
   useAdminDataSync()
   return useQuery({
     queryKey: [...ADMIN_KEYS.tutors, id],
-    queryFn: () => (id ? adminStore.getState().tutors.find((t) => t.id === id) || null : null),
+    queryFn: async () => {
+      if (!id) return null
+      try {
+        const tutors = await masterDataService.getTutors()
+        return tutors.find((t) => t.id === id) || null
+      } catch {
+        return null
+      }
+    },
     enabled: Boolean(id),
   })
 }
@@ -323,16 +399,11 @@ export function useAdminSchedules() {
     queryFn: async () => {
       try {
         const dbSchedules = await scheduleService.getSchedules()
-        if (Array.isArray(dbSchedules) && dbSchedules.length > 0) {
-          return dbSchedules as Schedule[]
-        }
-        if (isSupabaseConfigured() && Array.isArray(dbSchedules)) {
-          return []
-        }
+        return (dbSchedules || []) as unknown as Schedule[]
       } catch (err) {
         console.warn('[WARN] Gagal mengambil jadwal dari Supabase:', err)
+        return []
       }
-      return adminStore.getState().schedules
     },
   })
 }
@@ -346,19 +417,19 @@ export function useInvoices(studentId?: string) {
     queryFn: async () => {
       try {
         const invoices = await billingService.getInvoices(studentId ? { studentId } : undefined)
-        if (invoices && invoices.length > 0) {
-          return invoices as unknown as Invoice[]
-        }
+        return (invoices || []) as unknown as Invoice[]
       } catch (err) {
         console.warn('[WARN] Gagal mengambil invoice dari Supabase:', err)
+        return []
       }
-      const all = adminStore.getState().invoices
-      return studentId ? all.filter((inv) => inv.studentId === studentId) : all
     },
-    initialData: () => {
-      const all = adminStore.getState().invoices
-      return studentId ? all.filter((inv) => inv.studentId === studentId) : all
-    },
+    initialData:
+      typeof window === 'undefined'
+        ? () => {
+            const all = adminStore.getState().invoices
+            return studentId ? all.filter((inv) => inv.studentId === studentId) : all
+          }
+        : undefined,
   })
 }
 
@@ -374,12 +445,15 @@ export function useInvoiceDetails(invoiceId?: string) {
       } catch (err) {
         console.warn('[WARN] Gagal mengambil invoice detail dari Supabase:', err)
       }
-      return adminStore.getState().invoices.find((inv) => inv.id === invoiceId) || null
+      return null
     },
-    initialData: () => {
-      if (!invoiceId) return null
-      return adminStore.getState().invoices.find((inv) => inv.id === invoiceId) || null
-    },
+    initialData:
+      typeof window === 'undefined'
+        ? () => {
+            if (!invoiceId) return null
+            return adminStore.getState().invoices.find((i) => i.id === invoiceId) || null
+          }
+        : undefined,
     enabled: Boolean(invoiceId),
   })
 }
@@ -388,11 +462,47 @@ export function useAdminInvoices(studentId?: string) {
   return useInvoices(studentId)
 }
 
-export function useAdminAnnouncements() {
+export function useAdminAnnouncements(filter?: { targetAudience?: string; role?: string }) {
   useAdminDataSync()
-  return useQuery({
-    queryKey: ADMIN_KEYS.announcements,
-    queryFn: () => adminStore.getState().announcements,
+  return useQuery<Announcement[]>({
+    queryKey: [...ADMIN_KEYS.announcements, filter?.targetAudience || 'ALL', filter?.role || 'admin'],
+    queryFn: async () => {
+      try {
+        const { getAnnouncementsFn } = await import('~/server/functions/announcements')
+        const res = await getAnnouncementsFn({ data: filter })
+        if (res.success && res.data) {
+          return res.data as Announcement[]
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil pengumuman dari server:', err)
+      }
+      return adminStore.getState().announcements || []
+    },
+  })
+}
+
+export function usePortalAnnouncements(role: 'student' | 'parent' | 'tutor') {
+  return useQuery<Announcement[]>({
+    queryKey: ['portal-announcements', role],
+    queryFn: async () => {
+      try {
+        const { getAnnouncementsFn } = await import('~/server/functions/announcements')
+        const res = await getAnnouncementsFn({ data: { role } })
+        if (res.success && res.data) {
+          return res.data as Announcement[]
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil pengumuman portal dari server:', err)
+      }
+      const all = adminStore.getState().announcements || []
+      return all.filter((a) => {
+        if (a.targetAudience === 'Semua') return true
+        if (role === 'student' && a.targetAudience === 'Siswa') return true
+        if (role === 'parent' && a.targetAudience === 'Orang Tua') return true
+        if (role === 'tutor' && a.targetAudience === 'Tutor') return true
+        return false
+      })
+    },
   })
 }
 
@@ -400,7 +510,32 @@ export function useAdminNotifications() {
   useAdminDataSync()
   return useQuery({
     queryKey: ADMIN_KEYS.notifications,
-    queryFn: () => adminStore.getState().notifications,
+    queryFn: async () => {
+      try {
+        const { data } = await supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (data && data.length > 0) {
+          return data.map((n: any) => ({
+            id: n.id,
+            userId: n.user_id,
+            title: n.title,
+            message: n.message,
+            timestamp: n.created_at,
+            isRead: Boolean(n.is_read),
+            type: n.type || 'general',
+            linkUrl: n.link_url,
+            metadata: n.metadata,
+            createdAt: n.created_at,
+          }))
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil notifikasi dari Supabase:', err)
+      }
+      return []
+    },
   })
 }
 
@@ -880,7 +1015,16 @@ export function useAdminMutations() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      adminStore.recordInvoiceNotifications({
+        id: data.id,
+        studentId: variables.studentId,
+        studentName: variables.studentName,
+        programName: variables.programName,
+        amount: variables.amount,
+        dueDate: variables.dueDate,
+        invoiceNumber: data.invoiceNumber,
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -895,7 +1039,13 @@ export function useAdminMutations() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, invoiceId) => {
+      adminStore.addNotification({
+        title: 'Pembayaran SPP Terverifikasi',
+        message: `Pembayaran tagihan ${invoiceId} berhasil diverifikasi lunas. Kwitansi: ${data.receiptNumber}.`,
+        type: 'billing',
+        linkUrl: '/admin/pembayaran',
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -919,20 +1069,72 @@ export function useAdminMutations() {
   })
 
   const addAnnouncementMutation = useMutation({
-    mutationFn: async (input: Omit<Announcement, 'id' | 'publishedDate' | 'author'>) => {
-      return adminStore.addAnnouncement(input)
+    mutationFn: async (
+      input: Omit<Announcement, 'id' | 'publishedDate' | 'author'> & {
+        broadcast?: boolean
+        author?: string
+      }
+    ) => {
+      const { createAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await createAnnouncementFn({
+        data: {
+          title: input.title,
+          content: input.content,
+          targetAudience: input.targetAudience,
+          isPinned: input.isPinned,
+          broadcast: input.broadcast,
+          author: input.author,
+        },
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.addAnnouncement(res.data)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
     },
   })
 
   const deleteAnnouncementMutation = useMutation({
     mutationFn: async (id: string) => {
-      return adminStore.deleteAnnouncement(id)
+      const { deleteAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await deleteAnnouncementFn({ data: { announcementId: id } })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.deleteAnnouncement(id)
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
+    },
+  })
+
+  const togglePinAnnouncementMutation = useMutation({
+    mutationFn: async ({ id, isPinned }: { id: string; isPinned: boolean }) => {
+      const { togglePinAnnouncementFn } = await import(
+        '~/server/functions/announcements'
+      )
+      const res = await togglePinAnnouncementFn({
+        data: { announcementId: id, isPinned },
+      })
+      if (!res.success) {
+        throw new Error(res.error)
+      }
+      adminStore.togglePinAnnouncement(id, isPinned)
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: ['portal-announcements'] })
     },
   })
 
@@ -1143,6 +1345,7 @@ export function useAdminMutations() {
     setSelectedChildId: setSelectedChildIdMutation.mutateAsync,
     addAnnouncement: addAnnouncementMutation.mutateAsync,
     deleteAnnouncement: deleteAnnouncementMutation.mutateAsync,
+    togglePinAnnouncement: togglePinAnnouncementMutation.mutateAsync,
     markAllNotificationsRead: markAllNotificationsReadMutation.mutateAsync,
     markNotificationRead: markNotificationReadMutation.mutateAsync,
     addNotification: adminStore.addNotification.bind(adminStore),
@@ -1367,7 +1570,16 @@ export function useCreateInvoiceMutation() {
       }
       return res.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      adminStore.recordInvoiceNotifications({
+        id: data.id,
+        studentId: variables.studentId,
+        studentName: variables.studentName,
+        programName: variables.programName,
+        amount: variables.amount,
+        dueDate: variables.dueDate,
+        invoiceNumber: data.invoiceNumber,
+      })
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
     },
   })
@@ -1567,12 +1779,47 @@ export function useGradeRecords(filters?: { studentId?: string; classId?: string
 
 export function useParents() {
   useAdminDataSync()
-  return useQuery({
+  return useQuery<ParentProfile[]>({
     queryKey: ADMIN_KEYS.parents,
-    queryFn: () => adminStore.getState().parents,
-    initialData: () => adminStore.getState().parents,
+    queryFn: async () => {
+      try {
+        const { data } = await supabase
+          .from('parents')
+          .select('id, profile_id, occupation, address, profiles:profile_id(full_name, phone_number, email)')
+
+        const { data: students } = await supabase
+          .from('students')
+          .select('id, parent_id')
+
+        const parentChildrenMap = new Map<string, string[]>()
+        for (const s of (students || [])) {
+          if (s.parent_id) {
+            const arr = parentChildrenMap.get(s.parent_id) || []
+            arr.push(s.id)
+            parentChildrenMap.set(s.parent_id, arr)
+          }
+        }
+
+        if (data && data.length > 0) {
+          return data.map((p: any) => ({
+            id: p.id,
+            name: p.profiles?.full_name || 'Orang Tua',
+            email: p.profiles?.email || '',
+            phone: p.profiles?.phone_number || '',
+            job: p.occupation || 'Wiraswasta',
+            address: p.address || 'Kota Palu',
+            studentIds: parentChildrenMap.get(p.id) || [],
+          }))
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal mengambil parents dari Supabase:', err)
+      }
+      return []
+    },
   })
 }
+
+export const useAdminParents = useParents
 
 export function useActiveSession() {
   useAdminDataSync()
@@ -1580,27 +1827,10 @@ export function useActiveSession() {
     queryKey: ADMIN_KEYS.session,
     queryFn: () => {
       const state = adminStore.getState()
-      const student = state.students.find((s) => s.id === state.activeStudentId) || state.students[0]
-      const tutor = state.tutors.find((t) => t.id === state.activeTutorId) || state.tutors[0]
-      const parent = state.parents.find((p) => p.id === state.activeParentId) || state.parents[0]
-      const selectedChild = state.students.find((s) => s.id === state.selectedChildId) || student
-
-      return {
-        activeStudentId: state.activeStudentId,
-        activeTutorId: state.activeTutorId,
-        activeParentId: state.activeParentId,
-        selectedChildId: state.selectedChildId,
-        student,
-        tutor,
-        parent,
-        selectedChild,
-      }
-    },
-    initialData: () => {
-      const state = adminStore.getState()
-      const student = state.students.find((s) => s.id === state.activeStudentId) || state.students[0]
-      const tutor = state.tutors.find((t) => t.id === state.activeTutorId) || state.tutors[0]
-      const parent = state.parents.find((p) => p.id === state.activeParentId) || state.parents[0]
+      const auth = authStore.getState()
+      const student = state.students.find((s) => s.id === state.activeStudentId) || (auth.studentProfile as any) || null
+      const tutor = state.tutors.find((t) => t.id === state.activeTutorId) || null
+      const parent = state.parents.find((p) => p.id === state.activeParentId) || (auth.parentProfile as any) || null
       const selectedChild = state.students.find((s) => s.id === state.selectedChildId) || student
 
       return {

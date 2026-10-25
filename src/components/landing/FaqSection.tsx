@@ -7,7 +7,7 @@ const FAQ_ITEMS = [
     id: 'faq-ans-1',
     question: 'Apa bedanya dengan bimbel lain?',
     answer:
-      'Kelasnya kecil, paling banyak 12 siswa, jadi tutor bisa memperhatikan tiap anak. Jadwal disusun supaya tidak bentrok, dan orang tua dapat kabar kehadiran lewat WhatsApp setiap pertemuan. Materinya mengikuti kurikulum sekolah di Palu dan standar UTBK-SNBT.',
+      'Kelasnya kecil, paling banyak 12 siswa, jadi tutor bisa memperhatikan tiap anak. Jadwal disusun supaya tidak bentrok, dan orang tua menerima notifikasi kehadiran langsung di portal setiap pertemuan. Materinya mengikuti kurikulum sekolah di Palu dan standar UTBK-SNBT.',
   },
   {
     id: 'faq-ans-2',

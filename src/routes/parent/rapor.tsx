@@ -20,6 +20,7 @@ import type { GradeRecord } from '~/lib/admin-store'
 import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/rapor')({
+  ssr: false,
   component: ParentReportPage,
 })
 
