@@ -35,7 +35,7 @@ export interface RealtimeNotificationsSubscription {
   unsubscribe: () => void
 }
 
-function notificationDedupKey(n: AdminNotification): string | null {
+export function notificationDedupKey(n: AdminNotification): string | null {
   const announcementId =
     (n.metadata?.announcementId as string) ||
     (n.type === 'announcement' ? n.id : null)
@@ -64,14 +64,25 @@ export function mergeNotificationSources(
 
   for (const row of inbox) {
     const rowKey = notificationDedupKey(row)
+    let wasReadLocally = false
+
     if (rowKey) {
       for (const [key, existing] of Array.from(byKey.entries())) {
         if (notificationDedupKey(existing) === rowKey) {
+          if (existing.isRead) wasReadLocally = true
           byKey.delete(key)
         }
       }
     }
-    byKey.set(row.id, { ...row, __inbox: true } as AdminNotification)
+
+    const directExisting = byKey.get(row.id)
+    if (directExisting?.isRead) wasReadLocally = true
+
+    byKey.set(row.id, {
+      ...row,
+      isRead: wasReadLocally || Boolean(row.isRead),
+      __inbox: true,
+    } as AdminNotification)
   }
 
   return Array.from(byKey.values())
@@ -332,8 +343,15 @@ export function useRealtimeNotifications(
 
   // Subscribe to adminStore updates
   React.useEffect(() => {
+    let prevCount = adminStore.getState().notifications.length
     const unsubscribeStore = adminStore.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      const currentCount = adminStore.getState().notifications.length
+      // Invalidate query hanya jika ada notifikasi baru masuk atau dihapus
+      // Mencegah refetch storm yang memicu latensi saat menandai notifikasi telah dibaca
+      if (currentCount !== prevCount) {
+        prevCount = currentCount
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      }
     })
     return unsubscribeStore
   }, [queryClient])
@@ -518,54 +536,102 @@ export function useRealtimeNotifications(
 
   const markAsRead = React.useCallback(
     async (id: string) => {
-      adminStore.markNotificationRead(id)
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      const targetNotif = notifications.find((n) => n.id === id)
+      const annId = targetNotif?.metadata?.announcementId as string | undefined
 
-      try {
-        if (client && typeof client.from === 'function') {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-          if (isUuid) {
-            await client.from('notifications').update({ is_read: true }).eq('id', id)
-          } else {
-            await client.from('notifications').update({ is_read: true }).filter('metadata->>announcementId', 'eq', id)
+      // 1. Optimistic update di TanStack Query cache (0ms latency di UI)
+      queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
+        if (!prev) return []
+        return prev.map((n) => {
+          if (n.id === id || (annId && n.metadata?.announcementId === annId)) {
+            return { ...n, isRead: true }
           }
-        }
+          return n
+        })
+      })
+
+      // 2. Tandai di store lokal
+      adminStore.markNotificationRead(id, annId)
+
+      // 3. Persist update di database via Server Function (hanya spesifik notifikasi ini)
+      try {
+        const { markNotificationsReadFn } = await import(
+          '~/server/functions/notification-inbox'
+        )
+
+        await markNotificationsReadFn({
+          data: {
+            all: false,
+            notificationIds: [id],
+            announcementIds: annId ? [annId] : undefined,
+            email: userEmail,
+          },
+        })
       } catch (err) {
-        console.warn('[WARN] Gagal update status is_read notifikasi di Supabase:', err)
+        console.warn('[WARN] Gagal update status is_read notifikasi di server:', err)
       }
     },
-    [client, queryClient]
+    [notifications, queryClient, userEmail]
   )
 
   const markAllAsRead = React.useCallback(async () => {
-    // 1. Mark all unread notifications visible in this portal as read in local store
+    // 1. Kumpulkan seluruh notifikasi unread yang tampil di portal ini
     const unreadTargetIds = notifications.filter((n) => !n.isRead).map((n) => n.id)
-    unreadTargetIds.forEach((id) => {
-      adminStore.markNotificationRead(id)
+    if (unreadTargetIds.length === 0) return
+
+    const targetIdSet = new Set(unreadTargetIds)
+
+    const unreadAnnouncementIds = notifications
+      .filter((n) => !n.isRead && (n.type === 'announcement' || n.metadata?.announcementId))
+      .map((n) => (n.metadata?.announcementId as string) || n.id)
+      .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+
+    // 2. Optimistic update instan di TanStack Query cache (0ms latency, UI langsung bersih)
+    queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
+      if (!prev) return []
+      return prev.map((n) => {
+        if (targetIdSet.has(n.id) || (userId && n.userId === userId)) {
+          return { ...n, isRead: true }
+        }
+        return n
+      })
     })
 
-    // 2. Call adminStore.markAllNotificationsRead only if user is explicitly resolved
-    if (userId) {
-      adminStore.markAllNotificationsRead(userId)
-    }
+    // 3. Update store lokal dalam 1x panggilan batch (mencegah O(N) re-render cascade)
+    adminStore.markAllNotificationsRead(
+      userId || undefined,
+      unreadTargetIds,
+      unreadAnnouncementIds
+    )
 
-    queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
-
-    // 3. Persist update is_read = true in Supabase database
+    // 4. Persist update is_read = true di database via Server Function (bulk mark all)
     try {
-      if (client && typeof client.from === 'function') {
-        if (userId) {
-          await client.from('notifications').update({ is_read: true }).eq('user_id', userId)
-        } else if (unreadTargetIds.length > 0) {
-          await client.from('notifications').update({ is_read: true }).in('id', unreadTargetIds)
-        } else {
-          await client.from('notifications').update({ is_read: true }).eq('is_read', false)
-        }
+      const { markNotificationsReadFn } = await import(
+        '~/server/functions/notification-inbox'
+      )
+      const allUserIds = Array.from(
+        new Set(
+          [userId, ...(relevantUserIds || []), ...(childIds || [])]
+            .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+            .map((v) => v.trim())
+        )
+      )
+      const res = await markNotificationsReadFn({
+        data: {
+          all: true,
+          userIds: allUserIds,
+          email: userEmail,
+          notificationIds: unreadTargetIds,
+          announcementIds: unreadAnnouncementIds,
+        },
+      })
+      if (res?.success) {
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
       }
     } catch (err) {
-      console.warn('[WARN] Gagal update status markAllAsRead di Supabase:', err)
+      console.warn('[WARN] Gagal update status markAllAsRead di server:', err)
     }
-  }, [client, notifications, queryClient, userId])
+  }, [childIds, notifications, queryClient, relevantUserIds, userEmail, userId])
 
   return {
     notifications,

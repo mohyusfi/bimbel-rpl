@@ -2386,26 +2386,55 @@ export const adminStore = {
     return newNotifs
   },
 
-  markAllNotificationsRead(userId?: string) {
-    if (userId) {
-      state.notifications = state.notifications.map((n) =>
-        n.userId === userId ||
-        n.metadata?.studentId === userId ||
-        n.metadata?.parentId === userId
-          ? { ...n, isRead: true }
-          : n
-      )
-    } else {
-      state.notifications = state.notifications.map((n) => ({ ...n, isRead: true }))
-    }
+  markAllNotificationsRead(
+    userId?: string,
+    targetIds?: string[],
+    announcementIds?: string[]
+  ) {
+    const idSet = targetIds && targetIds.length > 0 ? new Set(targetIds) : null
+    const annSet =
+      announcementIds && announcementIds.length > 0 ? new Set(announcementIds) : null
+
+    state.notifications = state.notifications.map((n) => {
+      if (idSet && idSet.has(n.id)) {
+        return { ...n, isRead: true }
+      }
+      const annId =
+        (n.metadata?.announcementId as string) ||
+        (n.type === 'announcement' ? n.id : null)
+      if (annSet && annId && annSet.has(annId)) {
+        return { ...n, isRead: true }
+      }
+      if (userId) {
+        if (
+          n.userId === userId ||
+          n.metadata?.studentId === userId ||
+          n.metadata?.parentId === userId
+        ) {
+          return { ...n, isRead: true }
+        }
+        return n
+      }
+      return { ...n, isRead: true }
+    })
     saveAndNotify()
   },
 
-  markNotificationRead(id: string) {
-    const notif = state.notifications.find((n) => n.id === id)
-    if (notif) notif.isRead = true
+  markNotificationRead(id: string, announcementId?: string) {
+    let matchedNotif: AdminNotification | null = null
+    state.notifications = state.notifications.map((n) => {
+      const isIdMatch = n.id === id
+      const isAnnMatch =
+        announcementId &&
+        (n.metadata?.announcementId === announcementId || n.id === announcementId)
+      if (isIdMatch || isAnnMatch) {
+        matchedNotif = { ...n, isRead: true }
+        return matchedNotif
+      }
+      return n
+    })
     saveAndNotify()
-    return notif
+    return matchedNotif
   },
 
   getNotifications(userId?: string) {

@@ -10,9 +10,9 @@ export function Header({ onOpenRegister, onToggleMobileMenu }: HeaderProps) {
   return (
     <header className="lp-header">
       <div className="container lp-header-inner">
-        <a href="#beranda" className="lp-logo">
+        <Link to="/" className="lp-logo">
           Tadulako <span>Cendekia</span>
-        </a>
+        </Link>
 
         <nav className="lp-nav" aria-label="Navigasi utama">
           <a href="#program">Program</a>

@@ -22,6 +22,14 @@ export interface NotificationInboxQuery {
   email?: string
 }
 
+export interface MarkNotificationReadInput {
+  all?: boolean
+  notificationIds?: string[]
+  announcementIds?: string[]
+  userIds?: string[]
+  email?: string
+}
+
 interface NotificationRow {
   id: string
   user_id: string | null
@@ -36,6 +44,11 @@ interface NotificationRow {
 
 let cachedInboxClient: unknown = null
 let cachedInboxClientExpiresAt = 0
+
+export function resetInboxDbClientCache() {
+  cachedInboxClient = null
+  cachedInboxClientExpiresAt = 0
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -128,6 +141,117 @@ export const notificationService = {
       return { success: true, data: rows }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal memuat kotak masuk notifikasi.'
+      return { success: false, error: msg }
+    }
+  },
+
+  async markAsRead(
+    input: MarkNotificationReadInput
+  ): Promise<ServerResult<{ count: number }>> {
+    try {
+      const dbClient = (await getInboxDbClient()) as any
+
+      const userIds = new Set<string>()
+      for (const id of input.userIds || []) {
+        if (typeof id === 'string' && isUuid(id.trim())) {
+          userIds.add(id.trim())
+        }
+      }
+
+      if (input.email && input.email.trim() !== '') {
+        try {
+          const { data: profiles } = await dbClient
+            .from('profiles')
+            .select('id')
+            .eq('email', input.email.trim())
+          for (const p of (profiles || []) as Array<{ id?: string }>) {
+            if (p?.id && isUuid(p.id)) userIds.add(p.id)
+          }
+        } catch (profileErr) {
+          console.warn('[WARN] Gagal resolusi profile_id untuk markAsRead:', profileErr)
+        }
+      }
+
+      const notifIds = new Set<string>()
+      const announcementIds = new Set<string>()
+
+      for (const rawId of input.notificationIds || []) {
+        if (typeof rawId !== 'string') continue
+        const id = rawId.trim()
+        if (isUuid(id)) {
+          notifIds.add(id)
+        } else {
+          announcementIds.add(id)
+          if (id.startsWith('notif-ann-')) {
+            const stripped = id.replace(/^notif-ann-/, '')
+            const parts = stripped.split('-')
+            if (parts.length >= 2) {
+              announcementIds.add(`${parts[0]}-${parts[1]}`)
+            }
+          }
+        }
+      }
+
+      for (const annId of input.announcementIds || []) {
+        if (typeof annId === 'string' && annId.trim()) {
+          announcementIds.add(annId.trim())
+        }
+      }
+
+      let updatedCount = 0
+
+      const hasTargetIds = notifIds.size > 0 || announcementIds.size > 0
+      const isBulkMarkAll = Boolean(input.all) || !hasTargetIds
+
+      // 1. Update massal berdasarkan user_id (hanya jika secara eksplisit mark all unread)
+      if (isBulkMarkAll && userIds.size > 0) {
+        const { data, error } = await dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .in('user_id', Array.from(userIds))
+          .eq('is_read', false)
+          .select('id')
+
+        if (!error && Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      // 2. Update berdasarkan ID notifikasi spesifik
+      if (notifIds.size > 0) {
+        const { data, error } = await dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .in('id', Array.from(notifIds))
+          .eq('is_read', false)
+          .select('id')
+
+        if (!error && Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      // 3. Update berdasarkan announcementId di metadata jika ID bukan UUID
+      for (const annId of Array.from(announcementIds)) {
+        let query = dbClient
+          .from('notifications')
+          .update({ is_read: true })
+          .filter('metadata->>announcementId', 'eq', annId)
+          .eq('is_read', false)
+
+        if (userIds.size > 0) {
+          query = query.in('user_id', Array.from(userIds))
+        }
+
+        const { data } = await query.select('id')
+        if (Array.isArray(data)) {
+          updatedCount += data.length
+        }
+      }
+
+      return { success: true, data: { count: updatedCount } }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal memperbarui status notifikasi.'
       return { success: false, error: msg }
     }
   },
