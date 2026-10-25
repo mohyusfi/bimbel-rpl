@@ -22,6 +22,7 @@ export const markNotificationsReadFn = createServerFn({ method: 'POST' })
   .validator((d: unknown) => {
     return z
       .object({
+        all: z.boolean().optional(),
         notificationIds: z.array(z.string()).optional(),
         announcementIds: z.array(z.string()).optional(),
         userIds: z.array(z.string()).optional(),

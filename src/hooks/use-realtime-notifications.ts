@@ -536,25 +536,32 @@ export function useRealtimeNotifications(
 
   const markAsRead = React.useCallback(
     async (id: string) => {
+      const targetNotif = notifications.find((n) => n.id === id)
+      const annId = targetNotif?.metadata?.announcementId as string | undefined
+
       // 1. Optimistic update di TanStack Query cache (0ms latency di UI)
       queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
         if (!prev) return []
-        return prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+        return prev.map((n) => {
+          if (n.id === id || (annId && n.metadata?.announcementId === annId)) {
+            return { ...n, isRead: true }
+          }
+          return n
+        })
       })
 
       // 2. Tandai di store lokal
-      adminStore.markNotificationRead(id)
+      adminStore.markNotificationRead(id, annId)
 
-      // 3. Persist update di database via Server Function
+      // 3. Persist update di database via Server Function (hanya spesifik notifikasi ini)
       try {
         const { markNotificationsReadFn } = await import(
           '~/server/functions/notification-inbox'
         )
-        const targetNotif = notifications.find((n) => n.id === id)
-        const annId = targetNotif?.metadata?.announcementId as string | undefined
 
         await markNotificationsReadFn({
           data: {
+            all: false,
             notificationIds: [id],
             announcementIds: annId ? [annId] : undefined,
             email: userEmail,
@@ -591,9 +598,13 @@ export function useRealtimeNotifications(
     })
 
     // 3. Update store lokal dalam 1x panggilan batch (mencegah O(N) re-render cascade)
-    adminStore.markAllNotificationsRead(userId || undefined, unreadTargetIds)
+    adminStore.markAllNotificationsRead(
+      userId || undefined,
+      unreadTargetIds,
+      unreadAnnouncementIds
+    )
 
-    // 4. Persist update is_read = true di database via Server Function
+    // 4. Persist update is_read = true di database via Server Function (bulk mark all)
     try {
       const { markNotificationsReadFn } = await import(
         '~/server/functions/notification-inbox'
@@ -605,14 +616,18 @@ export function useRealtimeNotifications(
             .map((v) => v.trim())
         )
       )
-      await markNotificationsReadFn({
+      const res = await markNotificationsReadFn({
         data: {
+          all: true,
           userIds: allUserIds,
           email: userEmail,
           notificationIds: unreadTargetIds,
           announcementIds: unreadAnnouncementIds,
         },
       })
+      if (res?.success) {
+        queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+      }
     } catch (err) {
       console.warn('[WARN] Gagal update status markAllAsRead di server:', err)
     }

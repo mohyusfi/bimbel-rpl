@@ -94,7 +94,15 @@ export function useAdminDataSync() {
       adminStoreUnsub = adminStore.subscribe(() => {
         for (const qc of registeredQueryClients) {
           try {
-            qc.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+            // Invalidate master operational data, tapi kecualikan notifications
+            // agar tidak memicu race condition / refetch storm saat pengguna menandai notifikasi dibaca
+            qc.invalidateQueries({
+              predicate: (query) => {
+                const key = query.queryKey
+                if (!Array.isArray(key)) return false
+                return key[0] === 'admin' && key[1] !== 'notifications'
+              },
+            })
           } catch {}
         }
       })

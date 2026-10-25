@@ -23,6 +23,7 @@ export interface NotificationInboxQuery {
 }
 
 export interface MarkNotificationReadInput {
+  all?: boolean
   notificationIds?: string[]
   announcementIds?: string[]
   userIds?: string[]
@@ -43,6 +44,11 @@ interface NotificationRow {
 
 let cachedInboxClient: unknown = null
 let cachedInboxClientExpiresAt = 0
+
+export function resetInboxDbClientCache() {
+  cachedInboxClient = null
+  cachedInboxClientExpiresAt = 0
+}
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -194,8 +200,11 @@ export const notificationService = {
 
       let updatedCount = 0
 
-      // 1. Update berdasarkan user_id (mark all unread milik pengguna ini)
-      if (userIds.size > 0) {
+      const hasTargetIds = notifIds.size > 0 || announcementIds.size > 0
+      const isBulkMarkAll = Boolean(input.all) || !hasTargetIds
+
+      // 1. Update massal berdasarkan user_id (hanya jika secara eksplisit mark all unread)
+      if (isBulkMarkAll && userIds.size > 0) {
         const { data, error } = await dbClient
           .from('notifications')
           .update({ is_read: true })
@@ -224,12 +233,17 @@ export const notificationService = {
 
       // 3. Update berdasarkan announcementId di metadata jika ID bukan UUID
       for (const annId of Array.from(announcementIds)) {
-        const { data } = await dbClient
+        let query = dbClient
           .from('notifications')
           .update({ is_read: true })
           .filter('metadata->>announcementId', 'eq', annId)
           .eq('is_read', false)
-          .select('id')
+
+        if (userIds.size > 0) {
+          query = query.in('user_id', Array.from(userIds))
+        }
+
+        const { data } = await query.select('id')
         if (Array.isArray(data)) {
           updatedCount += data.length
         }
