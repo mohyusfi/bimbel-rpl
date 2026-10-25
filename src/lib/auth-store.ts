@@ -199,16 +199,28 @@ export function clearCustomPasswords() {
   }
 }
 
-export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserRole): string {
+export function normalizeLoginEmail(cleanEmailOrNis: string): string {
   const clean = cleanEmailOrNis.trim().toLowerCase()
+  if (clean === 'dian.pratiwi@tutor.tadulakocendekia.sch.id') {
+    return 'dian.pratiwi@tadulakocendekia.sch.id'
+  }
+  return clean
+}
+
+export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserRole): string {
+  const rawClean = cleanEmailOrNis.trim().toLowerCase()
+  const clean = normalizeLoginEmail(rawClean)
   const custom = loadSavedCustomPasswords()
+  if (custom[rawClean]) {
+    return custom[rawClean]
+  }
   if (custom[clean]) {
     return custom[clean]
   }
 
   // Cek apakah input berupa NIS siswa
   const matchedStudent = adminStore.getState().students.find(
-    (s) => s.nis.toLowerCase() === clean || s.email.toLowerCase() === clean
+    (s) => s.nis.toLowerCase() === rawClean || s.email.toLowerCase() === clean
   )
   if (matchedStudent) {
     const studentEmail = matchedStudent.email.toLowerCase()
@@ -246,7 +258,7 @@ function inferRoleFromEmail(email: string, explicitRole?: UserRole): UserRole {
   if (lower.includes('.tu@') || lower.startsWith('admin') || lower.includes('nuraini')) {
     return 'admin'
   }
-  if (lower.includes('dian.pratiwi') || lower.includes('tutor.')) {
+  if (lower.includes('dian.pratiwi') || lower.includes('tutor.') || lower.includes('tutor')) {
     return 'tutor'
   }
   if (lower.includes('@wali.') || lower.includes('wali') || lower.includes('orangtua') || lower.includes('dahlan')) {
@@ -264,11 +276,45 @@ function isEmailSuperAdmin(email: string): boolean {
 }
 
 function loadSavedAuthState(): Partial<AuthState> | null {
-  return null
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && parsed.isAuthenticated && parsed.user && parsed.role) {
+      return parsed
+    }
+    return null
+  } catch (err) {
+    console.warn('[WARN] Gagal membaca auth state dari localStorage:', err)
+    return null
+  }
 }
 
-function persistAuthState(_currState: AuthState) {
-  // In-memory only: no localStorage persistence
+function persistAuthState(currState: AuthState) {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+  try {
+    if (currState.isAuthenticated && currState.user && currState.role) {
+      localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({
+          user: currState.user,
+          profile: currState.profile,
+          role: currState.role,
+          isSuperAdmin: currState.isSuperAdmin,
+          selectedChildId: currState.selectedChildId,
+          studentProfile: currState.studentProfile,
+          parentProfile: currState.parentProfile,
+          children: currState.children,
+          isAuthenticated: true,
+        })
+      )
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+    }
+  } catch (err) {
+    console.warn('[WARN] Gagal menyimpan auth state ke localStorage:', err)
+  }
 }
 
 // Initial state setup
@@ -879,7 +925,97 @@ export const authStore = {
         }
       }
 
-      // 2. Jika tidak ada sesi Supabase, pertahankan sesi in-memory aktif (misal dari quickLogin)
+      // 2. Jika tidak ada sesi Supabase aktif (atau akun demo/unconfirmed), pulihkan dari savedState
+      if (currentSavedState?.isAuthenticated && currentSavedState?.user && currentSavedState?.role) {
+        const staffList = loadSavedAdminStaff()
+        const matchedStaff = staffList.find(
+          (s) => s.email.toLowerCase() === currentSavedState.user?.email.toLowerCase()
+        )
+        const isSuper = Boolean(
+          currentSavedState.isSuperAdmin ||
+          currentSavedState.user.isSuperAdmin ||
+          currentSavedState.profile?.is_super_admin
+        )
+
+        const adminState = adminStore.getState()
+        let studentRecord = currentSavedState.studentProfile || null
+        let parentRecord = currentSavedState.parentProfile || null
+        let mappedChildren = currentSavedState.children || []
+
+        if (currentSavedState.role === 'student') {
+          if (!studentRecord) {
+            studentRecord =
+              adminState.students.find(
+                (s) => s.email.toLowerCase() === currentSavedState.user?.email.toLowerCase()
+              ) ||
+              adminState.students[0] ||
+              null
+          }
+          if (studentRecord) {
+            adminStore.setActiveStudentId(studentRecord.id)
+          }
+        } else if (currentSavedState.role === 'parent') {
+          if (!parentRecord) {
+            parentRecord =
+              adminState.parents.find(
+                (p) => p.email.toLowerCase() === currentSavedState.user?.email.toLowerCase()
+              ) ||
+              adminState.parents[0] ||
+              null
+          }
+          if (mappedChildren.length === 0 && parentRecord) {
+            mappedChildren = adminState.students.filter((s) => parentRecord?.studentIds?.includes(s.id))
+            if (mappedChildren.length === 0 && adminState.students.length > 0) {
+              mappedChildren = [adminState.students[0]]
+            }
+          }
+          if (parentRecord) {
+            adminStore.setActiveParentId(parentRecord.id)
+          }
+          if (mappedChildren[0]) {
+            adminStore.setSelectedChildId(mappedChildren[0].id)
+          }
+        } else if (currentSavedState.role === 'tutor') {
+          const tutor =
+            adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
+            adminState.tutors[0]
+          if (tutor) {
+            adminStore.setActiveTutorId(tutor.id)
+          }
+        }
+
+        const nowIso = new Date().toISOString()
+        state = {
+          user: currentSavedState.user,
+          profile: currentSavedState.profile || {
+            id: currentSavedState.user.id,
+            email: currentSavedState.user.email,
+            full_name: currentSavedState.user.fullName,
+            role: currentSavedState.role,
+            phone_number: currentSavedState.user.phone,
+            is_super_admin: isSuper,
+            isSuperAdmin: isSuper,
+            status: matchedStaff?.status || 'aktif',
+            created_at: nowIso,
+            updated_at: nowIso,
+          },
+          role: currentSavedState.role,
+          isSuperAdmin: isSuper,
+          studentProfile: studentRecord,
+          parentProfile: parentRecord,
+          children: mappedChildren,
+          selectedChildId:
+            currentSavedState.selectedChildId || mappedChildren[0]?.id || null,
+          adminStaff: staffList,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        }
+        notify()
+        return
+      }
+
+      // 3. Jika tidak ada savedState, pertahankan sesi in-memory aktif jika ada
       if (state.user && state.isAuthenticated) {
         state.isLoading = false
         notify()
@@ -925,7 +1061,7 @@ export const authStore = {
     state.error = null
     notify()
 
-    const cleanInput = email.trim().toLowerCase()
+    const cleanInput = normalizeLoginEmail(email.trim().toLowerCase())
     if (!password || !password.trim()) {
       state.isLoading = false
       state.error = 'Kata sandi tidak boleh kosong.'
@@ -1294,6 +1430,22 @@ export const authStore = {
       isAuthenticated: true,
       isLoading: false,
       error: null,
+    }
+
+    if (matchedRole === 'tutor') {
+      const tutor =
+        adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
+        adminState.tutors[0]
+      if (tutor) {
+        adminStore.setActiveTutorId(tutor.id)
+      }
+    } else if (matchedRole === 'student' && provisioned.student) {
+      adminStore.setActiveStudentId(provisioned.student.id)
+    } else if (matchedRole === 'parent' && provisioned.parent) {
+      adminStore.setActiveParentId(provisioned.parent.id)
+      if (provisioned.children[0]) {
+        adminStore.setSelectedChildId(provisioned.children[0].id)
+      }
     }
 
     notify()
