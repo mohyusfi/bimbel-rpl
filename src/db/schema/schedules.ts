@@ -25,6 +25,8 @@ export const schedules = pgTable(
     index('schedules_tutor_id_idx').on(table.tutorId),
     index('schedules_room_id_idx').on(table.roomId),
     index('schedules_day_of_week_idx').on(table.dayOfWeek),
+    index('schedules_room_day_idx').on(table.roomId, table.dayOfWeek),
+    index('schedules_tutor_day_idx').on(table.tutorId, table.dayOfWeek),
   ]
 )
 

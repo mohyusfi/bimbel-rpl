@@ -28,6 +28,8 @@ export const sessions = pgTable(
     index('sessions_tutor_id_idx').on(table.tutorId),
     index('sessions_room_id_idx').on(table.roomId),
     index('sessions_session_date_idx').on(table.sessionDate),
+    index('sessions_class_completed_date_idx').on(table.classId, table.isCompleted, table.sessionDate),
+    index('sessions_tutor_date_idx').on(table.tutorId, table.sessionDate),
   ]
 )
 

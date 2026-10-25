@@ -26,6 +26,7 @@ export const invoices = pgTable(
     index('invoices_invoice_number_idx').on(table.invoiceNumber),
     index('invoices_due_date_idx').on(table.dueDate),
     index('invoices_created_at_idx').on(table.createdAt),
+    index('invoices_student_status_idx').on(table.studentId, table.status),
   ]
 )
 

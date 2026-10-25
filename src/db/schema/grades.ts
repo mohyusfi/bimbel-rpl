@@ -30,6 +30,7 @@ export const grades = pgTable(
     index('grades_tutor_id_idx').on(table.tutorId),
     index('grades_category_idx').on(table.category),
     index('grades_assessment_title_idx').on(table.assessmentTitle),
+    index('grades_class_assessment_title_idx').on(table.classId, table.assessmentTitle),
   ]
 )
 
