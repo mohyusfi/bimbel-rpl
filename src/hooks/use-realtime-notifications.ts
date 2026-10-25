@@ -35,7 +35,7 @@ export interface RealtimeNotificationsSubscription {
   unsubscribe: () => void
 }
 
-function notificationDedupKey(n: AdminNotification): string | null {
+export function notificationDedupKey(n: AdminNotification): string | null {
   const announcementId =
     (n.metadata?.announcementId as string) ||
     (n.type === 'announcement' ? n.id : null)
@@ -64,14 +64,25 @@ export function mergeNotificationSources(
 
   for (const row of inbox) {
     const rowKey = notificationDedupKey(row)
+    let wasReadLocally = false
+
     if (rowKey) {
       for (const [key, existing] of Array.from(byKey.entries())) {
         if (notificationDedupKey(existing) === rowKey) {
+          if (existing.isRead) wasReadLocally = true
           byKey.delete(key)
         }
       }
     }
-    byKey.set(row.id, { ...row, __inbox: true } as AdminNotification)
+
+    const directExisting = byKey.get(row.id)
+    if (directExisting?.isRead) wasReadLocally = true
+
+    byKey.set(row.id, {
+      ...row,
+      isRead: wasReadLocally || Boolean(row.isRead),
+      __inbox: true,
+    } as AdminNotification)
   }
 
   return Array.from(byKey.values())
@@ -539,9 +550,13 @@ export function useRealtimeNotifications(
         const { markNotificationsReadFn } = await import(
           '~/server/functions/notification-inbox'
         )
+        const targetNotif = notifications.find((n) => n.id === id)
+        const annId = targetNotif?.metadata?.announcementId as string | undefined
+
         await markNotificationsReadFn({
           data: {
             notificationIds: [id],
+            announcementIds: annId ? [annId] : undefined,
             email: userEmail,
           },
         })
@@ -549,7 +564,7 @@ export function useRealtimeNotifications(
         console.warn('[WARN] Gagal update status is_read notifikasi di server:', err)
       }
     },
-    [queryClient, userEmail]
+    [notifications, queryClient, userEmail]
   )
 
   const markAllAsRead = React.useCallback(async () => {
@@ -558,6 +573,11 @@ export function useRealtimeNotifications(
     if (unreadTargetIds.length === 0) return
 
     const targetIdSet = new Set(unreadTargetIds)
+
+    const unreadAnnouncementIds = notifications
+      .filter((n) => !n.isRead && (n.type === 'announcement' || n.metadata?.announcementId))
+      .map((n) => (n.metadata?.announcementId as string) || n.id)
+      .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
 
     // 2. Optimistic update instan di TanStack Query cache (0ms latency, UI langsung bersih)
     queryClient.setQueryData<AdminNotification[]>(ADMIN_KEYS.notifications, (prev) => {
@@ -590,6 +610,7 @@ export function useRealtimeNotifications(
           userIds: allUserIds,
           email: userEmail,
           notificationIds: unreadTargetIds,
+          announcementIds: unreadAnnouncementIds,
         },
       })
     } catch (err) {

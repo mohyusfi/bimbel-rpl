@@ -23,6 +23,7 @@ export const markNotificationsReadFn = createServerFn({ method: 'POST' })
     return z
       .object({
         notificationIds: z.array(z.string()).optional(),
+        announcementIds: z.array(z.string()).optional(),
         userIds: z.array(z.string()).optional(),
         email: z.string().optional(),
       })

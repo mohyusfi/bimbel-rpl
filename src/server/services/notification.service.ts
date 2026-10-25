@@ -24,6 +24,7 @@ export interface NotificationInboxQuery {
 
 export interface MarkNotificationReadInput {
   notificationIds?: string[]
+  announcementIds?: string[]
   userIds?: string[]
   email?: string
 }
@@ -165,12 +166,31 @@ export const notificationService = {
         }
       }
 
-      const notifIds = (input.notificationIds || []).filter(
-        (id) => typeof id === 'string' && isUuid(id.trim())
-      )
-      const announcementIds = (input.notificationIds || []).filter(
-        (id) => typeof id === 'string' && !isUuid(id.trim())
-      )
+      const notifIds = new Set<string>()
+      const announcementIds = new Set<string>()
+
+      for (const rawId of input.notificationIds || []) {
+        if (typeof rawId !== 'string') continue
+        const id = rawId.trim()
+        if (isUuid(id)) {
+          notifIds.add(id)
+        } else {
+          announcementIds.add(id)
+          if (id.startsWith('notif-ann-')) {
+            const stripped = id.replace(/^notif-ann-/, '')
+            const parts = stripped.split('-')
+            if (parts.length >= 2) {
+              announcementIds.add(`${parts[0]}-${parts[1]}`)
+            }
+          }
+        }
+      }
+
+      for (const annId of input.announcementIds || []) {
+        if (typeof annId === 'string' && annId.trim()) {
+          announcementIds.add(annId.trim())
+        }
+      }
 
       let updatedCount = 0
 
@@ -189,11 +209,11 @@ export const notificationService = {
       }
 
       // 2. Update berdasarkan ID notifikasi spesifik
-      if (notifIds.length > 0) {
+      if (notifIds.size > 0) {
         const { data, error } = await dbClient
           .from('notifications')
           .update({ is_read: true })
-          .in('id', notifIds)
+          .in('id', Array.from(notifIds))
           .eq('is_read', false)
           .select('id')
 
@@ -203,7 +223,7 @@ export const notificationService = {
       }
 
       // 3. Update berdasarkan announcementId di metadata jika ID bukan UUID
-      for (const annId of announcementIds) {
+      for (const annId of Array.from(announcementIds)) {
         const { data } = await dbClient
           .from('notifications')
           .update({ is_read: true })
