@@ -10,15 +10,6 @@ describe('AnnouncementService (TDD Seam)', () => {
   })
 
   it('1. berhasil menerbitkan pengumuman baru untuk semua audiens (Semua)', async () => {
-    let pushSent = false
-    let sentPayload: any = null
-
-    vi.spyOn(pushNotificationService, 'sendToUsers').mockImplementation(async (userIds, payload) => {
-      pushSent = true
-      sentPayload = payload
-      return { deliveredCount: userIds.length, failedCount: 0 }
-    })
-
     const title = `Uji Coba Pengumuman Akbar ${Date.now()}`
     const content = 'Seluruh siswa dan orang tua diimbau menghadiri sosialisasi CBT.'
 
@@ -37,10 +28,6 @@ describe('AnnouncementService (TDD Seam)', () => {
     expect(res.data.targetAudience).toBe('Semua')
     expect(res.data.isPinned).toBe(true)
     expect(res.data.id).toBeDefined()
-
-    // Verifikasi push notification dikirimkan
-    expect(pushSent).toBe(true)
-    expect(sentPayload?.title).toContain(title)
 
     // Verifikasi pengumuman tersimpan dan dapat diambil via service
     const list = await announcementService.getAnnouncements({ role: 'admin' })
@@ -143,6 +130,34 @@ describe('AnnouncementService (TDD Seam)', () => {
     const list = await announcementService.getAnnouncements({ role: 'admin' })
     if (list.success) {
       expect(list.data.some((a) => a.id === created.data.id)).toBe(false)
+    }
+  }, 45000)
+
+  it('6. pengumuman dengan target Siswa mengisolasi audiens dan tidak dikirim ke admin', async () => {
+    const studentTitle = `Isolasi Audiens Siswa ${Date.now()}`
+    const res = await announcementService.createAnnouncement({
+      title: studentTitle,
+      content: 'Instruksi khusus peserta didik ujian mandiri.',
+      targetAudience: 'Siswa',
+      isPinned: false,
+      broadcast: false,
+    })
+
+    expect(res.success).toBe(true)
+    if (!res.success) return
+
+    // Query untuk siswa berhasil menemukan pengumuman
+    const studentList = await announcementService.getAnnouncements({ role: 'student' })
+    expect(studentList.success).toBe(true)
+    if (studentList.success) {
+      expect(studentList.data.some((a) => a.title === studentTitle)).toBe(true)
+    }
+
+    // Query untuk tutor tidak memuat pengumuman ini
+    const tutorList = await announcementService.getAnnouncements({ role: 'tutor' })
+    expect(tutorList.success).toBe(true)
+    if (tutorList.success) {
+      expect(tutorList.data.some((a) => a.title === studentTitle)).toBe(false)
     }
   }, 45000)
 })

@@ -8,6 +8,7 @@ import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
 export interface RealtimeNotificationsOptions {
   userId?: string | null
   role?: 'admin' | 'tutor' | 'student' | 'parent'
+  userEmail?: string
   childIds?: string[]
   relevantUserIds?: string[]
   client?: SupabaseClient
@@ -32,6 +33,84 @@ export interface UseRealtimeNotificationsReturn {
 export interface RealtimeNotificationsSubscription {
   channels: RealtimeChannel[]
   unsubscribe: () => void
+}
+
+function notificationDedupKey(n: AdminNotification): string | null {
+  const announcementId =
+    (n.metadata?.announcementId as string) ||
+    (n.type === 'announcement' ? n.id : null)
+  if (announcementId) return `announcement:${announcementId}`
+
+  const invoiceId = n.metadata?.invoiceId as string | undefined
+  if (invoiceId) {
+    const roles = Array.isArray(n.metadata?.targetRoles)
+      ? [...(n.metadata?.targetRoles as string[])].sort().join('|')
+      : ''
+    return `invoice:${invoiceId}:${roles || 'any'}`
+  }
+
+  return null
+}
+
+export function mergeNotificationSources(
+  inbox: AdminNotification[],
+  live: AdminNotification[]
+): AdminNotification[] {
+  const byKey = new Map<string, AdminNotification>()
+
+  for (const n of live) {
+    byKey.set(n.id, n)
+  }
+
+  for (const row of inbox) {
+    const rowKey = notificationDedupKey(row)
+    if (rowKey) {
+      for (const [key, existing] of Array.from(byKey.entries())) {
+        if (notificationDedupKey(existing) === rowKey) {
+          byKey.delete(key)
+        }
+      }
+    }
+    byKey.set(row.id, { ...row, __inbox: true } as AdminNotification)
+  }
+
+  return Array.from(byKey.values())
+}
+
+/**
+ * Membuat queryFn TanStack Query untuk kotak masuk lonceng: memuat notifikasi
+ * persisten milik pengguna dari Supabase lalu menggabungkannya dengan notifikasi
+ * realtime yang sedang ada di store. Bila server tidak terjangkau, fallback ke store.
+ */
+export function createNotificationQueryFn(
+  options: RealtimeNotificationsOptions
+): () => Promise<AdminNotification[]> {
+  return async () => {
+    const live = adminStore.getState().notifications
+    const userIds = Array.from(
+      new Set(
+        [options.userId, ...(options.relevantUserIds || []), ...(options.childIds || [])]
+          .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+          .map((v) => v.trim())
+      )
+    )
+
+    try {
+      const { getNotificationInboxFn } = await import(
+        '~/server/functions/notification-inbox'
+      )
+      const res = await getNotificationInboxFn({
+        data: { userIds, email: options.userEmail },
+      })
+      if (res.success && Array.isArray(res.data)) {
+        return mergeNotificationSources(res.data as AdminNotification[], live)
+      }
+    } catch (err) {
+      console.warn('[WARN] Gagal memuat kotak masuk notifikasi dari server:', err)
+    }
+
+    return live
+  }
 }
 
 /**
@@ -95,8 +174,9 @@ export function setupRealtimeNotifications(
             existingMeta?.announcementId || (n.type === 'announcement' ? n.id : null)
           if (existingAnnId === annId) return true
         }
-        // Deduplikasi ketat berdasarkan kesamaan judul dan isi pesan
-        if (n.title === notifData.title && (n.message === notifData.message || (n.type === notifData.type && n.type === 'announcement'))) {
+        // Deduplikasi hanya berdasarkan title+message yang benar-benar identik
+        // (bukan berdasarkan type=announcement saja, karena bisa memblok notif untuk role berbeda)
+        if (n.title === notifData.title && n.message === notifData.message && !annId) {
           return true
         }
         return false
@@ -239,6 +319,7 @@ export function useRealtimeNotifications(
   const {
     userId,
     role,
+    userEmail,
     childIds,
     relevantUserIds,
     client = supabase,
@@ -277,21 +358,46 @@ export function useRealtimeNotifications(
     }
   }, [userId, client, enabled, queryClient, onNotification])
 
-  // Query notifications from cache / store
+  // Query notifications from DB inbox (persistent) merged with the realtime store
   const { data: allNotifications = [] } = useQuery<AdminNotification[]>({
     queryKey: ADMIN_KEYS.notifications,
-    queryFn: () => adminStore.getState().notifications,
+    queryFn: createNotificationQueryFn({
+      userId,
+      role,
+      userEmail,
+      childIds,
+      relevantUserIds,
+    }),
   })
 
   const notifications = React.useMemo(() => {
     return allNotifications.filter((n) => {
+      const declaredRoles = n.metadata?.targetRoles
+      if (
+        role &&
+        Array.isArray(declaredRoles) &&
+        declaredRoles.length > 0 &&
+        !declaredRoles.includes(role)
+      ) {
+        return false
+      }
+
       // 1. If role is explicitly provided
       if (role === 'admin') {
         // Exclude role-specific personal notifications intended for other roles
         if (n.type === 'announcement') {
+          const target =
+            n.metadata?.targetAudience || (n as any).targetAudience || 'Semua'
+          // Sembunyikan dari drawer admin jika pengumuman khusus audiens siswa, wali, atau tutor
+          if (target !== 'Semua' && target !== 'Admin') {
+            return false
+          }
           const recipientRole = n.metadata?.recipientRole
           if (recipientRole && recipientRole !== 'admin') {
             return false
+          }
+          if ((n as any).__inbox) {
+            return true
           }
           if (
             n.userId &&
@@ -320,32 +426,20 @@ export function useRealtimeNotifications(
 
         if (role === 'student') {
           // Add standard demo aliases for Fahri Ramadhan
-          if (
-            userId === 'stu-1' ||
-            userId === 'd992d9fc-6f5b-434f-998b-358e54a754b7' ||
-            (userId && userId.startsWith('usr-student'))
-          ) {
-            idsToMatch.add('stu-1')
-            idsToMatch.add('d992d9fc-6f5b-434f-998b-358e54a754b7')
-          }
+          idsToMatch.add('stu-1')
+          idsToMatch.add('d992d9fc-6f5b-434f-998b-358e54a754b7')
+          idsToMatch.add('943d2c13-0a7f-4e5d-b00d-a930e5bbbfdc')
         }
 
         if (role === 'parent') {
           // Add standard demo aliases for Ahmad Dahlan
-          if (
-            userId === 'par-1' ||
-            userId === 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8' ||
-            (userId && userId.startsWith('usr-parent'))
-          ) {
-            idsToMatch.add('par-1')
-            idsToMatch.add('ec6f75cb-887a-442b-b91d-f47f9afc5ab8')
-          }
+          idsToMatch.add('par-1')
+          idsToMatch.add('ec6f75cb-887a-442b-b91d-f47f9afc5ab8')
         }
 
         if (role === 'tutor') {
-          if (userId === 'tut-1' || (userId && userId.startsWith('usr-tutor'))) {
-            idsToMatch.add('tut-1')
-          }
+          idsToMatch.add('tut-1')
+          idsToMatch.add('1dc75962-7771-4c58-85af-5ce40c2eabae')
         }
 
         // Broadcast announcements are filtered by target audience and role isolation
@@ -362,13 +456,19 @@ export function useRealtimeNotifications(
           // If a specific recipientRole is tagged, must match this role
           if (recipientRole && recipientRole !== role) return false
 
-          // Match by user ID if assigned to specific user
+          // Baris dari kotak masuk DB sudah ter-scope ke pengguna ini
+          if ((n as any).__inbox) return true
+
+          // If targeted to a specific user, ensure user ID matches
           if (n.userId && idsToMatch.size > 0 && !idsToMatch.has(n.userId)) {
             return false
           }
 
           return true
         }
+
+        // Baris dari kotak masuk DB sudah ter-scope ke pengguna ini
+        if ((n as any).__inbox) return true
 
         if (idsToMatch.size > 0) {
           const directMatch =

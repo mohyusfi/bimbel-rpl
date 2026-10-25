@@ -205,4 +205,94 @@ describe('Notification Role & User Isolation (TDD Seam)', () => {
     expect(studentNotif?.isRead).toBe(true)
     expect(parentNotif?.isRead).toBe(false)
   })
+
+  it('5. Pengumuman khusus Siswa muncul di drawer Siswa, namun TIDAK muncul di Admin, Orang Tua, atau Tutor', () => {
+    const ann = adminStore.addAnnouncement({
+      title: 'Persiapan Try Out Akbar SNBT',
+      content: 'Unduh kartu peserta ujian di portal siswa.',
+      targetAudience: 'Siswa',
+      isPinned: false,
+    })
+
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(ADMIN_KEYS.notifications, adminStore.getState().notifications)
+
+    const studentHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'stu-1', role: 'student' }),
+      queryClient
+    )
+    const adminHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'admin-1', role: 'admin' }),
+      queryClient
+    )
+    const parentHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'par-1', role: 'parent' }),
+      queryClient
+    )
+    const tutorHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'tut-1', role: 'tutor' }),
+      queryClient
+    )
+
+    const studentNotifs = studentHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+    const adminNotifs = adminHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+    const parentNotifs = parentHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+    const tutorNotifs = tutorHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+
+    // Siswa menerima tepat 1 notifikasi
+    expect(studentNotifs.length).toBe(1)
+    expect(studentNotifs[0].title).toBe('Persiapan Try Out Akbar SNBT')
+
+    // Admin, Orang Tua, dan Tutor TIDAK menerima notifikasi ini sama sekali
+    expect(adminNotifs.length).toBe(0)
+    expect(parentNotifs.length).toBe(0)
+    expect(tutorNotifs.length).toBe(0)
+  })
+
+  it('6. Pengumuman khusus Orang Tua muncul di drawer Orang Tua, namun tidak di Siswa atau Admin', () => {
+    const ann = adminStore.addAnnouncement({
+      title: 'Undangan Rapat Evaluasi Pembelajaran Semester',
+      content: 'Diharapkan kehadiran Bapak/Ibu wali siswa di aula bimbel.',
+      targetAudience: 'Orang Tua',
+      isPinned: false,
+    })
+
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(ADMIN_KEYS.notifications, adminStore.getState().notifications)
+
+    const parentHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'par-1', role: 'parent' }),
+      queryClient
+    )
+    const studentHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'stu-1', role: 'student' }),
+      queryClient
+    )
+    const adminHook = renderHookInSSR(
+      () => useRealtimeNotifications({ userId: 'admin-1', role: 'admin' }),
+      queryClient
+    )
+
+    const parentNotifs = parentHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+    const studentNotifs = studentHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+    const adminNotifs = adminHook.notifications.filter(
+      (n) => n.metadata?.announcementId === ann.id || n.id.includes(ann.id)
+    )
+
+    expect(parentNotifs.length).toBe(1)
+    expect(studentNotifs.length).toBe(0)
+    expect(adminNotifs.length).toBe(0)
+  })
 })

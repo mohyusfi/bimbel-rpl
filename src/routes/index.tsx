@@ -5,6 +5,7 @@ import { Hero } from '~/components/landing/Hero'
 import { ProgramsSection } from '~/components/landing/ProgramsSection'
 import { ParentsSection } from '~/components/landing/ParentsSection'
 import { StepsSection } from '~/components/landing/StepsSection'
+import { StoriesMarqueeSection } from '~/components/landing/StoriesMarqueeSection'
 import { FaqSection } from '~/components/landing/FaqSection'
 import { CtaFooter } from '~/components/landing/CtaFooter'
 import { MobileDrawer } from '~/components/landing/MobileDrawer'
@@ -55,6 +56,7 @@ function LandingPage() {
         <ProgramsSection onSelectProgram={handleSelectProgramAndRegister} />
         <ParentsSection />
         <StepsSection />
+        <StoriesMarqueeSection />
         <FaqSection />
       </main>
       <CtaFooter onOpenRegister={handleOpenRegister} />

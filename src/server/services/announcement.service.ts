@@ -112,16 +112,14 @@ export const announcementService = {
         if (profilesData && profilesData.length > 0) {
           for (const p of profilesData) {
             const role = p.role
-            if (role === 'admin') {
-              targetUserProfiles.push({ id: p.id, role: 'admin' })
-            } else if (targetAudience === 'Semua') {
+            if (targetAudience === 'Semua') {
               targetUserProfiles.push({ id: p.id, role })
             } else if (targetAudience === 'Siswa' && role === 'student') {
-              targetUserProfiles.push({ id: p.id, role })
+              targetUserProfiles.push({ id: p.id, role: 'student' })
             } else if (targetAudience === 'Orang Tua' && role === 'parent') {
-              targetUserProfiles.push({ id: p.id, role })
+              targetUserProfiles.push({ id: p.id, role: 'parent' })
             } else if (targetAudience === 'Tutor' && role === 'tutor') {
-              targetUserProfiles.push({ id: p.id, role })
+              targetUserProfiles.push({ id: p.id, role: 'tutor' })
             }
           }
         }
@@ -129,11 +127,24 @@ export const announcementService = {
         console.warn('[WARN] Gagal query profiles untuk pengumuman:', profErr)
       }
 
-      // Pastikan ada fallback profil demo jika database kosong
-      if (targetUserProfiles.length === 0) {
+      // Fallback per-role: jika role tertentu tidak ada di DB, tambahkan demo fallback
+      // Penting: cek per-role, bukan all-or-nothing, agar role yang tidak ada di DB tetap menerima notif
+      const hasStudentProfile = targetUserProfiles.some((p) => p.role === 'student')
+      const hasParentProfile = targetUserProfiles.some((p) => p.role === 'parent')
+      const hasTutorProfile = targetUserProfiles.some((p) => p.role === 'tutor')
+      const hasAdminProfile = targetUserProfiles.some((p) => p.role === 'admin')
+
+      if ((targetAudience === 'Semua' || targetAudience === 'Siswa') && !hasStudentProfile) {
         targetUserProfiles.push({ id: '943d2c13-0a7f-4e5d-b00d-a930e5bbbfdc', role: 'student' })
+      }
+      if ((targetAudience === 'Semua' || targetAudience === 'Orang Tua') && !hasParentProfile) {
         targetUserProfiles.push({ id: 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8', role: 'parent' })
-        targetUserProfiles.push({ id: '11111111-1111-1111-1111-111111111111', role: 'admin' })
+      }
+      if ((targetAudience === 'Semua' || targetAudience === 'Tutor') && !hasTutorProfile) {
+        targetUserProfiles.push({ id: '1dc75962-7771-4c58-85af-5ce40c2eabae', role: 'tutor' })
+      }
+      if (targetAudience === 'Semua' && !hasAdminProfile) {
+        targetUserProfiles.push({ id: '385ef969-c8f6-4832-9b27-90b897614011', role: 'admin' })
       }
 
       // 3. Simpan baris notifikasi ke tabel notifications di Supabase
@@ -183,6 +194,20 @@ export const announcementService = {
           const channel = supabase.channel('broadcast:announcements')
           channel.subscribe((status) => {
             if (status === 'SUBSCRIBED') {
+              const targetRole =
+                targetAudience === 'Siswa'
+                  ? 'student'
+                  : targetAudience === 'Orang Tua'
+                  ? 'parent'
+                  : targetAudience === 'Tutor'
+                  ? 'tutor'
+                  : undefined
+
+              let broadcastLink = '/admin/pengumuman'
+              if (targetAudience === 'Siswa') broadcastLink = '/student'
+              else if (targetAudience === 'Orang Tua') broadcastLink = '/parent'
+              else if (targetAudience === 'Tutor') broadcastLink = '/tutor'
+
               channel
                 .send({
                   type: 'broadcast',
@@ -192,7 +217,7 @@ export const announcementService = {
                     title: announcementData.title,
                     message: announcementData.content,
                     type: 'announcement',
-                    linkUrl: '/admin/pengumuman',
+                    linkUrl: broadcastLink,
                     targetAudience,
                     isPinned,
                     author,
@@ -200,6 +225,7 @@ export const announcementService = {
                     metadata: {
                       announcementId,
                       targetAudience,
+                      recipientRole: targetRole,
                       isPinned,
                       author,
                       publishedDate,

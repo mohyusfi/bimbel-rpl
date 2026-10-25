@@ -1,4 +1,6 @@
 import { ArrowRight } from 'lucide-react'
+import { motion } from 'motion/react'
+import { fadeInUp, fadeInRight, staggerContainer, viewportConfig } from '~/lib/motion'
 
 interface HeroProps {
   onOpenRegister: () => void
@@ -60,34 +62,48 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
     <section id="beranda" className="lp-hero">
       <div className="container">
         <div className="lp-hero-grid">
-          <div className="lp-hero-main">
-            <p className="lp-kicker">Bimbingan belajar tatap muka di Kota Palu</p>
+          <motion.div
+            className="lp-hero-main"
+            variants={staggerContainer(0.08, 0.05)}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.p variants={fadeInUp} className="lp-kicker">
+              Bimbingan belajar tatap muka di Kota Palu
+            </motion.p>
 
-            <h1 className="lp-hero-title">
+            <motion.h1 variants={fadeInUp} className="lp-hero-title">
               Kelas kecil, jadwal pasti, orang tua selalu <em>tahu.</em>
-            </h1>
+            </motion.h1>
 
-            <p className="lp-hero-lead">
-              Untuk anak SD, SMP, SMA, dan yang sedang bersiap UTBK. Tutor mendampingi langsung, dan Anda dapat kabar lewat WhatsApp setiap kali anak hadir di kelas.
-            </p>
-            <div className="lp-hero-actions">
-              <button
+            <motion.p variants={fadeInUp} className="lp-hero-lead">
+              Untuk siswa SD, SMP, SMA, dan persiapan UTBK. Tutor mendampingi langsung, dan notifikasi kehadiran anak langsung masuk ke akun portal orang tua setiap sesi kelas.
+            </motion.p>
+            <motion.div variants={fadeInUp} className="lp-hero-actions">
+              <motion.button
                 type="button"
                 className="btn btn-accent btn-lg"
                 onClick={onOpenRegister}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Daftar sekarang <ArrowRight className="lucide" />
-              </button>
+              </motion.button>
               <a href="#program" className="lp-link">
                 Lihat program
               </a>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          <aside className="lp-board" aria-label="Jadwal kelas mingguan">
+          <motion.aside
+            className="lp-board"
+            aria-label="Jadwal kelas mingguan"
+            variants={fadeInRight}
+            initial="hidden"
+            animate="visible"
+          >
             <div className="lp-board-head">
               <span className="lp-board-title">Jadwal Kelas Sore</span>
-              <span className="lp-board-loc">Kota Palu</span>
             </div>
             <ul className="lp-board-list">
               {SCHEDULE_BOARD_ITEMS.map((item) => (
@@ -111,17 +127,23 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             <div className="lp-board-foot">
               <span>Klik jenjang untuk daftar &amp; ikut 1x kelas gratis.</span>
             </div>
-          </aside>
+          </motion.aside>
         </div>
 
-        <ul className="lp-facts">
+        <motion.ul
+          className="lp-facts"
+          variants={staggerContainer(0.08)}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportConfig}
+        >
           {FACTS.map((fact) => (
-            <li key={fact.value} className="lp-fact">
+            <motion.li key={fact.value} variants={fadeInUp} className="lp-fact">
               <span className="lp-fact-value">{fact.value}</span>
               <span className="lp-fact-label">{fact.label}</span>
-            </li>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       </div>
     </section>
   )

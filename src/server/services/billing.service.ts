@@ -1,5 +1,4 @@
 import { supabase, createSupabaseClient } from '~/lib/supabase/client'
-import { ensureAdminSession } from './master-data.service'
 import { validateReceiptFile } from '~/lib/receipt-validator'
 import type { Invoice as StoreInvoice } from '~/lib/admin-store'
 
@@ -635,6 +634,9 @@ export const billingService = {
           parent_id,
           profiles:profile_id (
             full_name
+          ),
+          parents:parent_id (
+            profile_id
           )
         )
       `)
@@ -693,6 +695,7 @@ export const billingService = {
         const s = data.students as any
         studentProfileId = s.profile_id || s.id
         studentName = studentName || s.profiles?.full_name || ''
+        parentProfileId = s.parents?.profile_id || ''
       }
     }
 
@@ -731,7 +734,7 @@ export const billingService = {
         message: `Tagihan SPP periode ${input.programName} sebesar ${formattedAmount} telah diterbitkan. Jatuh tempo: ${input.dueDate}.`,
         type: 'billing',
         link_url: '/student/tagihan',
-        metadata: { invoiceId, studentId: realStudentId },
+        metadata: { invoiceId, studentId: realStudentId, targetRoles: ['student'] },
       })
     }
     if (parentProfileId) {
@@ -741,7 +744,7 @@ export const billingService = {
         message: notifMsg,
         type: 'billing',
         link_url: '/parent/tagihan',
-        metadata: { invoiceId, studentId: realStudentId, parentId: parentProfileId },
+        metadata: { invoiceId, studentId: realStudentId, parentId: parentProfileId, targetRoles: ['parent'] },
       })
     }
 

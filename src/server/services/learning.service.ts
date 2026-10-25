@@ -1,5 +1,4 @@
 import { supabase } from '~/lib/supabase/client'
-import { ensureAdminSession } from './master-data.service'
 import {
   validateMaterialFormat,
   validateMaterialFileSize,
@@ -191,8 +190,6 @@ export const learningService = {
    * Mengambil seluruh modul pembelajaran dari Supabase dengan filter opsional classId atau tutorId.
    */
   async getMaterials(filters?: { classId?: string; tutorId?: string }): Promise<LearningMaterial[]> {
-    await ensureAdminSession()
-
     let query = supabase
       .from('materials')
       .select(`
@@ -265,8 +262,6 @@ export const learningService = {
    * Mengunggah modul berkas (PDF atau PPTX) ke Supabase Storage dan menyimpan metadata ke tabel materials.
    */
   async uploadMaterial(input: UploadMaterialInput): Promise<ServerResult<LearningMaterial>> {
-    await ensureAdminSession()
-
     const { file, classId, title, description, category } = input
 
     if (!classId) {
@@ -416,8 +411,6 @@ export const learningService = {
       return { success: false, error: 'ID materi tidak valid.' }
     }
 
-    await ensureAdminSession()
-
     // 1. Dapatkan storage_path
     const { data: material } = await supabase
       .from('materials')
@@ -470,8 +463,6 @@ export const learningService = {
    * Mengambil seluruh nilai evaluasi dari Supabase dengan filter opsional.
    */
   async getGrades(filters?: { studentId?: string; classId?: string; tutorId?: string }): Promise<GradeRecord[]> {
-    await ensureAdminSession()
-
     let query = supabase
       .from('grades')
       .select(`
@@ -549,8 +540,6 @@ export const learningService = {
    * Menyimpan nilai evaluasi baru dengan batas validasi 0-100 dan kalkulasi class_average otomatis.
    */
   async saveGrade(input: SaveGradeInput): Promise<ServerResult<GradeRecord>> {
-    await ensureAdminSession()
-
     const {
       studentId,
       classId,
@@ -707,8 +696,6 @@ export const learningService = {
   async updateGrade(id: string, updates: Partial<GradeRecord>): Promise<ServerResult<GradeRecord>> {
     if (!id) return { success: false, error: 'ID nilai tidak valid.' }
 
-    await ensureAdminSession()
-
     if (updates.score !== undefined) {
       if (typeof updates.score !== 'number' || isNaN(updates.score) || updates.score < 0 || updates.score > 100) {
         return { success: false, error: 'Skor nilai harus berupa angka antara 0 hingga 100.' }
@@ -793,8 +780,6 @@ export const learningService = {
    */
   async deleteGrade(id: string): Promise<ServerResult<boolean>> {
     if (!id) return { success: false, error: 'ID nilai tidak valid.' }
-
-    await ensureAdminSession()
 
     const { error: delErr } = await supabase
       .from('grades')
