@@ -115,7 +115,7 @@ function TutorProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6 pb-12">
+    <div className="w-full space-y-6 pb-12">
       {/* Unified White Card Container */}
       <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[16px] p-6 sm:p-8 shadow-xs space-y-7">
         {/* Top Header: Title & Edit Mode Toggle */}
