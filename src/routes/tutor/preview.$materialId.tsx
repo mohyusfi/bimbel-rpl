@@ -1,9 +1,14 @@
 import * as React from 'react'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
-import { AlertCircle, ArrowLeft } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 import { useTutorDashboardData } from '~/hooks/use-admin-data'
 import { MaterialPreviewHeader } from '~/components/dashboard/MaterialPreviewHeader'
-import { DocumentPreviewViewer } from '~/components/dashboard/DocumentPreviewViewer'
+
+const DocumentPreviewViewer = React.lazy(() =>
+  import('~/components/dashboard/DocumentPreviewViewer').then((mod) => ({
+    default: mod.DocumentPreviewViewer,
+  }))
+)
 
 export const Route = createFileRoute('/tutor/preview/$materialId')({
   ssr: false,
@@ -54,7 +59,18 @@ function TutorMaterialPreviewPage() {
         backUrl="/tutor/materi"
         backLabel="Kembali ke Daftar Modul"
       />
-      <DocumentPreviewViewer material={material} />
+      <React.Suspense
+        fallback={
+          <div className="bg-[#FFFFFF] border border-[#D2D2D2] rounded-[12px] p-12 flex flex-col items-center justify-center space-y-3 min-h-[420px]">
+            <Loader2 className="w-8 h-8 animate-spin text-[#CB2957]" />
+            <p className="text-xs text-[#555555] font-medium">
+              Memuat penampil dokumen interaktif...
+            </p>
+          </div>
+        }
+      >
+        <DocumentPreviewViewer material={material} />
+      </React.Suspense>
     </div>
   )
 }

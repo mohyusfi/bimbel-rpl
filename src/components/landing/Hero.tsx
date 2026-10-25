@@ -65,7 +65,7 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
           <motion.div
             className="lp-hero-main"
             variants={staggerContainer(0.08, 0.05)}
-            initial="hidden"
+            initial={false}
             animate="visible"
           >
             <motion.p variants={fadeInUp} className="lp-kicker">
@@ -99,7 +99,7 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             className="lp-board"
             aria-label="Jadwal kelas mingguan"
             variants={fadeInRight}
-            initial="hidden"
+            initial={false}
             animate="visible"
           >
             <div className="lp-board-head">

@@ -1,4 +1,3 @@
-import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
   fadeInUp,
@@ -59,9 +58,9 @@ export function ParentsSection() {
             <figcaption>Contoh notifikasi presensi langsung di portal orang tua.</figcaption>
           </motion.figure>
 
-          <a href="dashboard.html?role=parent" className="lp-link">
-            Lihat contoh halaman orang tua <ArrowRight className="lucide" />
-          </a>
+          <p className="mt-6 text-sm text-[#555555]">
+            Semua laporan perkembangan dan presensi dapat diakses langsung oleh orang tua wali setelah pendaftaran.
+          </p>
         </motion.div>
 
         <motion.ul

@@ -61,9 +61,9 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
       <footer className="container lp-footer">
         <div className="lp-footer-grid">
           <div>
-            <a href="#beranda" className="lp-logo">
+            <Link to="/" className="lp-logo">
               Tadulako <span>Cendekia</span>
-            </a>
+            </Link>
             <p>
               Bimbingan belajar tatap muka untuk SD, SMP, SMA, dan UTBK di Kota Palu, Sulawesi Tengah.
             </p>
