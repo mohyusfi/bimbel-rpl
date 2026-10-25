@@ -6,6 +6,7 @@ import {
   BookOpen,
   GraduationCap,
   Receipt,
+  User,
 } from 'lucide-react'
 import { DashboardShell, type DashboardNavGroup } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
@@ -57,6 +58,17 @@ const STUDENT_NAV_GROUPS: DashboardNavGroup[] = [
         href: '/student/tagihan',
         icon: Receipt,
         category: 'Capaian & Biaya',
+      },
+    ],
+  },
+  {
+    title: 'Akun & Profil',
+    items: [
+      {
+        label: 'Profil Saya',
+        href: '/student/profil',
+        icon: User,
+        category: 'Akun',
       },
     ],
   },

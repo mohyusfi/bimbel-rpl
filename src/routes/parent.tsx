@@ -53,6 +53,16 @@ const NAV_GROUPS: DashboardNavGroup[] = [
       },
     ],
   },
+  {
+    title: 'Akun & Profil',
+    items: [
+      {
+        label: 'Profil Saya',
+        href: '/parent/profil',
+        icon: User,
+      },
+    ],
+  },
 ]
 
 function ParentLayout() {

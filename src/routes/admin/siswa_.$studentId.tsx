@@ -16,6 +16,11 @@ import {
   AlertCircle,
   X,
   BookOpen,
+  KeyRound,
+  Copy,
+  Check,
+  Lock,
+  Loader2,
 } from 'lucide-react'
 import { Dialog } from '@base-ui/react/dialog'
 import {
@@ -25,6 +30,8 @@ import {
 } from '~/hooks/use-admin-data'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { SearchableSelect } from '~/components/ui/searchable-select'
+import { useAuth } from '~/hooks/use-auth'
+import { cn } from '~/lib/utils'
 import type { Student } from '~/lib/admin-store'
 
 export const Route = createFileRoute('/admin/siswa_/$studentId')({
@@ -37,11 +44,81 @@ function AdminStudentDetailPage() {
   const { data: student, isLoading, error } = useAdminStudentDetail(studentId)
   const { data: classes = [] } = useAdminClasses()
   const { updateStudent } = useAdminMutations()
+  const { adminResetUserPassword } = useAuth()
 
   // Modal edit state
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
   const [editError, setEditError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+
+  // Reset Password Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
+  const [resetRole, setResetRole] = React.useState<'student' | 'parent'>('student')
+  const [resetNewPassword, setResetNewPassword] = React.useState('')
+  const [isResetSubmitting, setIsResetSubmitting] = React.useState(false)
+  const [resetSuccessData, setResetSuccessData] = React.useState<{
+    targetRole: 'student' | 'parent'
+    targetName: string
+    emailOrNis: string
+    password: string
+  } | null>(null)
+  const [resetError, setResetError] = React.useState<string | null>(null)
+  const [isCopied, setIsCopied] = React.useState(false)
+
+  const handleOpenReset = () => {
+    setResetRole('student')
+    setResetNewPassword('')
+    setResetSuccessData(null)
+    setResetError(null)
+    setIsCopied(false)
+    setIsResetModalOpen(true)
+  }
+
+  const handleExecuteReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!student) return
+    setIsResetSubmitting(true)
+    setResetError(null)
+    setResetSuccessData(null)
+
+    const isTargetStudent = resetRole === 'student'
+    const targetEmail = isTargetStudent
+      ? student.email
+      : student.parentEmail || `${student.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.wali@tadulakocendekia.sch.id`
+    const targetName = isTargetStudent ? student.name : student.parentName
+
+    try {
+      const res = await adminResetUserPassword({
+        targetRole: resetRole,
+        targetId: student.id,
+        email: targetEmail,
+        newPassword: resetNewPassword || undefined,
+      })
+
+      if (res.success && res.newPassword) {
+        setResetSuccessData({
+          targetRole: resetRole,
+          targetName,
+          emailOrNis: isTargetStudent ? `${student.email} (NIS: ${student.nis})` : targetEmail,
+          password: res.newPassword,
+        })
+      } else {
+        setResetError(res.error || '[ERROR] Gagal mereset kata sandi.')
+      }
+    } catch {
+      setResetError('[ERROR] Terjadi kesalahan saat memproses reset kata sandi.')
+    } finally {
+      setIsResetSubmitting(false)
+    }
+  }
+
+  const handleCopyCredentials = () => {
+    if (!resetSuccessData) return
+    const textToCopy = `[Tadulako Cendekia] Kredensial Akses Akun Bimbel\nNama: ${resetSuccessData.targetName}\nPeran: ${resetSuccessData.targetRole === 'student' ? 'Siswa' : 'Orang Tua / Wali'}\nAkun Masuk: ${resetSuccessData.emailOrNis}\nKata Sandi Baru: ${resetSuccessData.password}\n\nSilakan masuk melalui portal resmi: /masuk`
+    navigator.clipboard.writeText(textToCopy)
+    setIsCopied(true)
+    setTimeout(() => setIsCopied(false), 3000)
+  }
 
   const [editForm, setEditForm] = React.useState({
     name: '',
@@ -180,14 +257,25 @@ function AdminStudentDetailPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenEdit}
-          className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[10px] hover:bg-[#262626] transition-colors self-start sm:self-auto cursor-pointer shrink-0"
-        >
-          <Edit className="w-4 h-4" />
-          <span>Edit Data Siswa</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={handleOpenReset}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold text-[#CB2957] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] hover:border-[#CB2957] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+            title="Reset Kata Sandi Akun Siswa & Wali"
+          >
+            <KeyRound className="w-4 h-4 text-[#CB2957]" />
+            <span>Reset Password</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenEdit}
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[10px] hover:bg-[#262626] transition-colors cursor-pointer"
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit Data Siswa</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary KPI Strip */}
@@ -732,6 +820,172 @@ function AdminStudentDetailPage() {
                   </button>
                 </div>
               </form>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Modal Dialog: Reset Password Siswa & Wali */}
+      <Dialog.Root
+        open={isResetModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsResetModalOpen(false)
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 bg-black/45 z-50 backdrop-blur-xs transition-opacity duration-200" />
+          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[12px] shadow-2xl p-6 focus:outline-none">
+              <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-[#CB2957]" />
+                  <Dialog.Title className="font-display font-bold text-base text-[#000000]">
+                    Reset Kata Sandi Akun
+                  </Dialog.Title>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {student && (
+                <div className="mt-4 space-y-4">
+                  <div className="p-3 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2] space-y-1 text-xs">
+                    <p className="font-bold text-[#000000]">
+                      {student.name} <span className="font-normal text-[#555555]">(NIS: {student.nis})</span>
+                    </p>
+                    <p className="text-[#555555]">
+                      Wali: <span className="font-medium text-[#000000]">{student.parentName}</span>
+                    </p>
+                  </div>
+
+                  {resetSuccessData ? (
+                    <div className="space-y-3">
+                      <div className="p-3.5 bg-[#F0FDF4] border border-[#86EFAC] rounded-[8px] space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-[#166534]">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Kata Sandi Berhasil Direset</span>
+                        </div>
+                        <div className="text-xs text-[#292524] space-y-1 bg-[#FFFFFF] p-2.5 rounded-[6px] border border-[#86EFAC]">
+                          <p><span className="text-[#555555]">Akun:</span> <strong className="font-mono">{resetSuccessData.emailOrNis}</strong></p>
+                          <p><span className="text-[#555555]">Kata Sandi Baru:</span> <strong className="font-mono text-sm text-[#CB2957]">{resetSuccessData.password}</strong></p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyCredentials}
+                        className="w-full py-2.5 px-4 text-xs font-bold text-[#FFFFFF] bg-[#000000] hover:bg-[#292524] rounded-[8px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      >
+                        {isCopied ? <Check className="w-4 h-4 text-[#86EFAC]" /> : <Copy className="w-4 h-4" />}
+                        <span>{isCopied ? 'Kredensial Berhasil Disalin!' : 'Salin Kredensial untuk WhatsApp'}</span>
+                      </button>
+
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsResetModalOpen(false)}
+                          className="px-4 py-2 text-xs font-semibold text-[#555555] hover:text-[#000000] cursor-pointer"
+                        >
+                          Tutup
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleExecuteReset} className="space-y-4">
+                      {resetError && (
+                        <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#991B1B]">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{resetError}</span>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-[#000000]">
+                          Pilih Akun yang Ingin Di-reset:
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setResetRole('student')}
+                            className={cn(
+                              'p-2.5 text-xs text-left rounded-[8px] border transition-colors cursor-pointer',
+                              resetRole === 'student'
+                                ? 'border-[#000000] bg-[#000000] text-[#FFFFFF] font-bold'
+                                : 'border-[#D2D2D2] bg-[#FFFFFF] text-[#292524] hover:bg-[#F6F6F6]'
+                            )}
+                          >
+                            <p className="font-bold">Akun Siswa</p>
+                            <p className={cn('text-[11px] truncate', resetRole === 'student' ? 'text-[#D2D2D2]' : 'text-[#555555]')}>
+                              {student.name}
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setResetRole('parent')}
+                            className={cn(
+                              'p-2.5 text-xs text-left rounded-[8px] border transition-colors cursor-pointer',
+                              resetRole === 'parent'
+                                ? 'border-[#000000] bg-[#000000] text-[#FFFFFF] font-bold'
+                                : 'border-[#D2D2D2] bg-[#FFFFFF] text-[#292524] hover:bg-[#F6F6F6]'
+                            )}
+                          >
+                            <p className="font-bold">Akun Orang Tua / Wali</p>
+                            <p className={cn('text-[11px] truncate', resetRole === 'parent' ? 'text-[#D2D2D2]' : 'text-[#555555]')}>
+                              {student.parentName}
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#000000]">
+                          Kata Sandi Baru (Opsional)
+                        </label>
+                        <input
+                          type="text"
+                          value={resetNewPassword}
+                          onChange={(e) => setResetNewPassword(e.target.value)}
+                          placeholder="Kosongkan untuk bawaan: password123"
+                          className="w-full px-3 py-2 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                        />
+                        <p className="text-[11px] text-[#555555]">
+                          Jika dikosongkan, kata sandi otomatis diatur menjadi <strong>password123</strong>.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D2D2D2]">
+                        <button
+                          type="button"
+                          onClick={() => setIsResetModalOpen(false)}
+                          className="px-4 py-2 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isResetSubmitting}
+                          className="px-4 py-2 text-xs font-bold text-[#FFFFFF] bg-[#CB2957] hover:bg-[#A81E46] rounded-[8px] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {isResetSubmitting ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <KeyRound className="w-3.5 h-3.5" />
+                          )}
+                          <span>Konfirmasi Reset</span>
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

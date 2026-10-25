@@ -121,7 +121,7 @@ export function DashboardShell({
   }, [])
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { profile, user, studentProfile, parentProfile, children: authChildren } = useAuth()
+  const { profile, user, studentProfile, parentProfile, children: authChildren, isSuperAdmin } = useAuth()
 
   const currentUserId =
     role === 'student'
@@ -158,6 +158,7 @@ export function DashboardShell({
   } = useRealtimeNotifications({
     userId: currentUserId,
     role,
+    userEmail: user?.email,
     childIds,
     relevantUserIds: allUserIds,
   })
@@ -202,7 +203,10 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-[#E3E3E3] flex justify-center print:bg-transparent">
+    <div
+      data-dashboard-shell
+      className="min-h-screen bg-[#E3E3E3] flex justify-center print:bg-transparent"
+    >
       <div className="w-full max-w-[1920px] min-h-screen bg-[#EEEEEE] text-[#000000] flex flex-col lg:flex-row font-sans print:hidden border-x border-[#D2D2D2] shadow-xs relative">
         {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
@@ -248,7 +252,7 @@ export function DashboardShell({
 
           {/* Navigation Items */}
           <nav
-            className="flex-1 px-3 py-4 space-y-5 overflow-y-auto"
+            className="flex-1 px-3 py-4 space-y-5 overflow-y-auto scrollbar-none"
             aria-label={`Navigasi ${portalName}`}
           >
             {navGroups.map((group) => (
@@ -307,26 +311,53 @@ export function DashboardShell({
 
         {/* Sidebar Footer User Profile */}
         <div className="p-3.5 border-t border-[#D2D2D2] bg-[#F6F6F6]/70 shrink-0 space-y-2">
-          <div className="flex items-center gap-3 px-2.5 py-2 rounded-[10px] bg-[#FFFFFF] border border-[#D2D2D2]">
-            <div className="w-8 h-8 rounded-[6px] bg-[#000000] text-[#FFFFFF] flex items-center justify-center font-display font-bold text-xs shrink-0">
-              {currentUser.initials}
+          {isSuperAdmin ? (
+            <div className="flex items-center gap-3 px-2.5 py-2 rounded-[10px] bg-[#FFFFFF] border border-[#D2D2D2]">
+              <div className="w-8 h-8 rounded-[6px] bg-[#000000] text-[#FFFFFF] flex items-center justify-center font-display font-bold text-xs shrink-0">
+                {currentUser.initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#000000] truncate leading-tight">
+                  {currentUser.name}
+                </p>
+                <p className="text-[11px] text-[#555555] truncate mt-0.5 leading-tight">
+                  {currentUser.roleTitle}
+                </p>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#166534] shrink-0 select-none"
+                title="Sesi Aktif"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#166534]" />
+                <span>Aktif</span>
+              </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#000000] truncate leading-tight">
-                {currentUser.name}
-              </p>
-              <p className="text-[11px] text-[#555555] truncate mt-0.5 leading-tight">
-                {currentUser.roleTitle}
-              </p>
-            </div>
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#166534] shrink-0 select-none"
-              title="Sesi Aktif"
+          ) : (
+            <Link
+              to={`/${role}/profil` as any}
+              className="flex items-center gap-3 px-2.5 py-2 rounded-[10px] bg-[#FFFFFF] border border-[#D2D2D2] hover:border-[#000000] hover:bg-[#F6F6F6] transition-colors group cursor-pointer"
+              title="Buka Halaman Profil & Keamanan Akun"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#166534]" />
-              <span>Aktif</span>
-            </span>
-          </div>
+              <div className="w-8 h-8 rounded-[6px] bg-[#000000] text-[#FFFFFF] flex items-center justify-center font-display font-bold text-xs shrink-0 group-hover:bg-[#CB2957] transition-colors">
+                {currentUser.initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#000000] truncate leading-tight">
+                  {currentUser.name}
+                </p>
+                <p className="text-[11px] text-[#555555] truncate mt-0.5 leading-tight">
+                  {currentUser.roleTitle}
+                </p>
+              </div>
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#166534] shrink-0 select-none"
+                title="Sesi Aktif"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#166534]" />
+                <span>Aktif</span>
+              </span>
+            </Link>
+          )}
 
           <div className="grid grid-cols-2 gap-1.5">
             <Link
@@ -475,7 +506,7 @@ export function DashboardShell({
                     </div>
 
                     {/* Filter Tabs: 'Semua', 'Belum Dibaca', 'Presensi', 'SPP', 'Akademik', 'Pengumuman' */}
-                    <div className="px-5 py-2 border-b border-[#D2D2D2] bg-[#FFFFFF] flex items-center gap-1 overflow-x-auto scrollbar-none shrink-0">
+                    <div className="px-5 py-2.5 border-b border-[#D2D2D2] bg-[#FFFFFF] flex flex-wrap items-center gap-1.5 shrink-0">
                       {[
                         { id: 'ALL', label: 'Semua' },
                         { id: 'UNREAD', label: 'Belum Dibaca' },
@@ -500,7 +531,7 @@ export function DashboardShell({
                       ))}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto divide-y divide-[#D2D2D2]">
+                    <div className="flex-1 overflow-y-auto scrollbar-none divide-y divide-[#D2D2D2]">
                       {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((notif) => (
                           <div

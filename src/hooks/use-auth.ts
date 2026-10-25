@@ -134,5 +134,8 @@ export function useAuth() {
     createAdminStaff: authStore.createAdminStaff.bind(authStore),
     updateAdminStaff: authStore.updateAdminStaff.bind(authStore),
     toggleAdminStaffStatus: authStore.toggleAdminStaffStatus.bind(authStore),
+    updateProfile: authStore.updateProfile.bind(authStore),
+    updatePassword: authStore.updatePassword.bind(authStore),
+    adminResetUserPassword: authStore.adminResetUserPassword.bind(authStore),
   }
 }

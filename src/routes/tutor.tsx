@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   FileText,
   GraduationCap,
+  User,
 } from 'lucide-react'
 import { DashboardShell } from '~/components/dashboard/DashboardShell'
 import { useActiveSession } from '~/hooks/use-admin-data'
@@ -60,6 +61,16 @@ function TutorLayout() {
           label: 'Nilai & Evaluasi',
           href: '/tutor/nilai',
           icon: GraduationCap,
+        },
+      ],
+    },
+    {
+      title: 'Akun & Profil',
+      items: [
+        {
+          label: 'Profil Saya',
+          href: '/tutor/profil',
+          icon: User,
         },
       ],
     },

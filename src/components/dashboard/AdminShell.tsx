@@ -9,6 +9,7 @@ import {
   CreditCard,
   Megaphone,
   ShieldAlert,
+  User,
 } from 'lucide-react'
 import { useAdminSummary } from '~/hooks/use-admin-data'
 import { useAuth } from '~/hooks/use-auth'
@@ -101,6 +102,19 @@ export function AdminShell({ children }: AdminShellProps) {
           href: '/admin/staf',
           icon: ShieldAlert,
           category: 'Sistem',
+        },
+      ],
+    })
+  } else {
+    // Menu Profil khusus Staf TU biasa (Super Admin dikecualikan sesuai PRD)
+    navGroups.push({
+      title: 'Akun & Profil',
+      items: [
+        {
+          label: 'Profil Saya',
+          href: '/admin/profil',
+          icon: User,
+          category: 'Akun',
         },
       ],
     })

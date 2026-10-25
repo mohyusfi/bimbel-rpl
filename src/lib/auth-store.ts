@@ -163,6 +163,71 @@ export const DEMO_ACCOUNTS: Record<
 
 const AUTH_STORAGE_KEY = 'tc_bimbel_auth_state_v1'
 const ADMIN_STAFF_STORAGE_KEY = 'tc_bimbel_admin_staff_v1'
+const CUSTOM_PASSWORDS_STORAGE_KEY = 'tc_bimbel_custom_passwords_v1'
+
+let inMemoryCustomPasswords: Record<string, string> = {}
+
+export function loadSavedCustomPasswords(): Record<string, string> {
+  if (typeof window === 'undefined') return inMemoryCustomPasswords
+  try {
+    const raw = localStorage.getItem(CUSTOM_PASSWORDS_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return { ...parsed, ...inMemoryCustomPasswords }
+  } catch {
+    return inMemoryCustomPasswords
+  }
+}
+
+export function persistCustomPassword(identifier: string, pass: string) {
+  const clean = identifier.trim().toLowerCase()
+  inMemoryCustomPasswords[clean] = pass
+  if (typeof window !== 'undefined') {
+    try {
+      const all = loadSavedCustomPasswords()
+      all[clean] = pass
+      localStorage.setItem(CUSTOM_PASSWORDS_STORAGE_KEY, JSON.stringify(all))
+    } catch {}
+  }
+}
+
+export function clearCustomPasswords() {
+  inMemoryCustomPasswords = {}
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(CUSTOM_PASSWORDS_STORAGE_KEY)
+    } catch {}
+  }
+}
+
+export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserRole): string {
+  const clean = cleanEmailOrNis.trim().toLowerCase()
+  const custom = loadSavedCustomPasswords()
+  if (custom[clean]) {
+    return custom[clean]
+  }
+
+  // Cek apakah input berupa NIS siswa
+  const matchedStudent = adminStore.getState().students.find(
+    (s) => s.nis.toLowerCase() === clean || s.email.toLowerCase() === clean
+  )
+  if (matchedStudent) {
+    const studentEmail = matchedStudent.email.toLowerCase()
+    if (custom[studentEmail]) return custom[studentEmail]
+    if (custom[matchedStudent.nis.toLowerCase()]) return custom[matchedStudent.nis.toLowerCase()]
+  }
+
+  if (clean === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) return DEMO_ACCOUNTS.super_admin.password
+  if (clean === DEMO_ACCOUNTS.admin.email.toLowerCase()) return DEMO_ACCOUNTS.admin.password
+  if (clean === DEMO_ACCOUNTS.tutor.email.toLowerCase()) return DEMO_ACCOUNTS.tutor.password
+  if (clean === DEMO_ACCOUNTS.student.email.toLowerCase()) return DEMO_ACCOUNTS.student.password
+  if (clean === DEMO_ACCOUNTS.parent.email.toLowerCase()) return DEMO_ACCOUNTS.parent.password
+
+  if (targetRole && DEMO_ACCOUNTS[targetRole]) {
+    return DEMO_ACCOUNTS[targetRole].password
+  }
+
+  return 'password123'
+}
 
 function loadSavedAdminStaff(): AdminStaffMember[] {
   return INITIAL_ADMIN_STAFF
@@ -860,7 +925,24 @@ export const authStore = {
     state.error = null
     notify()
 
-    const cleanEmail = email.trim().toLowerCase()
+    const cleanInput = email.trim().toLowerCase()
+    if (!password || !password.trim()) {
+      state.isLoading = false
+      state.error = 'Kata sandi tidak boleh kosong.'
+      notify()
+      return {
+        success: false,
+        error: 'Kata sandi tidak boleh kosong.',
+      }
+    }
+
+    // Resolusi jika pengguna login menggunakan NIS siswa
+    const adminState = adminStore.getState()
+    const matchedStudentByNis = adminState.students.find(
+      (s) => s.nis.toLowerCase() === cleanInput
+    )
+    const cleanEmail = matchedStudentByNis ? matchedStudentByNis.email.toLowerCase() : cleanInput
+
     const isSuperAdminEmail = isEmailSuperAdmin(cleanEmail)
     const targetRole = isSuperAdminEmail ? 'admin' : inferRoleFromEmail(cleanEmail, explicitRole)
 
@@ -901,74 +983,96 @@ export const authStore = {
       console.info('Login status check note in profiles:', checkErr)
     }
 
-    // A. Coba Supabase Auth terlebih dahulu
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      })
+    // A. Coba Supabase Auth terlebih dahulu jika terkonfigurasi
+    let supabaseAuthSucceeded = false
+    let supabaseAuthUser: any = null
+    let supabaseAuthError: any = null
 
-      if (!error && data?.user) {
-        const provisioned = await autoProvisionUser(data.user, targetRole)
-        if (provisioned.profile.status === 'nonaktif') {
-          await supabase.auth.signOut().catch(() => {})
-          state.isLoading = false
-          state.isAuthenticated = false
-          state.user = null
-          state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
-          notify()
-          return {
-            success: false,
-            error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
-          }
-        }
-        const isSuper = Boolean(
-          provisioned.isSuperAdmin ||
-          provisioned.profile.is_super_admin ||
-          isSuperAdminEmail ||
-          data.user.user_metadata?.is_super_admin
-        )
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        })
 
-        state = {
-          user: {
-            id: data.user.id,
-            email: data.user.email || cleanEmail,
-            fullName: provisioned.profile.full_name,
-            role: provisioned.profile.role,
-            phone: provisioned.profile.phone_number || undefined,
-            isSuperAdmin: isSuper,
-          },
-          profile: {
-            ...provisioned.profile,
-            is_super_admin: isSuper,
-            isSuperAdmin: isSuper,
-          },
-          role: provisioned.profile.role,
-          isSuperAdmin: isSuper,
-          studentProfile: provisioned.student,
-          parentProfile: provisioned.parent,
-          children: provisioned.children,
-          selectedChildId: provisioned.children[0]?.id || null,
-          adminStaff: state.adminStaff,
-          isAuthenticated: true,
-          isLoading: false,
-          error: null,
+        if (!error && data?.user) {
+          supabaseAuthSucceeded = true
+          supabaseAuthUser = data.user
+        } else if (error) {
+          supabaseAuthError = error
         }
-        notify()
-        return {
-          success: true,
-          role: provisioned.profile.role,
-          href: `/${provisioned.profile.role}`,
-        }
+      } catch (err: any) {
+        supabaseAuthError = err
       }
-    } catch (err) {
-      console.info('Supabase signInWithPassword note:', err)
     }
 
-    // B. Auto-registration untuk siswa / wali yang sudah disetujui di adminStore namun belum punya akun Supabase Auth
-    const adminState = adminStore.getState()
-    const matchedStudent = adminState.students.find(
-      (s) => s.email.toLowerCase() === cleanEmail || s.nis.toLowerCase() === cleanEmail
+    if (supabaseAuthSucceeded && supabaseAuthUser) {
+      const provisioned = await autoProvisionUser(supabaseAuthUser, targetRole)
+      if (provisioned.profile.status === 'nonaktif') {
+        await supabase.auth.signOut().catch(() => {})
+        state.isLoading = false
+        state.isAuthenticated = false
+        state.user = null
+        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+        notify()
+        return {
+          success: false,
+          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+        }
+      }
+      const isSuper = Boolean(
+        provisioned.isSuperAdmin ||
+        provisioned.profile.is_super_admin ||
+        isSuperAdminEmail ||
+        supabaseAuthUser.user_metadata?.is_super_admin
+      )
+
+      state = {
+        user: {
+          id: supabaseAuthUser.id,
+          email: supabaseAuthUser.email || cleanEmail,
+          fullName: provisioned.profile.full_name,
+          role: provisioned.profile.role,
+          phone: provisioned.profile.phone_number || undefined,
+          isSuperAdmin: isSuper,
+        },
+        profile: {
+          ...provisioned.profile,
+          is_super_admin: isSuper,
+          isSuperAdmin: isSuper,
+        },
+        role: provisioned.profile.role,
+        isSuperAdmin: isSuper,
+        studentProfile: provisioned.student,
+        parentProfile: provisioned.parent,
+        children: provisioned.children,
+        selectedChildId: provisioned.children[0]?.id || null,
+        adminStaff: state.adminStaff,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      }
+      notify()
+      return {
+        success: true,
+        role: provisioned.profile.role,
+        href: `/${provisioned.profile.role}`,
+      }
+    }
+
+    // B. Verifikasi Password Ketat untuk Akun Demo / Terdaftar / Password Lokal
+    const expectedPassword = getEffectivePassword(cleanInput, targetRole)
+
+    const isDemoEmail =
+      isSuperAdminEmail ||
+      cleanEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase() ||
+      cleanEmail === DEMO_ACCOUNTS.admin.email.toLowerCase() ||
+      cleanEmail === DEMO_ACCOUNTS.tutor.email.toLowerCase() ||
+      cleanEmail === DEMO_ACCOUNTS.student.email.toLowerCase() ||
+      cleanEmail === DEMO_ACCOUNTS.parent.email.toLowerCase()
+
+    const matchedStudent = matchedStudentByNis || adminState.students.find(
+      (s) => s.email.toLowerCase() === cleanEmail || s.nis.toLowerCase() === cleanInput
     )
     const matchedParent = adminState.parents.find(
       (p) => p.email.toLowerCase() === cleanEmail
@@ -979,6 +1083,38 @@ export const authStore = {
         (r.studentEmail.toLowerCase() === cleanEmail || r.parentEmail?.toLowerCase() === cleanEmail)
     )
 
+    const isInstitutionalEmail =
+      cleanEmail.endsWith('@siswa.tadulakocendekia.sch.id') ||
+      cleanEmail.endsWith('@wali.tadulakocendekia.sch.id') ||
+      cleanEmail.endsWith('@tadulakocendekia.sch.id')
+
+    const isKnownAccount = Boolean(
+      isDemoEmail || matchedStaff || matchedStudent || matchedParent || matchedApprovedReg || isInstitutionalEmail
+    )
+
+    // JIKA PASSWORD SALAH, DILARANG MEMBUAT SESI (TOLAK SEGERA)
+    if (password !== expectedPassword) {
+      state.isLoading = false
+      state.error = 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.'
+      notify()
+      return {
+        success: false,
+        error: 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.',
+      }
+    }
+
+    // Jika akun sama sekali tidak terdaftar di sistem dan Supabase Auth gagal
+    if (!isKnownAccount && supabaseAuthError) {
+      state.isLoading = false
+      state.error = 'Akun tidak ditemukan. Silakan periksa kembali email Anda.'
+      notify()
+      return {
+        success: false,
+        error: 'Akun tidak ditemukan. Silakan periksa kembali email Anda.',
+      }
+    }
+
+    // B. Auto-registration untuk siswa / wali yang sudah disetujui di adminStore namun belum punya akun Supabase Auth
     if (matchedStudent || matchedParent || matchedApprovedReg) {
       try {
         const actualEmail =
@@ -1581,6 +1717,303 @@ export const authStore = {
   async switchRole(role: UserRole | 'super_admin'): Promise<void> {
     const demo = DEMO_ACCOUNTS[role]
     await this.login(demo.email, demo.defaultPassword, demo.role)
+  },
+
+  /**
+   * Pembaruan data profil pengguna mandiri (untuk Admin TU, Tutor, Siswa, dan Wali).
+   * Dikecualikan untuk Super Admin (Pimpinan Lembaga).
+   */
+  async updateProfile(data: {
+    fullName?: string
+    phone?: string
+    occupation?: string
+    address?: string
+    school?: string
+  }): Promise<{ success: boolean; error?: string }> {
+    if (!state.isAuthenticated || !state.user) {
+      return { success: false, error: 'Sesi pengguna tidak aktif. Silakan masuk kembali.' }
+    }
+
+    if (state.isSuperAdmin) {
+      return { success: false, error: 'Profil Super Admin tidak dapat diubah secara mandiri.' }
+    }
+
+    const newFullName = data.fullName !== undefined ? data.fullName.trim() : state.user.fullName
+    const newPhone = data.phone !== undefined ? data.phone.trim() : state.user.phone
+
+    if (!newFullName) {
+      return { success: false, error: 'Nama lengkap tidak boleh kosong.' }
+    }
+
+    // Perbarui state dasar pengguna
+    state = {
+      ...state,
+      user: {
+        ...state.user,
+        fullName: newFullName,
+        phone: newPhone,
+      },
+      profile: state.profile
+        ? {
+            ...state.profile,
+            full_name: newFullName,
+            phone_number: newPhone,
+          }
+        : null,
+    }
+
+    // Perbarui data entitas terkait berdasarkan peran
+    if (state.role === 'student') {
+      const newSchool = data.school !== undefined ? data.school.trim() : state.studentProfile?.school || ''
+      if (state.studentProfile) {
+        state.studentProfile = {
+          ...state.studentProfile,
+          name: newFullName,
+          phone: newPhone || state.studentProfile.phone,
+          school: newSchool,
+        }
+        adminStore.updateStudent(state.studentProfile.id, {
+          name: newFullName,
+          phone: newPhone || undefined,
+          school: newSchool,
+        })
+      } else {
+        const student = adminStore.getState().students.find(
+          (s) => s.email.toLowerCase() === state.user?.email.toLowerCase()
+        )
+        if (student) {
+          adminStore.updateStudent(student.id, {
+            name: newFullName,
+            phone: newPhone || undefined,
+            school: newSchool,
+          })
+        }
+      }
+    } else if (state.role === 'parent') {
+      const newJob = data.occupation !== undefined ? data.occupation.trim() : state.parentProfile?.job || ''
+      const newAddress = data.address !== undefined ? data.address.trim() : state.parentProfile?.address || ''
+      if (state.parentProfile) {
+        state.parentProfile = {
+          ...state.parentProfile,
+          name: newFullName,
+          phone: newPhone || state.parentProfile.phone,
+          job: newJob,
+          address: newAddress,
+        }
+        adminStore.updateParent(state.parentProfile.id, {
+          name: newFullName,
+          phone: newPhone || undefined,
+          job: newJob,
+          address: newAddress,
+        })
+      } else {
+        const parent = adminStore.getState().parents.find(
+          (p) => p.email.toLowerCase() === state.user?.email.toLowerCase()
+        )
+        if (parent) {
+          adminStore.updateParent(parent.id, {
+            name: newFullName,
+            phone: newPhone || undefined,
+            job: newJob,
+            address: newAddress,
+          })
+        }
+      }
+    } else if (state.role === 'tutor') {
+      const tutors = adminStore.getState().tutors
+      const matchedTutor = tutors.find(
+        (t) =>
+          t.name.toLowerCase() === state.user?.fullName.toLowerCase() ||
+          t.id === state.user?.id
+      )
+      if (matchedTutor) {
+        adminStore.updateTutor(matchedTutor.id, {
+          name: newFullName,
+          phone: newPhone || undefined,
+        })
+      }
+      if (DEMO_ACCOUNTS.tutor.email.toLowerCase() === state.user?.email.toLowerCase()) {
+        DEMO_ACCOUNTS.tutor.name = newFullName
+        if (newPhone) DEMO_ACCOUNTS.tutor.phone = newPhone
+      }
+    } else if (state.role === 'admin') {
+      const staffList = [...state.adminStaff]
+      const staffIdx = staffList.findIndex(
+        (s) =>
+          s.email.toLowerCase() === state.user?.email.toLowerCase() ||
+          s.id === state.user?.id
+      )
+      if (staffIdx !== -1) {
+        staffList[staffIdx] = {
+          ...staffList[staffIdx],
+          fullName: newFullName,
+          phone: newPhone || staffList[staffIdx].phone,
+        }
+        state.adminStaff = staffList
+        persistAdminStaff(staffList)
+      }
+      if (DEMO_ACCOUNTS.admin.email.toLowerCase() === state.user?.email.toLowerCase()) {
+        DEMO_ACCOUNTS.admin.name = newFullName
+        if (newPhone) DEMO_ACCOUNTS.admin.phone = newPhone
+      }
+    }
+
+    // Sinkronkan ke Supabase jika terkonfigurasi
+    const activeUserId = state.user?.id
+    if (isSupabaseConfigured() && activeUserId) {
+      try {
+        const sb = supabase as any
+        await sb
+          .from('profiles')
+          .update({
+            full_name: newFullName,
+            phone_number: newPhone,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', activeUserId)
+      } catch (err) {
+        console.info('Supabase profile update sync note:', err)
+      }
+    }
+
+    notify()
+    return { success: true }
+  },
+
+  /**
+   * Pembaruan kata sandi mandiri dengan verifikasi kata sandi saat ini (lama).
+   */
+  async updatePassword(
+    oldPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!state.isAuthenticated || !state.user) {
+      return { success: false, error: 'Sesi pengguna tidak aktif. Silakan masuk kembali.' }
+    }
+
+    const trimmedOld = (oldPassword || '').trim()
+    const trimmedNew = (newPassword || '').trim()
+
+    if (!trimmedOld) {
+      return { success: false, error: 'Kata sandi saat ini (lama) wajib diisi.' }
+    }
+
+    if (!trimmedNew) {
+      return { success: false, error: 'Kata sandi baru tidak boleh kosong.' }
+    }
+
+    if (trimmedNew.length < 6) {
+      return { success: false, error: 'Kata sandi baru minimal harus 6 karakter.' }
+    }
+
+    const userEmail = state.user.email.toLowerCase()
+    const currentExpected = getEffectivePassword(userEmail, state.role || undefined)
+
+    let isOldPasswordValid = trimmedOld === currentExpected
+
+    if (!isOldPasswordValid && isSupabaseConfigured()) {
+      try {
+        const isolatedClient = createSupabaseClient(undefined, false)
+        const checkRes = await isolatedClient.auth.signInWithPassword({
+          email: userEmail,
+          password: trimmedOld,
+        })
+        if (!checkRes.error && checkRes.data?.session) {
+          isOldPasswordValid = true
+          await isolatedClient.auth.signOut().catch(() => {})
+        }
+      } catch {}
+    }
+
+    if (!isOldPasswordValid) {
+      return {
+        success: false,
+        error: 'Kata sandi saat ini (lama) yang Anda masukkan tidak sesuai.',
+      }
+    }
+
+    // Simpan kata sandi baru
+    persistCustomPassword(userEmail, trimmedNew)
+
+    // Perbarui di DEMO_ACCOUNTS jika sesuai
+    if (state.role && DEMO_ACCOUNTS[state.role]?.email.toLowerCase() === userEmail) {
+      DEMO_ACCOUNTS[state.role].password = trimmedNew
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.auth.updateUser({ password: trimmedNew })
+      } catch (err) {
+        console.info('Supabase updateUser password note:', err)
+      }
+    }
+
+    notify()
+    return { success: true }
+  },
+
+  /**
+   * Reset kata sandi Siswa atau Orang Tua oleh Administrator Tata Usaha.
+   */
+  async adminResetUserPassword(params: {
+    targetRole: 'student' | 'parent'
+    targetId: string
+    email: string
+    newPassword?: string
+  }): Promise<{ success: boolean; newPassword?: string; error?: string }> {
+    if (state.role !== 'admin') {
+      return {
+        success: false,
+        error: 'Hanya Administrator / Staf Tata Usaha yang berwenang mereset kata sandi siswa atau orang tua.',
+      }
+    }
+
+    const cleanEmail = params.email.trim().toLowerCase()
+    if (!cleanEmail) {
+      return { success: false, error: 'Email akun pengguna tujuan wajib diisi.' }
+    }
+
+    const finalPassword = (params.newPassword || '').trim() || 'password123'
+    if (finalPassword.length < 6) {
+      return { success: false, error: 'Kata sandi minimal harus 6 karakter.' }
+    }
+
+    persistCustomPassword(cleanEmail, finalPassword)
+
+    if (params.targetRole === 'student') {
+      const student = adminStore.getState().students.find(
+        (s) => s.id === params.targetId || s.email.toLowerCase() === cleanEmail
+      )
+      if (student?.nis) {
+        persistCustomPassword(student.nis.toLowerCase(), finalPassword)
+      }
+      if (cleanEmail === DEMO_ACCOUNTS.student.email.toLowerCase()) {
+        DEMO_ACCOUNTS.student.password = finalPassword
+      }
+    } else if (params.targetRole === 'parent') {
+      if (cleanEmail === DEMO_ACCOUNTS.parent.email.toLowerCase()) {
+        DEMO_ACCOUNTS.parent.password = finalPassword
+      }
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        const isolatedClient = createSupabaseClient(undefined, false)
+        const currentExpected = getEffectivePassword(cleanEmail, params.targetRole)
+        const signRes = await isolatedClient.auth.signInWithPassword({
+          email: cleanEmail,
+          password: currentExpected,
+        })
+        if (!signRes.error && signRes.data?.session) {
+          await isolatedClient.auth.updateUser({ password: finalPassword })
+          await isolatedClient.auth.signOut().catch(() => {})
+        }
+      } catch (err) {
+        console.info('Supabase adminResetUserPassword sync note:', err)
+      }
+    }
+
+    return { success: true, newPassword: finalPassword }
   },
 }
 
