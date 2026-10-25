@@ -70,17 +70,34 @@ export function setupRealtimeNotifications(
     let addedNotif: AdminNotification | null = null
 
     if (notifData && typeof notifData === 'object' && notifData.title) {
+      let meta = notifData.metadata
+      if (typeof meta === 'string') {
+        try {
+          meta = JSON.parse(meta)
+        } catch {}
+      }
+
       const currentNotifications = adminStore.getState().notifications
       const annId =
-        notifData.metadata?.announcementId ||
+        meta?.announcementId ||
         (notifData.type === 'announcement' ? notifData.id : null)
 
       const isDuplicate = currentNotifications.some((n) => {
         if (notifData.id && n.id === notifData.id) return true
         if (annId) {
+          let existingMeta = n.metadata
+          if (typeof existingMeta === 'string') {
+            try {
+              existingMeta = JSON.parse(existingMeta)
+            } catch {}
+          }
           const existingAnnId =
-            n.metadata?.announcementId || (n.type === 'announcement' ? n.id : null)
+            existingMeta?.announcementId || (n.type === 'announcement' ? n.id : null)
           if (existingAnnId === annId) return true
+        }
+        // Deduplikasi ketat berdasarkan kesamaan judul dan isi pesan
+        if (n.title === notifData.title && (n.message === notifData.message || (n.type === notifData.type && n.type === 'announcement'))) {
+          return true
         }
         return false
       })
@@ -93,7 +110,7 @@ export function setupRealtimeNotifications(
           message: notifData.message || '',
           type: notifData.type || 'general',
           linkUrl: notifData.linkUrl || notifData.link_url,
-          metadata: notifData.metadata,
+          metadata: meta || notifData.metadata,
         })
       }
     }
@@ -400,15 +417,28 @@ export function useRealtimeNotifications(
   )
 
   const markAsRead = React.useCallback(
-    (id: string) => {
+    async (id: string) => {
       adminStore.markNotificationRead(id)
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
+
+      try {
+        if (client && typeof client.from === 'function') {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+          if (isUuid) {
+            await client.from('notifications').update({ is_read: true }).eq('id', id)
+          } else {
+            await client.from('notifications').update({ is_read: true }).filter('metadata->>announcementId', 'eq', id)
+          }
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal update status is_read notifikasi di Supabase:', err)
+      }
     },
-    [queryClient]
+    [client, queryClient]
   )
 
-  const markAllAsRead = React.useCallback(() => {
-    // 1. Mark all unread notifications visible in this portal as read
+  const markAllAsRead = React.useCallback(async () => {
+    // 1. Mark all unread notifications visible in this portal as read in local store
     const unreadTargetIds = notifications.filter((n) => !n.isRead).map((n) => n.id)
     unreadTargetIds.forEach((id) => {
       adminStore.markNotificationRead(id)
@@ -420,7 +450,22 @@ export function useRealtimeNotifications(
     }
 
     queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.notifications })
-  }, [notifications, queryClient, userId])
+
+    // 3. Persist update is_read = true in Supabase database
+    try {
+      if (client && typeof client.from === 'function') {
+        if (userId) {
+          await client.from('notifications').update({ is_read: true }).eq('user_id', userId)
+        } else if (unreadTargetIds.length > 0) {
+          await client.from('notifications').update({ is_read: true }).in('id', unreadTargetIds)
+        } else {
+          await client.from('notifications').update({ is_read: true }).eq('is_read', false)
+        }
+      }
+    } catch (err) {
+      console.warn('[WARN] Gagal update status markAllAsRead di Supabase:', err)
+    }
+  }, [client, notifications, queryClient, userId])
 
   return {
     notifications,

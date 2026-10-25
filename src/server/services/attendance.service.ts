@@ -163,18 +163,6 @@ export const attendanceService = {
           if (notifRows.length > 0) {
             await supabase.from('notifications').insert(notifRows)
           }
-
-          if (targetParentProfileIds.length > 0) {
-            const { pushNotificationService } = await import(
-              './push-notification.service'
-            )
-            await pushNotificationService.sendToUsers(targetParentProfileIds, {
-              title: 'Peringatan Ketidakhadiran Siswa (Alpa)',
-              message: `Putra/Putri Anda tercatat tidak hadir (Alpa) pada sesi ${topic || 'bimbingan belajar'}.`,
-              linkUrl: '/parent/kehadiran',
-              tag: `alpa-${sessionId}`,
-            })
-          }
         } catch (alpaNotifErr) {
           console.warn('[WARN] Gagal mencatat notifikasi presensi Alpa:', alpaNotifErr)
         }

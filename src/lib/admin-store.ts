@@ -895,53 +895,7 @@ const INITIAL_ATTENDANCE_SESSIONS: AttendanceSession[] = [
   },
 ]
 
-const INITIAL_MATERIALS: LearningMaterial[] = [
-  {
-    id: 'mat-1',
-    classId: 'cls-1',
-    className: 'UTBK Intensif A',
-    subjectName: 'Fisika UTBK',
-    title: 'Modul 01: Kinematika & Dinamika Gerak Lurus UTBK',
-    description: 'Ringkasan komprehensif konsep gerak lurus dan strategi pengerjaan soal tipe HOTS SNBT.',
-    category: 'Modul Teori',
-    tutorId: 'tut-1',
-    tutorName: 'Kak Dian Pratiwi, S.Si',
-    fileType: 'PDF',
-    fileSize: '3.7 MB',
-    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
-    uploadedAt: '16 Okt 2026',
-  },
-  {
-    id: 'mat-2',
-    classId: 'cls-1',
-    className: 'UTBK Intensif A',
-    subjectName: 'Informatika & Integrasi Sistem',
-    title: 'Bank Soal: TPS Penalaran Matematika & Kuantitatif 2026',
-    description: 'Kompilasi 50 soal prediksi penalaran umum dan pengetahuan kuantitatif SNBT dengan pembahasan komprehensif.',
-    category: 'Bank Soal',
-    tutorId: 'tut-2',
-    tutorName: 'Pak Hendra Wijaya, M.Pd',
-    fileType: 'PDF',
-    fileSize: '4.2 MB',
-    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
-    uploadedAt: '15 Okt 2026',
-  },
-  {
-    id: 'mat-4',
-    classId: 'cls-4',
-    className: 'SMP Prestasi A',
-    subjectName: 'IPA Terpadu SMP',
-    title: 'Lembar Kerja Siswa: Sistem Peredaran Darah Manusia',
-    description: 'LKS interaktif IPA Terpadu Kelas 8 persiapan asesmen formatif tengah semester.',
-    category: 'Lembar Tugas',
-    tutorId: 'tut-1',
-    tutorName: 'Kak Dian Pratiwi, S.Si',
-    fileType: 'PDF',
-    fileSize: '2.1 MB',
-    fileUrl: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
-    uploadedAt: '10 Okt 2026',
-  },
-]
+const INITIAL_MATERIALS: LearningMaterial[] = []
 
 const INITIAL_GRADES: GradeRecord[] = [
   {
@@ -2247,18 +2201,33 @@ export const adminStore = {
   ) {
     const notifId =
       input.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+    let meta = input.metadata || input.data
+    if (typeof meta === 'string') {
+      try {
+        meta = JSON.parse(meta)
+      } catch {}
+    }
+
     const annId =
-      (input.metadata as any)?.announcementId ||
+      (meta as any)?.announcementId ||
       (input.type === 'announcement' ? input.id : null)
 
     const existing = state.notifications.find((n) => {
       if (n.id === notifId) return true
       if (annId) {
+        let existingMeta = n.metadata || n.data
+        if (typeof existingMeta === 'string') {
+          try {
+            existingMeta = JSON.parse(existingMeta)
+          } catch {}
+        }
         const existingAnnId =
-          (n.metadata as any)?.announcementId ||
+          (existingMeta as any)?.announcementId ||
           (n.type === 'announcement' ? n.id : null)
         if (existingAnnId === annId) return true
       }
+      // Deduplikasi ketat berdasarkan kesamaan judul dan isi pesan
+      if (n.title === input.title && n.message === input.message) return true
       return false
     })
     if (existing) return existing

@@ -92,4 +92,47 @@ describe('Announcement Duplicate Notification Prevention', () => {
 
     expect(matchingNotifs.length).toBe(1)
   })
+
+  it('tidak membuat 2 notifikasi duplikat meskipun payload broadcast tidak menyertakan metadata', () => {
+    const mockClient = createMockRealtimeClient()
+    const currentUserId = '3718bd9b-1fcf-4159-acdf-44b8000ee4b3'
+    const announcementId = 'ann-test-no-meta-888'
+
+    setupRealtimeNotifications({
+      userId: currentUserId,
+      client: mockClient as any,
+      enabled: true,
+    })
+
+    // 1. Event broadcast tanpa metadata
+    mockClient._simulate('broadcast:announcements', 'announcement', {
+      payload: {
+        id: announcementId,
+        title: 'Jadwal Try Out UTBK Akbar',
+        message: 'Pelaksanaan Try Out akan digelar Sabtu besok.',
+        type: 'announcement',
+      },
+    })
+
+    // 2. Event postgres_changes dengan UUID berbeda
+    mockClient._simulate(`user-notifications:${currentUserId}`, 'INSERT', {
+      new: {
+        id: 'uuid-diff-1234-5678',
+        user_id: currentUserId,
+        title: 'Jadwal Try Out UTBK Akbar',
+        message: 'Pelaksanaan Try Out akan digelar Sabtu besok.',
+        type: 'announcement',
+        metadata: {
+          announcementId,
+        },
+      },
+    })
+
+    const notifications = adminStore.getState().notifications
+    const matchingNotifs = notifications.filter(
+      (n) => n.title === 'Jadwal Try Out UTBK Akbar'
+    )
+
+    expect(matchingNotifs.length).toBe(1)
+  })
 })

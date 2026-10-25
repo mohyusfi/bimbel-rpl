@@ -2,9 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 export const getVapidPublicKeyFn = createServerFn({ method: 'GET' }).handler(async () => {
-  const publicKey =
-    process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || ''
-  return { publicKey }
+  return { publicKey: '' }
 })
 
 export const savePushSubscriptionFn = createServerFn({ method: 'POST' })
@@ -20,11 +18,8 @@ export const savePushSubscriptionFn = createServerFn({ method: 'POST' })
       userAgent: z.string().optional(),
     })
   )
-  .handler(async ({ data }) => {
-    const { pushNotificationService } = await import(
-      '~/server/services/push-notification.service'
-    )
-    return await pushNotificationService.subscribe(data)
+  .handler(async () => {
+    return { success: true }
   })
 
 export const removePushSubscriptionFn = createServerFn({ method: 'POST' })
@@ -33,9 +28,6 @@ export const removePushSubscriptionFn = createServerFn({ method: 'POST' })
       endpoint: z.string().url(),
     })
   )
-  .handler(async ({ data }) => {
-    const { pushNotificationService } = await import(
-      '~/server/services/push-notification.service'
-    )
-    return await pushNotificationService.unsubscribe(data.endpoint)
+  .handler(async () => {
+    return { success: true }
   })

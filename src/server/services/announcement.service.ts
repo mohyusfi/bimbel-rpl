@@ -1,5 +1,4 @@
 import { supabase } from '~/lib/supabase/client'
-import { pushNotificationService } from './push-notification.service'
 
 export type ServerResult<T> =
   | { success: true; data: T }
@@ -224,23 +223,6 @@ export const announcementService = {
           })
         } catch (broadcastErr) {
           console.warn('[WARN] Realtime broadcast error:', broadcastErr)
-        }
-
-        // Web Push Notification
-        try {
-          if (targetUserIds.length > 0) {
-            await pushNotificationService.sendToUsers(targetUserIds, {
-              title: `Pengumuman: ${announcementData.title}`,
-              message:
-                announcementData.content.length > 120
-                  ? `${announcementData.content.substring(0, 117)}...`
-                  : announcementData.content,
-              linkUrl: '/admin/pengumuman',
-              tag: `ann-${announcementId}`,
-            })
-          }
-        } catch (pushErr) {
-          console.warn('[WARN] Gagal mengirim web push pengumuman:', pushErr)
         }
       }
 

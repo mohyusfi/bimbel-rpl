@@ -781,17 +781,8 @@ export const billingService = {
         'd992d9fc-6f5b-434f-998b-358e54a754b7',
         'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
       ].filter(Boolean) as string[]
-      if (targetUserIds.length > 0) {
-        const { pushNotificationService } = await import('./push-notification.service')
-        await pushNotificationService.sendToUsers(targetUserIds, {
-          title: notifTitle,
-          message: notifMsg,
-          linkUrl: '/parent/tagihan',
-          tag: `billing-${invoiceId}`,
-        })
-      }
     } catch (pushErr) {
-      console.warn('[WARN] Gagal mengirim Web Push tagihan baru:', pushErr)
+      console.warn('[WARN] Gagal mengirim notifikasi tagihan baru:', pushErr)
     }
 
     return {
@@ -1100,15 +1091,8 @@ export const billingService = {
         'd992d9fc-6f5b-434f-998b-358e54a754b7',
         'ec6f75cb-887a-442b-b91d-f47f9afc5ab8',
       ].filter(Boolean) as string[]
-      const { pushNotificationService } = await import('./push-notification.service')
-      await pushNotificationService.sendToUsers(recipientUserIds, {
-        title: notifTitle,
-        message: notifMsg,
-        linkUrl: '/parent/tagihan',
-        tag: `billing-${invoice.id}`,
-      })
     } catch (pushErr) {
-      console.warn('[WARN] Gagal mengirim Web Push verifikasi tagihan:', pushErr)
+      console.warn('[WARN] Gagal mengirim notifikasi verifikasi tagihan:', pushErr)
     }
 
     return {
@@ -1218,25 +1202,7 @@ export const billingService = {
       // ignore
     }
 
-    // Kirim Web Push Notification penolakan pembayaran
-    try {
-      const recipientUserIds = [
-        studentProfileId,
-        parentProfileId,
-        invoice.studentId,
-        (invoice as any).parentId,
-      ].filter(Boolean) as string[]
-      const { pushNotificationService } = await import('./push-notification.service')
-      await pushNotificationService.sendToUsers(recipientUserIds, {
-        title: 'Bukti Pembayaran SPP Ditolak',
-        message: `Bukti pembayaran tagihan ${invoice.invoiceNumber} ditolak: "${cleanReason}".`,
-        linkUrl: '/parent/tagihan',
-        tag: `billing-rejected-${invoice.id}`,
-      })
-    } catch (pushErr) {
-      console.warn('[WARN] Gagal mengirim Web Push penolakan tagihan:', pushErr)
-    }
-
+    // Status penolakan berhasil dicatat
     return {
       success: true,
       data: {

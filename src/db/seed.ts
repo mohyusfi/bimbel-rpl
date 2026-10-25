@@ -328,74 +328,8 @@ async function runSeed() {
     .eq('id', alyaStudentId)
   console.log('[OK] Alya Ramadhani terhubung ke wali murid Ahmad Dahlan.')
 
-  // 7. Seed Materials (Modul Belajar - Tiket 05)
-  console.log('[SEED] [Tiket 05] Menyuntikkan master data materials (Modul Pembelajaran)...')
-  const initialMaterials = [
-    {
-      id: 'b1000000-0000-0000-0000-000000000001',
-      class_id: 'c1000000-0000-0000-0000-000000000001', // UTBK Intensif A
-      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
-      title: 'Modul 01: Kinematika & Dinamika Gerak Lurus UTBK',
-      description: 'Ringkasan konsep gerak lurus berubah beraturan (GLBB), gerak parabola, dan hukum Newton beserta contoh soal kontekstual.',
-      category: 'Modul Teori',
-      file_type: 'PDF',
-      file_size: '3.7 MB',
-      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
-      storage_path: 'classes/c1000000-0000-0000-0000-000000000001/modul-01-kinematika-utbk.pdf',
-    },
-    {
-      id: 'b1000000-0000-0000-0000-000000000002',
-      class_id: 'c1000000-0000-0000-0000-000000000001', // UTBK Intensif A
-      tutor_id: tutorMap.get('Pak Hendra Wijaya, M.Pd'),
-      title: 'Bank Soal: TPS Penalaran Matematika & Kuantitatif 2026',
-      description: 'Kompilasi 50 soal prediksi penalaran umum dan pengetahuan kuantitatif SNBT dengan pembahasan komprehensif.',
-      category: 'Bank Soal',
-      file_type: 'PDF',
-      file_size: '4.2 MB',
-      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
-      storage_path: 'classes/c1000000-0000-0000-0000-000000000001/bank-soal-tps-utbk-2026.pdf',
-    },
-    {
-      id: 'b1000000-0000-0000-0000-000000000004',
-      class_id: 'c1000000-0000-0000-0000-000000000004', // SMP Prestasi A
-      tutor_id: tutorMap.get('Kak Dian Pratiwi, S.Si'),
-      title: 'Lembar Kerja Siswa: Sistem Peredaran Darah Manusia',
-      description: 'LKS interaktif IPA Terpadu Kelas 8 persiapan asesmen formatif tengah semester.',
-      category: 'Lembar Tugas',
-      file_type: 'PDF',
-      file_size: '2.1 MB',
-      file_url: 'https://rtamiwffuaxwzyjkocmj.supabase.co/storage/v1/object/public/learning-materials/classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
-      storage_path: 'classes/c1000000-0000-0000-0000-000000000004/lks-peredaran-darah-smp.pdf',
-    },
-  ]
-
-  // Pastikan objek file contoh tersedia di bucket
-  const samplePdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Title (Modul Belajar Tadulako Cendekia) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF')
-  for (const m of initialMaterials) {
-    if (m.storage_path) {
-      await supabase.storage.from('learning-materials').upload(m.storage_path, samplePdf, {
-        contentType: m.file_type === 'PDF' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        upsert: true,
-      })
-    }
-
-    const { data: existingMat } = await supabase
-      .from('materials')
-      .select('id')
-      .eq('id', m.id)
-      .maybeSingle()
-
-    if (existingMat) {
-      console.log(`  ↪ Material "${m.title}" sudah ada: ${m.id}`)
-    } else {
-      const { error: matErr } = await supabase.from('materials').insert(m)
-      if (matErr) {
-        console.error(`  [ERROR] Gagal insert material "${m.title}":`, matErr.message)
-      } else {
-        console.log(`  [OK] Material "${m.title}" berhasil dibuat.`)
-      }
-    }
-  }
+  // 7. Modul Belajar (Materials) dinonaktifkan sesuai kebutuhan pengguna
+  console.log('[SEED] Modul Pembelajaran (materials) dilewati sesuai konfigurasi pengguna.')
 
   // 8. Seed Grades (Nilai & Evaluasi Rapor - Tiket 05)
   console.log('[SEED] [Tiket 05] Menyuntikkan data grades (Nilai & Catatan Evaluasi)...')
