@@ -1,0 +1,9 @@
+.codegraph
+.scratch
+scratch
+.agents
+manual-guide
+docs
+dfd
+*.sock
+.env*
