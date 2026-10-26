@@ -1,4 +1,5 @@
 import { supabase } from '~/lib/supabase/client'
+import { ensureAuthenticatedSession } from './master-data.service'
 import {
   validateMaterialFormat,
   validateMaterialFileSize,
@@ -17,7 +18,7 @@ export interface UploadMaterialInput {
   title: string
   description?: string
   category: string
-  fileType: 'PDF' | 'PPTX'
+  fileType?: 'PDF' | 'PPTX'
   fileSize?: string
   fileUrl?: string
   storagePath?: string
@@ -190,6 +191,7 @@ export const learningService = {
    * Mengambil seluruh modul pembelajaran dari Supabase dengan filter opsional classId atau tutorId.
    */
   async getMaterials(filters?: { classId?: string; tutorId?: string }): Promise<LearningMaterial[]> {
+    await ensureAuthenticatedSession()
     let query = supabase
       .from('materials')
       .select(`
@@ -262,6 +264,7 @@ export const learningService = {
    * Mengunggah modul berkas (PDF atau PPTX) ke Supabase Storage dan menyimpan metadata ke tabel materials.
    */
   async uploadMaterial(input: UploadMaterialInput): Promise<ServerResult<LearningMaterial>> {
+    await ensureAuthenticatedSession()
     const { file, classId, title, description, category } = input
 
     if (!classId) {
@@ -407,6 +410,7 @@ export const learningService = {
    * Menghapus modul secara atomik: menghapus berkas fisik di Supabase Storage dan baris di tabel materials.
    */
   async deleteMaterial(materialId: string): Promise<ServerResult<boolean>> {
+    await ensureAuthenticatedSession()
     if (!materialId) {
       return { success: false, error: 'ID materi tidak valid.' }
     }
@@ -463,6 +467,7 @@ export const learningService = {
    * Mengambil seluruh nilai evaluasi dari Supabase dengan filter opsional.
    */
   async getGrades(filters?: { studentId?: string; classId?: string; tutorId?: string }): Promise<GradeRecord[]> {
+    await ensureAuthenticatedSession()
     let query = supabase
       .from('grades')
       .select(`
@@ -540,6 +545,7 @@ export const learningService = {
    * Menyimpan nilai evaluasi baru dengan batas validasi 0-100 dan kalkulasi class_average otomatis.
    */
   async saveGrade(input: SaveGradeInput): Promise<ServerResult<GradeRecord>> {
+    await ensureAuthenticatedSession()
     const {
       studentId,
       classId,
@@ -694,6 +700,7 @@ export const learningService = {
    * Memperbarui nilai dan catatan umpan balik tutor.
    */
   async updateGrade(id: string, updates: Partial<GradeRecord>): Promise<ServerResult<GradeRecord>> {
+    await ensureAuthenticatedSession()
     if (!id) return { success: false, error: 'ID nilai tidak valid.' }
 
     if (updates.score !== undefined) {

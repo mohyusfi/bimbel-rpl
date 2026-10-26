@@ -309,7 +309,7 @@ function persistAuthState(currState: AuthState) {
           isAuthenticated: true,
         })
       )
-    } else {
+    } else if (!currState.isLoading) {
       localStorage.removeItem(AUTH_STORAGE_KEY)
     }
   } catch (err) {
@@ -329,9 +329,9 @@ let state: AuthState = {
     savedState?.user?.isSuperAdmin ||
     savedState?.profile?.is_super_admin
   ),
-  studentProfile: null,
-  parentProfile: null,
-  children: [],
+  studentProfile: savedState?.studentProfile || null,
+  parentProfile: savedState?.parentProfile || null,
+  children: savedState?.children || [],
   selectedChildId: savedState?.selectedChildId || null,
   adminStaff: loadSavedAdminStaff(),
   isAuthenticated: Boolean(savedState?.isAuthenticated && savedState?.user),
@@ -728,19 +728,10 @@ export const authStore = {
     const targetRole: UserRole = isSuper ? 'admin' : roleOrSuper
     const demoInfo = isSuper ? DEMO_ACCOUNTS.super_admin : DEMO_ACCOUNTS[targetRole]
 
-    // Bersihkan sesi Supabase lama agar tidak terjadi pembajakan peran (role poisoning)
-    if (typeof window !== 'undefined') {
+    // Autentikasi sesi Supabase untuk akun demo admin jika terkonfigurasi
+    if (typeof window !== 'undefined' && isSupabaseConfigured()) {
       try {
-        localStorage.removeItem('tc_bimbel_supabase_auth_token')
-        const keysToRemove: string[] = []
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-            keysToRemove.push(key)
-          }
-        }
-        keysToRemove.forEach((k) => localStorage.removeItem(k))
-        if (isSupabaseConfigured()) {
+        if (targetRole === 'admin') {
           supabase.auth.signInWithPassword({
             email: demoInfo.email,
             password: demoInfo.defaultPassword,
@@ -858,11 +849,20 @@ export const authStore = {
   },
 
   async initialize(): Promise<void> {
+    const currentSavedState = loadSavedAuthState()
+    if (currentSavedState?.isAuthenticated && currentSavedState?.user && currentSavedState?.role) {
+      state = {
+        ...state,
+        user: currentSavedState.user,
+        profile: currentSavedState.profile || null,
+        role: currentSavedState.role,
+        isAuthenticated: true,
+      }
+    }
     state.isLoading = true
     notify()
 
     try {
-      const currentSavedState = loadSavedAuthState()
 
       // 1. Cek sesi Supabase jika ada
       const { data, error } = await supabase.auth.getSession()
@@ -870,24 +870,19 @@ export const authStore = {
         const user = data.session.user
         const sessionEmail = (user.email || '').toLowerCase()
         const savedEmail = (currentSavedState?.user?.email || '').toLowerCase()
+        const isServiceAccount = sessionEmail === 'nuraini.tu@tadulakocendekia.sch.id'
 
-        // Jika savedState ada dan email berbeda, bersihkan sesi Supabase yang usang
-        // untuk mencegah sesi akun sebelumnya membajak peran (role poisoning).
-        const isSessionMismatched = Boolean(
+        // A. Jika ada savedState untuk pengguna aktif (misal Tutor, Siswa, Wali) dan sesi Supabase
+        // adalah service account atau email berbeda, pertahankan akun savedState (jangan di-overwrite oleh Supabase session).
+        // Biarkan sesi Supabase tetap berjalan sebagai token bearer query agar lolos RLS.
+        const shouldRestoreSavedState = Boolean(
           currentSavedState?.isAuthenticated &&
           currentSavedState?.role &&
           savedEmail &&
           sessionEmail !== savedEmail
         )
 
-        if (isSessionMismatched) {
-          try {
-            await supabase.auth.signOut().catch(() => {})
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('tc_bimbel_supabase_auth_token')
-            }
-          } catch {}
-        } else {
+        if (!shouldRestoreSavedState && ((savedEmail && sessionEmail === savedEmail) || (!currentSavedState?.isAuthenticated && !isServiceAccount))) {
           const provisioned = await autoProvisionUser(user)
           const isSuper = Boolean(
             provisioned.isSuperAdmin ||
@@ -2177,10 +2172,36 @@ if (typeof window !== 'undefined') {
   try {
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        if (state.isAuthenticated) {
+        const currentEmail = state.user?.email?.toLowerCase()
+        const signedOutEmail = session?.user?.email?.toLowerCase()
+        if (state.isAuthenticated && currentEmail && signedOutEmail && currentEmail === signedOutEmail) {
           authStore.clearSession()
         }
       } else if (event === 'SIGNED_IN' && session?.user) {
+        const sessionEmail = session.user.email?.toLowerCase() || ''
+        const isServiceAccount = sessionEmail === 'nuraini.tu@tadulakocendekia.sch.id'
+        const currentSaved = loadSavedAuthState()
+        const activeEmail = (state.user?.email || currentSaved?.user?.email || '').toLowerCase()
+        const activeRole = state.role || currentSaved?.role
+
+        // 1. Jika pengguna saat ini terautentikasi dengan email berbeda (misal Tutor Kak Dian, Siswa Fahri, Wali Ahmad Dahlan),
+        // atau peran bukan admin, dan sesi Supabase yang masuk adalah service account / email berbeda:
+        // JANGAN TIMPA sesi aktif pengguna!
+        if (
+          (state.isAuthenticated || currentSaved?.isAuthenticated) &&
+          activeEmail &&
+          activeEmail !== sessionEmail &&
+          (isServiceAccount || activeRole !== 'admin')
+        ) {
+          return
+        }
+
+        // 2. Jika user di antarmuka belum login sama sekali dan sesi yang masuk adalah background service account:
+        // JANGAN jadikan admin secara otomatis di antarmuka pengguna!
+        if (!state.isAuthenticated && !currentSaved?.isAuthenticated && isServiceAccount) {
+          return
+        }
+
         autoProvisionUser(session.user).then((provisioned) => {
           const isSuper = Boolean(
             provisioned.isSuperAdmin ||
