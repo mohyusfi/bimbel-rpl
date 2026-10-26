@@ -1,111 +1,49 @@
 import * as React from 'react'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  HelpCircle,
+  X,
   ShieldCheck,
   GraduationCap,
   BookOpen,
   Users,
-  ArrowRight,
-  Lock,
-  Mail,
-  Eye,
-  EyeOff,
-  UserPlus,
-  AlertCircle,
-  Loader2,
-  Sparkles,
 } from 'lucide-react'
-import { Header } from '~/components/landing/Header'
-import { CtaFooter } from '~/components/landing/CtaFooter'
 import { RegisterModal } from '~/components/landing/RegisterModal'
-import { MobileDrawer } from '~/components/landing/MobileDrawer'
 import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
+import { isDemoLogin } from '~/lib/login-mode'
 
 export const Route = createFileRoute('/masuk')({
   component: LoginPage,
 })
 
-interface RoleCard {
-  role: UserRole
-  title: string
-  subtitle: string
-  description: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  badgeText: string
-  demoAccount: string
-  demoEmail: string
-  demoPassword: string
-}
-
-const ROLES: RoleCard[] = [
-  {
-    role: 'admin',
-    title: 'Portal Tata Usaha',
-    subtitle: 'Pengelola Bimbel & Master Data',
-    description:
-      'Verifikasi pendaftaran mandiri calon siswa, manajemen jadwal anti-bentrok, dan verifikasi pembayaran SPP.',
-    href: '/admin',
-    icon: ShieldCheck,
-    badgeText: 'Akses Penuh',
-    demoAccount: DEMO_ACCOUNTS.admin.name,
-    demoEmail: DEMO_ACCOUNTS.admin.email,
-    demoPassword: DEMO_ACCOUNTS.admin.defaultPassword,
-  },
-  {
-    role: 'tutor',
-    title: 'Portal Pengajar',
-    subtitle: 'Tenaga Pendidik Tadulako Cendekia',
-    description:
-      'Checklist presensi digital sesi kelas, input nilai latihan & try out, serta distribusi modul bimbingan.',
-    href: '/tutor',
-    icon: GraduationCap,
-    badgeText: 'Akademik',
-    demoAccount: DEMO_ACCOUNTS.tutor.name,
-    demoEmail: DEMO_ACCOUNTS.tutor.email,
-    demoPassword: DEMO_ACCOUNTS.tutor.defaultPassword,
-  },
-  {
-    role: 'student',
-    title: 'Portal Siswa',
-    subtitle: 'Peserta Bimbingan Belajar',
-    description:
-      'Pantau jadwal bimbingan mingguan, unduh modul pelajaran, cek rapor nilai try out, dan status tagihan les.',
-    href: '/student',
-    icon: BookOpen,
-    badgeText: 'Ruang Belajar',
-    demoAccount: DEMO_ACCOUNTS.student.name,
-    demoEmail: DEMO_ACCOUNTS.student.email,
-    demoPassword: DEMO_ACCOUNTS.student.defaultPassword,
-  },
-  {
-    role: 'parent',
-    title: 'Portal Orang Tua / Wali',
-    subtitle: 'Pemantauan Terpadu Putra-Putri',
-    description:
-      'Pantau kehadiran anak real-time, evaluasi rapor nilai, serta unggah bukti transfer SPP & unduh kwitansi resmi.',
-    href: '/parent',
-    icon: Users,
-    badgeText: 'Multi-Child',
-    demoAccount: DEMO_ACCOUNTS.parent.name,
-    demoEmail: DEMO_ACCOUNTS.parent.email,
-    demoPassword: DEMO_ACCOUNTS.parent.defaultPassword,
-  },
-]
-
-function LoginPage() {
+export function LoginPage() {
   const navigate = useNavigate()
-  const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+  const isDemo = isDemoLogin()
 
-  const [adminRoleType, setAdminRoleType] = React.useState<'super_admin' | 'regular_admin'>('super_admin')
-  const [selectedRole, setSelectedRole] = React.useState<RoleCard>(ROLES[0])
-  const [emailOrId, setEmailOrId] = React.useState(DEMO_ACCOUNTS.super_admin.email)
-  const [password, setPassword] = React.useState(DEMO_ACCOUNTS.super_admin.defaultPassword)
-  const [showPassword, setShowPassword] = React.useState(false)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  // Form states
+  const [emailOrId, setEmailOrId] = React.useState<string>(
+    isDemo ? DEMO_ACCOUNTS.super_admin.email : ''
+  )
+  const [password, setPassword] = React.useState<string>(
+    isDemo ? DEMO_ACCOUNTS.super_admin.defaultPassword : ''
+  )
+  const [showPassword, setShowPassword] = React.useState<boolean>(false)
+  const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
-  const [deactivatedNotice, setDeactivatedNotice] = React.useState(false)
+  const [fieldErrors, setFieldErrors] = React.useState<{ email?: string; password?: string }>({})
+
+  // Admin role selection for demo mode (Super Admin vs TU Admin)
+  const [adminRoleType, setAdminRoleType] = React.useState<'super_admin' | 'regular_admin'>('super_admin')
+
+  // Modals & notices
+  const [isRegisterOpen, setIsRegisterOpen] = React.useState<boolean>(false)
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState<boolean>(false)
+  const [deactivatedNotice, setDeactivatedNotice] = React.useState<boolean>(false)
   const [redirectPath, setRedirectPath] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -121,406 +59,483 @@ function LoginPage() {
     }
   }, [])
 
-  const handleRoleCardClick = (roleCard: RoleCard) => {
-    setSelectedRole(roleCard)
-    if (roleCard.role === 'admin') {
-      const isSuper = adminRoleType === 'super_admin'
-      setEmailOrId(isSuper ? DEMO_ACCOUNTS.super_admin.email : DEMO_ACCOUNTS.admin.email)
-      setPassword(isSuper ? DEMO_ACCOUNTS.super_admin.defaultPassword : DEMO_ACCOUNTS.admin.defaultPassword)
-    } else {
-      setEmailOrId(roleCard.demoEmail)
-      setPassword(roleCard.demoPassword)
-    }
-    setErrorMessage(null)
-  }
-
-  // 1-Click Quick Demo Login
-  const handleQuickDemoLogin = async (role: UserRole) => {
-    setIsSubmitting(true)
-    const isSuper = role === 'admin' && adminRoleType === 'super_admin'
-    const targetAccount = isSuper
-      ? DEMO_ACCOUNTS.super_admin
-      : role === 'admin'
-      ? DEMO_ACCOUNTS.admin
-      : DEMO_ACCOUNTS[role]
-
-    try {
-      const loginRes = await authStore.login(targetAccount.email, targetAccount.defaultPassword, targetAccount.role)
-      if (loginRes.success && loginRes.href) {
-        const roleHref = loginRes.href || `/${loginRes.role}`
-        const dest = (redirectPath && redirectPath.startsWith(`/${loginRes.role}`)) ? redirectPath : roleHref
-        navigate({ to: dest as any })
-        return
-      }
-      if (!loginRes.success && loginRes.error) {
-        setErrorMessage(loginRes.error)
-        return
-      }
-    } catch (err) {
-      console.warn('Quick login Supabase auth fallback:', err)
-    } finally {
-      setIsSubmitting(false)
-    }
-
-    const result = authStore.quickLogin(isSuper ? 'super_admin' : role)
-    if (result.success && result.href) {
-      const roleHref = result.href || `/${result.role}`
-      const dest = (redirectPath && redirectPath.startsWith(`/${result.role}`)) ? redirectPath : roleHref
-      navigate({ to: dest as any })
-    } else if (result.error) {
-      setErrorMessage(result.error)
-    }
-  }
-
-  // Interactive Form Login
-  const handleFormLogin = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
-    setIsSubmitting(true)
+    const errors: { email?: string; password?: string } = {}
 
+    const cleanInput = emailOrId.trim()
+    if (!cleanInput) {
+      errors.email = 'Masukkan alamat email yang valid atau NIS siswa.'
+    }
+    if (!password || !password.trim()) {
+      errors.password = 'Kata sandi wajib diisi.'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+    setFieldErrors({})
+
+    setIsSubmitting(true)
     try {
-      const result = await authStore.login(emailOrId, password, selectedRole.role)
-      if (result.success && result.href) {
+      // Login tunggal: role ditentukan otomatis oleh profil Supabase / email inference
+      const result = await authStore.login(cleanInput, password)
+      if (result.success && result.role) {
         const roleHref = result.href || `/${result.role}`
-        const dest = (redirectPath && redirectPath.startsWith(`/${result.role}`)) ? redirectPath : roleHref
+        const dest =
+          redirectPath && redirectPath.startsWith(`/${result.role}`)
+            ? redirectPath
+            : roleHref
         navigate({ to: dest as any })
       } else {
         setErrorMessage(
           result.error ||
-            'Email atau kata sandi tidak cocok. Silakan gunakan akun demo atau periksa kembali input Anda.'
+            'Email atau kata sandi yang Anda masukkan tidak sesuai. Silakan periksa kembali.'
         )
       }
-    } catch {
-      setErrorMessage('Terjadi kesalahan saat memproses login. Silakan coba kembali.')
+    } catch (err: any) {
+      setErrorMessage(
+        err?.message ||
+          'Terjadi kesalahan saat menghubungi server. Silakan coba beberapa saat lagi.'
+      )
     } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleQuickDemoLogin = async (role: UserRole) => {
+    setErrorMessage(null)
+    setFieldErrors({})
+    setIsSubmitting(true)
+
+    const isSuper = role === 'admin' && adminRoleType === 'super_admin'
+    const targetRoleKey = isSuper ? 'super_admin' : role
+    const demoInfo = DEMO_ACCOUNTS[targetRoleKey]
+
+    // Set input form agar transparan terlihat oleh user
+    setEmailOrId(demoInfo.email)
+    setPassword(demoInfo.defaultPassword)
+
+    try {
+      const loginRes = await authStore.login(
+        demoInfo.email,
+        demoInfo.defaultPassword,
+        demoInfo.role
+      )
+      if (loginRes.success && loginRes.role) {
+        const roleHref = loginRes.href || `/${loginRes.role}`
+        const dest =
+          redirectPath && redirectPath.startsWith(`/${loginRes.role}`)
+            ? redirectPath
+            : roleHref
+        navigate({ to: dest as any })
+        return
+      }
+    } catch {
+      // Fallback ke quickLogin langsung
+    }
+
+    const result = authStore.quickLogin(targetRoleKey)
+    if (result.success && result.role) {
+      const roleHref = result.href || `/${result.role}`
+      const dest =
+        redirectPath && redirectPath.startsWith(`/${result.role}`)
+          ? redirectPath
+          : roleHref
+      navigate({ to: dest as any })
+    } else {
+      setErrorMessage(result.error || 'Gagal masuk akun demo.')
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#EEEEEE] flex flex-col font-sans">
-      <Header
-        onOpenRegister={() => setIsRegisterOpen(true)}
-        onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
-      />
-
-      <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-10">
-        {/* Editorial Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2.5">
-          <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#A81E46]">
-            Autentikasi & Hak Akses Berbasis Peran
-          </span>
-          <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#000000] tracking-tight">
-            Masuk ke Portal Layanan
-          </h1>
-          <p className="text-xs sm:text-sm text-[#555555] leading-relaxed">
-            Pilih portal layanan yang sesuai atau gunakan tombol <strong>Masuk Cepat Demo</strong> untuk uji coba instan panel kerja operasional tanpa konfigurasi.
-          </p>
-        </div>
-
-        {deactivatedNotice && (
-          <div
-            className="p-4 bg-[#F6E7E3] border border-[#901B14]/40 rounded-[4px] flex items-start gap-3 text-xs text-[#901B14] max-w-2xl mx-auto"
-            role="alert"
+    <main className="min-h-screen w-full bg-[#EEEEEE] text-[#000000] flex items-center justify-center p-4 md:p-8 font-sans">
+      {/* Kontainer Utama Kartu Split */}
+      <div className="w-full max-w-[1060px] bg-[#FFFFFF] border-2 border-[#000000] rounded-[14px] p-6 sm:p-8 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch shadow-sm">
+        
+        {/* Navigasi Kembali khusus Mobile/Tablet (< 1024px) */}
+        <div className="lg:hidden flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#292524] hover:text-[#CB2957] transition-colors"
           >
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#901B14]" />
-            <div className="space-y-1">
-              <strong className="font-bold text-[#901B14] block">
-                Sesi Dihentikan — Akun Staf Dinonaktifkan
-              </strong>
-              <p className="text-[#901B14]/90 leading-relaxed">
-                Akses login Anda telah dicabut karena akun telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi kantor Tata Usaha untuk informasi dan pemulihan akses.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 4 Role Selection & Quick Demo Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {ROLES.map((item) => {
-            const Icon = item.icon
-            const isSelected = selectedRole.role === item.role
-            const currentDemoName =
-              item.role === 'admin'
-                ? adminRoleType === 'super_admin'
-                  ? DEMO_ACCOUNTS.super_admin.name
-                  : DEMO_ACCOUNTS.admin.name
-                : item.demoAccount
-            const currentDemoEmail =
-              item.role === 'admin'
-                ? adminRoleType === 'super_admin'
-                  ? DEMO_ACCOUNTS.super_admin.email
-                  : DEMO_ACCOUNTS.admin.email
-                : item.demoEmail
-
-            return (
-              <div
-                key={item.role}
-                className={`bg-[#FFFFFF] rounded-[14px] p-5 flex flex-col justify-between transition-all relative select-none ${
-                  isSelected
-                    ? 'border-2 border-[#000000] shadow-sm'
-                    : 'border border-[#D2D2D2] hover:border-[#000000]'
-                }`}
-              >
-                <div
-                  className="space-y-3 cursor-pointer"
-                  onClick={() => handleRoleCardClick(item)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center border transition-colors ${
-                        isSelected
-                          ? 'bg-[#000000] text-[#FFFFFF] border-[#000000]'
-                          : 'bg-[#F6F6F6] text-[#292524] border-[#D2D2D2]'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-[10px] font-bold text-[#555555] uppercase tracking-wider">
-                      {item.badgeText}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h2 className="font-display font-bold text-base text-[#000000] leading-snug">
-                      {item.title}
-                    </h2>
-                    <p className="text-xs font-semibold text-[#A81E46] mt-0.5">
-                      {item.subtitle}
-                    </p>
-                    <p className="text-xs text-[#555555] mt-2 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-[#D2D2D2] space-y-3">
-                  {item.role === 'admin' && (
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
-                        Tingkat Akses Demo:
-                      </span>
-                      <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[4px] text-[10px]">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setAdminRoleType('super_admin')
-                            if (selectedRole.role === 'admin') {
-                              setEmailOrId(DEMO_ACCOUNTS.super_admin.email)
-                              setPassword(DEMO_ACCOUNTS.super_admin.defaultPassword)
-                            }
-                          }}
-                          className={`py-1 px-1.5 rounded-[2px] font-medium transition-all text-center cursor-pointer ${
-                            adminRoleType === 'super_admin'
-                              ? 'bg-[#000000] text-[#FFFFFF]'
-                              : 'text-[#555555] hover:text-[#000000]'
-                          }`}
-                        >
-                          Super Admin
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setAdminRoleType('regular_admin')
-                            if (selectedRole.role === 'admin') {
-                              setEmailOrId(DEMO_ACCOUNTS.admin.email)
-                              setPassword(DEMO_ACCOUNTS.admin.defaultPassword)
-                            }
-                          }}
-                          className={`py-1 px-1.5 rounded-[2px] font-medium transition-all text-center cursor-pointer ${
-                            adminRoleType === 'regular_admin'
-                              ? 'bg-[#000000] text-[#FFFFFF]'
-                              : 'text-[#555555] hover:text-[#000000]'
-                          }`}
-                        >
-                          Staf Tata Usaha
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="text-[11px] text-[#555555]">
-                    Akun Demo:
-                    <strong className="block text-[#000000] truncate mt-0.5 font-medium">
-                      {currentDemoName}
-                    </strong>
-                    <span className="font-mono text-[10px] text-[#555555] block truncate mt-0.5">
-                      {currentDemoEmail}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2">
-                    {/* Quick Demo 1-Click Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoLogin(item.role)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-[8px] bg-[#000000] text-[#FFFFFF] hover:bg-[#262626] transition-colors cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-[#CB2957]" />
-                      <span>Masuk Cepat Demo</span>
-                    </button>
-
-                    {/* Choose to fill interactive form */}
-                    <button
-                      type="button"
-                      onClick={() => handleRoleCardClick(item)}
-                      className={`w-full inline-flex items-center justify-between px-3 py-1.5 text-[11px] font-medium rounded-[8px] transition-colors cursor-pointer border ${
-                        isSelected
-                          ? 'bg-[#F6F6F6] text-[#000000] border-[#000000]'
-                          : 'bg-[#FFFFFF] text-[#555555] border-[#D2D2D2] hover:text-[#000000] hover:border-[#000000]'
-                      }`}
-                    >
-                      <span>Isi Form Login</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+            <ArrowLeft className="w-4 h-4" />
+            <span>Kembali ke beranda</span>
+          </Link>
+          <span className="font-display text-xs font-extrabold tracking-tight text-[#000000]">
+            Tadulako Cendekia<span className="text-[#CB2957]">.</span>
+          </span>
         </div>
 
-        {/* Interactive Login Form */}
-        <div className="max-w-md mx-auto bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-6 sm:p-7 space-y-5 shadow-xs">
-          <div className="flex items-center gap-3 pb-4 border-b border-[#D2D2D2]">
-            <div className="w-9 h-9 rounded-full bg-[#000000] text-[#FFFFFF] flex items-center justify-center shrink-0">
-              <Lock className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-sm text-[#000000]">
-                Formulir Masuk ({selectedRole.title})
-              </h3>
-              <p className="text-xs text-[#555555]">
-                Masukkan email atau NIS beserta kata sandi Anda.
+        {/* KOLOM KIRI: Area Form Login (5 Kolom di Desktop) */}
+        <section className="lg:col-span-5 flex flex-col justify-between py-2 sm:py-6 px-1 sm:px-4">
+          <div className="w-full max-w-[380px] mx-auto my-auto">
+            {/* Identitas Brand & Judul */}
+            <div className="text-center mb-6">
+              <Link
+                to="/"
+                className="inline-block font-display text-xl tracking-tight text-[#000000] mb-2.5"
+              >
+                <span className="font-extrabold">Tadulako</span>{' '}
+                <span className="font-medium">Cendekia</span>
+                <span className="text-[#CB2957] font-extrabold">.</span>
+              </Link>
+              <h1 className="font-display text-3xl sm:text-[32px] font-extrabold tracking-tight text-[#000000] leading-[1.1]">
+                Selamat Datang Kembali!
+              </h1>
+              <p className="mt-2 text-sm text-[#555555] leading-relaxed">
+                Masuk untuk mengakses jadwal, presensi, dan evaluasi belajar.
               </p>
             </div>
-          </div>
 
-          {errorMessage && (
-            <div
-              className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
-              role="alert"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleFormLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="login-email"
-                className="text-xs font-semibold text-[#292524] flex items-center justify-between"
+            {/* Banner Peringatan Akun Dinonaktifkan */}
+            {deactivatedNotice && (
+              <div
+                role="alert"
+                className="mb-5 flex items-start gap-2.5 bg-[#FBEAEF] border-l-4 border-[#A1301C] p-3 rounded-[6px] text-xs font-medium text-[#7A1534]"
               >
-                <span>Alamat Email atau NIS</span>
-                <span className="text-[10px] font-mono text-[#555555] font-normal">
-                  {selectedRole.role === 'student' ? 'Email / NIS' : 'Email Terdaftar'}
+                <AlertCircle className="w-4 h-4 text-[#A1301C] shrink-0 mt-0.5" />
+                <span>
+                  Akun staf Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha untuk informasi pemulihan akun.
                 </span>
-              </label>
-              <div className="relative">
-                <input
-                  id="login-email"
-                  type="text"
-                  value={emailOrId}
-                  onChange={(e) => setEmailOrId(e.target.value)}
-                  placeholder="nama@tadulakocendekia.sch.id"
-                  required
-                  className="w-full h-10 pl-3 pr-9 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] transition-all font-mono"
-                />
-                <Mail className="w-4 h-4 text-[#555555] absolute right-3 top-3 pointer-events-none" />
               </div>
-            </div>
+            )}
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="login-password"
-                  className="text-xs font-semibold text-[#292524] block"
-                >
-                  Kata Sandi
-                </label>
-                <span className="text-[10px] text-[#555555]">
-                  Demo: <code className="font-mono text-[#000000]">{selectedRole.demoPassword}</code>
-                </span>
+            {/* Banner Error Login */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="mb-5 flex items-start gap-2.5 bg-[#FBEAEF] border-l-4 border-[#A1301C] p-3 rounded-[6px] text-xs font-medium text-[#7A1534]"
+              >
+                <AlertCircle className="w-4 h-4 text-[#A1301C] shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
               </div>
-              <div className="relative">
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan kata sandi"
-                  required
-                  className="w-full h-10 pl-3 pr-9 text-xs bg-[#F6F6F6] focus:bg-[#FFFFFF] text-[#000000] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000] transition-all font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-[#555555] hover:text-[#000000] cursor-pointer"
-                  aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+            )}
+
+            {/* Formulir Autentikasi Tunggal */}
+            <form onSubmit={handleLoginSubmit} className="space-y-4" noValidate>
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-semibold text-[#292524] mb-1.5"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
+                  Email atau NIS
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={emailOrId}
+                  onChange={(e) => {
+                    setEmailOrId(e.target.value)
+                    if (fieldErrors.email) {
+                      setFieldErrors((prev) => ({ ...prev, email: undefined }))
+                    }
+                  }}
+                  placeholder="nama@email.com atau NIS siswa"
+                  className={`w-full h-11 px-3.5 bg-[#FFFFFF] text-[#292524] placeholder:text-[#555555] text-sm rounded-[8px] border-[1.5px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] ${
+                    fieldErrors.email
+                      ? 'border-[#A1301C] ring-1 ring-[#A1301C]'
+                      : 'border-[#6B6B6B] hover:border-[#000000] focus:border-[#000000]'
+                  }`}
+                />
+                {fieldErrors.email && (
+                  <p className="mt-1 text-xs text-[#A1301C] flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 inline shrink-0" />
+                    <span>{fieldErrors.email}</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-semibold text-[#292524]"
+                  >
+                    Kata Sandi
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPasswordOpen(true)}
+                    className="text-xs font-semibold text-[#A81E46] hover:text-[#CB2957] hover:underline cursor-pointer focus:outline-none"
+                  >
+                    Lupa sandi?
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (fieldErrors.password) {
+                        setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    placeholder="Masukkan kata sandi"
+                    className={`w-full h-11 pl-3.5 pr-11 bg-[#FFFFFF] text-[#292524] placeholder:text-[#555555] text-sm rounded-[8px] border-[1.5px] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] ${
+                      fieldErrors.password
+                        ? 'border-[#A1301C] ring-1 ring-[#A1301C]'
+                        : 'border-[#6B6B6B] hover:border-[#000000] focus:border-[#000000]'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 inline-flex items-center justify-center text-[#555555] hover:text-[#000000] rounded-[6px] focus:outline-none focus:ring-2 focus:ring-[#CB2957]"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {fieldErrors.password && (
+                  <p className="mt-1 text-xs text-[#A1301C] flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 inline shrink-0" />
+                    <span>{fieldErrors.password}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Tombol CTA Primer (#CB2957) */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-11 bg-[#CB2957] hover:bg-[#A81E46] text-[#FFFFFF] font-semibold text-sm rounded-[8px] border-2 border-[#000000] inline-flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] focus:ring-offset-2 disabled:opacity-70 cursor-pointer shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memverifikasi...</span>
+                    </>
                   ) : (
-                    <Eye className="w-4 h-4" />
+                    <span>Masuk ke Akun</span>
                   )}
                 </button>
               </div>
-            </div>
+            </form>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full h-10 inline-flex items-center justify-center gap-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] hover:bg-[#262626] disabled:opacity-50 rounded-[8px] transition-colors cursor-pointer mt-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses Masuk...</span>
-                </>
-              ) : (
-                <>
-                  <span>Masuk ke {selectedRole.title}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </form>
+            {/* BAGIAN DEMO / PENGEMBANGAN (Hanya muncul jika VITE_LOGIN_MODE=demo) */}
+            {isDemo && (
+              <div className="mt-6 pt-5 border-t border-[#D2D2D2]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-semibold text-[#555555] uppercase tracking-wider">
+                    Masuk Cepat Demo
+                  </span>
+                  {/* Toggle Varian Admin */}
+                  <div className="inline-flex rounded-[6px] border border-[#000000] p-0.5 bg-[#EEEEEE] text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setAdminRoleType('super_admin')}
+                      className={`px-2 py-0.5 rounded-[4px] font-medium transition-colors cursor-pointer ${
+                        adminRoleType === 'super_admin'
+                          ? 'bg-[#000000] text-[#FFFFFF]'
+                          : 'text-[#555555] hover:text-[#000000]'
+                      }`}
+                    >
+                      Pimpinan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdminRoleType('regular_admin')}
+                      className={`px-2 py-0.5 rounded-[4px] font-medium transition-colors cursor-pointer ${
+                        adminRoleType === 'regular_admin'
+                          ? 'bg-[#000000] text-[#FFFFFF]'
+                          : 'text-[#555555] hover:text-[#000000]'
+                      }`}
+                    >
+                      Staf TU
+                    </button>
+                  </div>
+                </div>
 
-          {/* Registration Prompt Link */}
-          <div className="pt-4 border-t border-[#D2D2D2] text-center space-y-2">
-            <p className="text-xs text-[#555555]">
-              Belum terdaftar sebagai siswa bimbingan?
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('admin')}
+                    disabled={isSubmitting}
+                    className="h-10 px-2 bg-[#FFFFFF] hover:bg-[#EEEEEE] text-[#292524] font-semibold text-xs rounded-[8px] border border-[#000000] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] cursor-pointer flex items-center justify-center gap-1.5"
+                    title={adminRoleType === 'super_admin' ? 'Masuk sebagai Pimpinan Lembaga' : 'Masuk sebagai Kepala Tata Usaha'}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#000000]" />
+                    <span>Admin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('tutor')}
+                    disabled={isSubmitting}
+                    className="h-10 px-2 bg-[#FFFFFF] hover:bg-[#EEEEEE] text-[#292524] font-semibold text-xs rounded-[8px] border border-[#000000] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] cursor-pointer flex items-center justify-center gap-1.5"
+                    title="Masuk sebagai Tutor Fisika & UTBK (Kak Dian)"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-[#000000]" />
+                    <span>Tutor</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('student')}
+                    disabled={isSubmitting}
+                    className="h-10 px-2 bg-[#FFFFFF] hover:bg-[#EEEEEE] text-[#292524] font-semibold text-xs rounded-[8px] border border-[#000000] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] cursor-pointer flex items-center justify-center gap-1.5"
+                    title="Masuk sebagai Siswa (Fahri Ramadhan)"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-[#000000]" />
+                    <span>Siswa</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('parent')}
+                    disabled={isSubmitting}
+                    className="h-10 px-2 bg-[#FFFFFF] hover:bg-[#EEEEEE] text-[#292524] font-semibold text-xs rounded-[8px] border border-[#000000] transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] cursor-pointer flex items-center justify-center gap-1.5"
+                    title="Masuk sebagai Orang Tua / Wali (Ahmad Dahlan)"
+                  >
+                    <Users className="w-3.5 h-3.5 text-[#000000]" />
+                    <span>Orang Tua</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tautan Pendaftaran Siswa Baru */}
+            <p className="mt-6 text-center text-sm text-[#555555]">
+              Belum terdaftar sebagai siswa?{' '}
+              <button
+                type="button"
+                onClick={() => setIsRegisterOpen(true)}
+                className="font-bold text-[#000000] underline decoration-[#CB2957] decoration-2 underline-offset-4 hover:text-[#CB2957] cursor-pointer"
+              >
+                Daftar program sekarang
+              </button>
             </p>
-            <button
-              type="button"
-              onClick={() => setIsRegisterOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#CB2957] hover:text-[#A81E46] transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Daftar Calon Siswa Baru Sekarang</span>
-            </button>
           </div>
-        </div>
-      </main>
 
-      <CtaFooter onOpenRegister={() => setIsRegisterOpen(true)} />
+          {/* Catatan Kaki Ketentuan */}
+          <p className="mt-8 text-center text-[11px] text-[#555555] leading-relaxed">
+            Dengan masuk ke sistem, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Tadulako Cendekia.
+          </p>
+        </section>
 
+        {/* KOLOM KANAN: Panel Visual dengan Top-Left Cutout Notch (7 Kolom di Desktop) */}
+        <aside className="hidden lg:block lg:col-span-7 relative min-h-[600px]">
+          {/* Cutout Notch Sudut Kiri Atas + Tombol Bulat Kembali */}
+          <div className="absolute top-0 left-0 w-[76px] h-[76px] bg-[#FFFFFF] rounded-br-[28px] z-20 flex items-start justify-start pr-3 pb-3 border-b-2 border-r-2 border-[#000000]">
+            <Link
+              to="/"
+              aria-label="Kembali ke halaman utama"
+              title="Kembali ke beranda"
+              className="w-14 h-14 rounded-full bg-[#EEEEEE] hover:bg-[#CB2957] text-[#000000] hover:text-[#FFFFFF] border-2 border-[#000000] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] shadow-sm cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </div>
+
+          {/* Kontainer Gambar Utama dengan Garis Border Poster */}
+          <div className="w-full h-full rounded-[16px] overflow-hidden border-2 border-[#000000] bg-[#000000] relative">
+            <img
+              src="/assets/login-showcase.jpg"
+              alt="Suasana bimbingan belajar tatap muka intensif di Tadulako Cendekia"
+              className="w-full h-full object-cover object-center contrast-[1.05] grayscale-[15%]"
+            />
+
+            {/* Gradien Gelap Tipis di Kaki Foto */}
+            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
+
+            {/* Overlay Kartu Informasi Bawah (High-Contrast Poster Block) */}
+            <div className="absolute bottom-5 left-5 right-5 bg-[#000000] text-[#EEEEEE] border-2 border-[#000000] border-l-4 border-l-[#CB2957] rounded-[10px] p-5 shadow-lg">
+              <p className="text-sm leading-relaxed text-[#EEEEEE]">
+                &ldquo;Kelas bimbingan intensif maksimal 12 siswa per rombel, jadwal terjamin anti-bentrok, serta rekap presensi dan grafik evaluasi belajar terpantau transparan setiap sesi.&rdquo;
+              </p>
+              <div className="mt-3.5 flex items-center justify-between border-t border-[#333333] pt-3">
+                <div>
+                  <p className="font-display font-bold text-xs text-[#FFFFFF] tracking-wide uppercase">
+                    Tadulako Cendekia
+                  </p>
+                  <p className="font-mono text-[11px] text-[#A3A3A3] mt-0.5">
+                    Sistem Akademik · Admin · Tutor · Siswa · Orang Tua
+                  </p>
+                </div>
+                <span className="font-mono text-xs text-[#CB2957] font-bold px-2 py-0.5 bg-[#1F1F1F] rounded-[4px] border border-[#333333]">
+                  SD — UTBK
+                </span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+
+      {/* Modal Registrasi Siswa Baru */}
       <RegisterModal
         isOpen={isRegisterOpen}
         onClose={() => setIsRegisterOpen(false)}
       />
 
-      <MobileDrawer
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-        onOpenRegister={() => {
-          setIsMobileMenuOpen(false)
-          setIsRegisterOpen(true)
-        }}
-      />
-    </div>
+      {/* Dialog Info Lupa Kata Sandi */}
+      {isForgotPasswordOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-md bg-[#FFFFFF] border-2 border-[#000000] rounded-[12px] p-6 shadow-xl relative">
+            <button
+              type="button"
+              onClick={() => setIsForgotPasswordOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-md text-[#555555] hover:text-[#000000] hover:bg-[#EEEEEE] transition-colors"
+              aria-label="Tutup dialog"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-[#EEEEEE] border border-[#000000] flex items-center justify-center shrink-0">
+                <HelpCircle className="w-5 h-5 text-[#CB2957]" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-base text-[#000000]">
+                  Bantuan Lupa Kata Sandi
+                </h3>
+                <p className="text-xs text-[#555555] mt-0.5">
+                  Prosedur Pemulihan Akun Bimbingan Belajar
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-[#292524] space-y-2.5 leading-relaxed bg-[#EEEEEE] p-3.5 rounded-[8px] border border-[#D2D2D2]">
+              <p>
+                Untuk menjaga privasi dan keamanan data akademik siswa, reset kata sandi dilakukan secara terverifikasi melalui staf Tata Usaha:
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[#555555]">
+                <li>
+                  <strong>Siswa & Wali:</strong> Silakan sampaikan permohonan reset sandi ke Tata Usaha dengan menyebutkan NIS atau nama lengkap siswa.
+                </li>
+                <li>
+                  <strong>Kontak Tata Usaha:</strong> WhatsApp resmi di <strong>0812-4112-9090</strong> atau datang langsung ke meja administrasi.
+                </li>
+              </ul>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsForgotPasswordOpen(false)}
+                className="h-9 px-4 bg-[#000000] hover:bg-[#292524] text-[#FFFFFF] text-xs font-semibold rounded-[6px] transition-colors cursor-pointer"
+              >
+                Tutup & Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   )
 }
