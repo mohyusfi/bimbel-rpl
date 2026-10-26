@@ -448,29 +448,6 @@ export function LoginPage() {
               alt="Suasana bimbingan belajar tatap muka intensif di Tadulako Cendekia"
               className="w-full h-full object-cover object-center contrast-[1.05] grayscale-[15%]"
             />
-
-            {/* Gradien Gelap Tipis di Kaki Foto */}
-            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-
-            {/* Overlay Kartu Informasi Bawah (High-Contrast Poster Block) */}
-            <div className="absolute bottom-5 left-5 right-5 bg-[#000000] text-[#EEEEEE] border-2 border-[#000000] border-l-4 border-l-[#CB2957] rounded-[10px] p-5 shadow-lg">
-              <p className="text-sm leading-relaxed text-[#EEEEEE]">
-                &ldquo;Kelas bimbingan intensif maksimal 12 siswa per rombel, jadwal terjamin anti-bentrok, serta rekap presensi dan grafik evaluasi belajar terpantau transparan setiap sesi.&rdquo;
-              </p>
-              <div className="mt-3.5 flex items-center justify-between border-t border-[#333333] pt-3">
-                <div>
-                  <p className="font-display font-bold text-xs text-[#FFFFFF] tracking-wide uppercase">
-                    Tadulako Cendekia
-                  </p>
-                  <p className="font-mono text-[11px] text-[#A3A3A3] mt-0.5">
-                    Sistem Akademik · Admin · Tutor · Siswa · Orang Tua
-                  </p>
-                </div>
-                <span className="font-mono text-xs text-[#CB2957] font-bold px-2 py-0.5 bg-[#1F1F1F] rounded-[4px] border border-[#333333]">
-                  SD — UTBK
-                </span>
-              </div>
-            </div>
           </div>
         </aside>
 
