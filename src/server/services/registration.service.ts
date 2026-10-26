@@ -1,6 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import type { Registration, PackageCode, Student } from '~/lib/admin-store'
-import { clampCapacity, ensureAdminSession } from './master-data.service'
+import { clampCapacity, ensureAdminSession, ensureAuthenticatedSession } from './master-data.service'
 
 export { clampCapacity }
 
@@ -302,6 +302,7 @@ export const registrationService = {
    * Mengambil data seluruh siswa dari Supabase beserta relasi profil, wali, dan rombel kelas
    */
   async getStudents(): Promise<Student[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('students')
       .select(`

@@ -1,5 +1,5 @@
 import { supabase } from '~/lib/supabase/client'
-import { ensureAdminSession } from './master-data.service'
+import { ensureAdminSession, ensureAuthenticatedSession } from './master-data.service'
 import { formatLocalDate } from '~/lib/attendance-helpers'
 
 export type ServerResult<T> =
@@ -289,6 +289,7 @@ export const scheduleService = {
    * Mengambil semua jadwal bimbingan aktif dari database Supabase
    */
   async getSchedules(): Promise<ScheduleItem[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('schedules')
       .select(`
@@ -643,6 +644,7 @@ export const scheduleService = {
    * Mengambil sesi bimbingan dari database (Read query tidak memerlukan sesi admin)
    */
   async getSessions(tutorId?: string, classId?: string): Promise<SessionItem[]> {
+    await ensureAuthenticatedSession()
     const isUUID = (val: string) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
 

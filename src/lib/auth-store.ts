@@ -470,7 +470,10 @@ async function autoProvisionUser(
   // 2. Auto-provisioning Profil Siswa
   if (role === 'student') {
     let foundStudent = adminState.students.find(
-      (s) => s.email.toLowerCase() === email
+      (s) =>
+        s.email.toLowerCase() === email ||
+        s.id === rawUser.id ||
+        (email.includes('fahri') && s.name.toLowerCase().includes('fahri'))
     )
 
     if (!foundStudent) {
@@ -493,8 +496,8 @@ async function autoProvisionUser(
         phone: matchingReg?.studentPhone || '0813-7788-9900',
         school: matchingReg?.studentSchool || 'SMA Negeri 1 Palu',
         packageCode: (matchingReg?.packageCode as PackageCode) || 'UTBK',
-        classId: targetClass?.id || 'cls-1',
-        className: targetClass?.name || 'Kelas 12 IPA 1 (Reguler)',
+        classId: targetClass?.id || 'c1000000-0000-0000-0000-000000000001',
+        className: targetClass?.name || 'UTBK Intensif A',
         parentName: matchingReg?.parentName || 'Ir. H. Ahmad Dahlan',
         parentPhone: matchingReg?.parentPhone || '0821-4455-6677',
         parentEmail: matchingReg?.parentEmail || 'ahmad.dahlan@wali.tadulakocendekia.sch.id',

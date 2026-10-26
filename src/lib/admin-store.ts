@@ -46,6 +46,7 @@ export interface Student {
 export interface Tutor {
   id: string
   name: string
+  email?: string
   phone: string
   education: string
   subjects: string[]
@@ -87,6 +88,7 @@ export interface ClassGroup {
   capacity: number
   studentCount: number
   tutorName: string
+  tutorId?: string
 }
 
 export interface Schedule {
@@ -513,15 +515,15 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'stu-1',
     nis: 'TC-2026-001',
     name: 'Fahri Ramadhan',
-    email: 'rafly.palu@gmail.com',
+    email: 'fahri.ramadhan@siswa.tadulakocendekia.sch.id',
     phone: '0821-9988-7711',
     school: 'SMAN 1 Palu',
     packageCode: 'UTBK',
     classId: 'cls-1',
     className: 'UTBK Intensif A',
-    parentName: 'Ahmad Dahlan',
+    parentName: 'Ir. H. Ahmad Dahlan',
     parentPhone: '0821-4455-6677',
-    parentEmail: 'ahmad.dahlan@gmail.com',
+    parentEmail: 'ahmad.dahlan@wali.tadulakocendekia.sch.id',
     parentJob: 'Pegawai BNI Palu',
     parentAddress: 'Jl. Jenderal Sudirman No. 25, Palu',
     joinDate: '10 Januari 2026',
@@ -814,7 +816,7 @@ const INITIAL_PARENTS: ParentProfile[] = [
     phone: '0821-4455-6677',
     job: 'Pegawai BNI Cabang Palu',
     address: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
-    studentIds: ['stu-1', 'stu-4'],
+    studentIds: ['stu-1', 'stu-4', 'd992d9fc-6f5b-434f-998b-358e54a754b7', 'e1a2a3a4-b5b6-c7c8-d9d0-e1e2e3e4e5e7'],
   },
   {
     id: 'par-2',

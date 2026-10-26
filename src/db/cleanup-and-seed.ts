@@ -385,6 +385,10 @@ async function runCleanupAndSeed() {
       phone_number: '0813-7788-9900',
       status: 'aktif',
     })
+  } else {
+    await supabase.from('profiles').update({
+      email: 'fahri.ramadhan@siswa.tadulakocendekia.sch.id',
+    }).eq('id', OFFICIAL_PROFILE_IDS.fahriRamadhan)
   }
 
   const { data: exStu1 } = await supabase.from('students').select('id').eq('id', OFFICIAL_STUDENT_IDS.fahri).maybeSingle()
@@ -400,6 +404,11 @@ async function runCleanupAndSeed() {
       status: 'aktif',
       class_id: OFFICIAL_CLASS_IDS.utbkA,
     })
+  } else {
+    await supabase.from('students').update({
+      parent_id: parent1Id,
+      class_id: OFFICIAL_CLASS_IDS.utbkA,
+    }).eq('id', OFFICIAL_STUDENT_IDS.fahri)
   }
 
   // Masukkan Siswa 1 ke class_members UTBK Intensif A

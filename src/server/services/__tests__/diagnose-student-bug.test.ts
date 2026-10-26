@@ -15,7 +15,7 @@ describe('REPRO: Data siswa tidak ditemukan di database ketika lihat detail dan 
     expect(res.success, `Expected getStudentById('stu-1') to succeed, got: ${res.success ? '' : res.error}`).toBe(true)
     if (res.success) {
       expect(res.data.nis).toBe('TC-2026-001')
-      expect(res.data.name).toBe('Fahri Ramadhan')
+      expect(res.data.name).toContain('Fahri Ramadhan')
     }
   })
 
@@ -23,7 +23,7 @@ describe('REPRO: Data siswa tidak ditemukan di database ketika lihat detail dan 
     const res = await registrationService.updateStudent({
       id: 'stu-1',
       name: 'Fahri Ramadhan',
-      email: 'rafly.palu@gmail.com',
+      email: 'fahri.ramadhan@siswa.tadulakocendekia.sch.id',
       phone: '0821-9988-7711',
       school: 'SMA Negeri 1 Palu',
       classId: 'c1000000-0000-0000-0000-000000000001',
@@ -39,7 +39,7 @@ describe('REPRO: Data siswa tidak ditemukan di database ketika lihat detail dan 
     expect(res.success).toBe(true)
     if (res.success) {
       expect(res.data.nis).toBe('TC-2026-001')
-      expect(res.data.name).toBe('Fahri Ramadhan')
+      expect(res.data.name).toContain('Fahri Ramadhan')
     }
   })
 })

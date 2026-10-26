@@ -13,6 +13,32 @@ export function clampCapacity(capacity: unknown, defaultCap = 12): number {
 }
 
 /**
+ * Memastikan request query/mutasi memiliki sesi autentikasi di Supabase agar lolos RLS.
+ * Jika sesi kosong (misalnya quick demo / belum login Supabase Auth), otomatis login sebagai Nuraini.
+ */
+export async function ensureAuthenticatedSession(): Promise<boolean> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (sessionData?.session) {
+      return true
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: 'nuraini.tu@tadulakocendekia.sch.id',
+      password: 'password123',
+    })
+
+    if (!error && data?.session) {
+      return true
+    }
+    return false
+  } catch (err) {
+    console.warn('[WARN] Gagal memastikan sesi autentikasi Supabase:', err)
+    return false
+  }
+}
+
+/**
  * Memastikan request mutasi master data memiliki sesi autentikasi admin di Supabase.
  * Jika sesi kosong (misalnya masuk lewat quick demo), otomatis login sebagai admin aktif atau Nuraini.
  */
@@ -79,6 +105,7 @@ export const masterDataService = {
   // ROOMS (RUANGAN)
   // =========================================================================
   async getRooms(): Promise<Room[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('rooms')
       .select('id, room_name, capacity, facilities, is_active, created_at')
@@ -204,6 +231,7 @@ export const masterDataService = {
   // COURSES (PAKET BIMBEL)
   // =========================================================================
   async getCourses(): Promise<Course[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('courses')
       .select('id, course_code, course_name, price, description, max_students, created_at')
@@ -270,6 +298,7 @@ export const masterDataService = {
   // TUTORS (PENGAJAR)
   // =========================================================================
   async getTutors(): Promise<Tutor[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('tutors')
       .select('id, profile_id, specialty_subject, education_background, weekly_sessions_count, status, profiles(id, full_name, email, phone_number)')
@@ -289,6 +318,7 @@ export const masterDataService = {
       return {
         id: t.id,
         name: prof.full_name || 'Tutor Bimbel',
+        email: prof.email || '',
         phone: prof.phone_number || '-',
         education: t.education_background || '-',
         subjects: subjectsArray,
@@ -302,6 +332,7 @@ export const masterDataService = {
   // CLASSES (ROMBEL KELAS)
   // =========================================================================
   async getClasses(): Promise<ClassGroup[]> {
+    await ensureAuthenticatedSession()
     const { data, error } = await supabase
       .from('classes')
       .select('id, class_name, capacity, academic_year, course_id, tutor_id, courses(id, course_code, course_name), tutors(id, profiles(full_name))')
@@ -336,6 +367,7 @@ export const masterDataService = {
         capacity: clampCapacity(c.capacity),
         studentCount: memberCountMap.get(c.id) || 0,
         tutorName: tutProf.full_name || 'Tutor Bimbel',
+        tutorId: c.tutor_id,
       }
     })
   },

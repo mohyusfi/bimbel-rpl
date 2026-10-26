@@ -73,6 +73,12 @@ function TutorMateriPage() {
   const [uploadSuccess, setUploadSuccess] = React.useState<boolean>(false)
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false)
 
+  React.useEffect(() => {
+    if (!form.classId && classes.length > 0) {
+      setForm((prev) => ({ ...prev, classId: classes[0].id }))
+    }
+  }, [classes, form.classId])
+
   // Filter data
   const filteredMaterials = materials.filter((m) => {
     if (selectedCategory !== 'Semua Kategori' && m.category !== selectedCategory) {
