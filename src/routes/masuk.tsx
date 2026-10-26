@@ -160,10 +160,11 @@ export function LoginPage() {
         <div className="lg:hidden flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[#292524] hover:text-[#CB2957] transition-colors"
+            aria-label="Kembali ke beranda"
+            title="Kembali ke beranda"
+            className="w-9 h-9 rounded-full bg-[#EEEEEE] hover:bg-[#CB2957] text-[#000000] hover:text-[#FFFFFF] border-2 border-[#000000] inline-flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957]"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke beranda</span>
           </Link>
           <span className="font-display text-xs font-extrabold tracking-tight text-[#000000]">
             Tadulako Cendekia<span className="text-[#CB2957]">.</span>
