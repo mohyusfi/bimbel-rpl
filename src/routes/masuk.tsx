@@ -444,7 +444,7 @@ export function LoginPage() {
           {/* Kontainer Gambar Utama dengan Garis Border Poster */}
           <div className="w-full h-full rounded-[16px] overflow-hidden border-2 border-[#000000] bg-[#000000] relative">
             <img
-              src="/assets/login-showcase.jpg"
+              src="/assets/login-showcase.webp"
               alt="Suasana bimbingan belajar tatap muka intensif di Tadulako Cendekia"
               className="w-full h-full object-cover object-center contrast-[1.05] grayscale-[15%]"
             />
