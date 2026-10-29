@@ -226,6 +226,7 @@ export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserR
     const studentEmail = matchedStudent.email.toLowerCase()
     if (custom[studentEmail]) return custom[studentEmail]
     if (custom[matchedStudent.nis.toLowerCase()]) return custom[matchedStudent.nis.toLowerCase()]
+    return 'siswa2026'
   }
 
   if (clean === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) return DEMO_ACCOUNTS.super_admin.password
@@ -234,11 +235,61 @@ export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserR
   if (clean === DEMO_ACCOUNTS.student.email.toLowerCase()) return DEMO_ACCOUNTS.student.password
   if (clean === DEMO_ACCOUNTS.parent.email.toLowerCase()) return DEMO_ACCOUNTS.parent.password
 
+  if (targetRole === 'student') return 'siswa2026'
+  if (targetRole === 'parent') return 'wali2026'
+
   if (targetRole && DEMO_ACCOUNTS[targetRole]) {
     return DEMO_ACCOUNTS[targetRole].password
   }
 
   return 'password123'
+}
+
+export function isUserPasswordValid(
+  cleanEmailOrNis: string,
+  password: string,
+  targetRole?: UserRole
+): boolean {
+  const rawClean = cleanEmailOrNis.trim().toLowerCase()
+  const clean = normalizeLoginEmail(rawClean)
+  const custom = loadSavedCustomPasswords()
+
+  // 1. Password kustom memiliki prioritas mutlak
+  if (custom[rawClean]) return password === custom[rawClean]
+  if (custom[clean]) return password === custom[clean]
+
+  const matchedStudent = adminStore.getState().students.find(
+    (s) => s.nis.toLowerCase() === rawClean || s.email.toLowerCase() === clean
+  )
+  if (matchedStudent) {
+    const studentEmail = matchedStudent.email.toLowerCase()
+    if (custom[studentEmail]) return password === custom[studentEmail]
+    if (custom[matchedStudent.nis.toLowerCase()]) return password === custom[matchedStudent.nis.toLowerCase()]
+  }
+
+  // 2. Akun Demo Tadulako Cendekia
+  if (clean === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) return password === DEMO_ACCOUNTS.super_admin.password
+  if (clean === DEMO_ACCOUNTS.admin.email.toLowerCase()) return password === DEMO_ACCOUNTS.admin.password
+  if (clean === DEMO_ACCOUNTS.tutor.email.toLowerCase()) return password === DEMO_ACCOUNTS.tutor.password
+  if (clean === DEMO_ACCOUNTS.student.email.toLowerCase()) {
+    return password === DEMO_ACCOUNTS.student.password || password === 'siswa2026'
+  }
+  if (clean === DEMO_ACCOUNTS.parent.email.toLowerCase()) {
+    return password === DEMO_ACCOUNTS.parent.password || password === 'wali2026'
+  }
+
+  // 3. Siswa terverifikasi: kata sandi resmi adalah 'siswa2026', dengan fallback 'password123'
+  if (targetRole === 'student' || matchedStudent) {
+    return password === 'siswa2026' || password === 'password123'
+  }
+
+  // 4. Orang tua terverifikasi: kata sandi resmi adalah 'wali2026', dengan fallback 'password123'
+  if (targetRole === 'parent') {
+    return password === 'wali2026' || password === 'password123'
+  }
+
+  // 5. Default akun lain
+  return password === 'password123'
 }
 
 function loadSavedAdminStaff(): AdminStaffMember[] {
@@ -1072,13 +1123,75 @@ export const authStore = {
 
     // Resolusi jika pengguna login menggunakan NIS siswa
     const adminState = adminStore.getState()
-    const matchedStudentByNis = adminState.students.find(
+    let matchedStudentByNis = adminState.students.find(
       (s) => s.nis.toLowerCase() === cleanInput
     )
-    const cleanEmail = matchedStudentByNis ? matchedStudentByNis.email.toLowerCase() : cleanInput
+    let cleanEmail = matchedStudentByNis ? matchedStudentByNis.email.toLowerCase() : cleanInput
+
+    // Resolusi via Supabase jika belum ada di memory dan format mirip NIS
+    if (!matchedStudentByNis && isSupabaseConfigured() && (cleanInput.startsWith('tc-') || cleanInput.includes('-'))) {
+      try {
+        const sb = supabase as any
+        const { data: dbStudent } = await sb
+          .from('students')
+          .select('id, nis, origin_school, grade_level, class_id, profiles(email, full_name, phone_number, role)')
+          .ilike('nis', cleanInput)
+          .maybeSingle()
+
+        if (dbStudent && dbStudent.profiles) {
+          const prof = Array.isArray(dbStudent.profiles) ? dbStudent.profiles[0] : dbStudent.profiles
+          if (prof?.email) {
+            cleanEmail = prof.email.toLowerCase()
+            matchedStudentByNis = {
+              id: dbStudent.id,
+              nis: dbStudent.nis,
+              name: prof.full_name || 'Siswa',
+              email: prof.email,
+              phone: prof.phone_number || '',
+              school: dbStudent.origin_school || '',
+              packageCode: 'UTBK',
+              classId: dbStudent.class_id || '',
+              className: 'Rombel Aktif',
+              parentName: '',
+              parentPhone: '',
+              joinDate: '2026',
+              status: 'aktif',
+            }
+          }
+        }
+      } catch (err) {
+        console.info('[INFO] Supabase student lookup by NIS note:', err)
+      }
+    }
+
+    // 2. Cek status di tabel public.profiles Supabase
+    let dbProfile: any = null
+    try {
+      const sb = supabase as any
+      const { data } = await sb
+        .from('profiles')
+        .select('id, full_name, role, status, phone_number')
+        .eq('email', cleanEmail)
+        .maybeSingle()
+
+      dbProfile = data
+      if (dbProfile && dbProfile.status === 'nonaktif') {
+        state.isLoading = false
+        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+        notify()
+        return {
+          success: false,
+          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+        }
+      }
+    } catch (checkErr) {
+      console.info('Login status check note in profiles:', checkErr)
+    }
 
     const isSuperAdminEmail = isEmailSuperAdmin(cleanEmail)
-    const targetRole = isSuperAdminEmail ? 'admin' : inferRoleFromEmail(cleanEmail, explicitRole)
+    const targetRole = isSuperAdminEmail
+      ? 'admin'
+      : (dbProfile?.role as UserRole) || inferRoleFromEmail(cleanEmail, explicitRole)
 
     // PENCEKALAN LOGIN (Login Guard):
     // 1. Cek status di daftar staf lokal
@@ -1093,28 +1206,6 @@ export const authStore = {
         success: false,
         error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
       }
-    }
-
-    // 2. Cek status di tabel public.profiles Supabase
-    try {
-      const sb = supabase as any
-      const { data: dbProfile } = await sb
-        .from('profiles')
-        .select('status')
-        .eq('email', cleanEmail)
-        .maybeSingle()
-
-      if (dbProfile && dbProfile.status === 'nonaktif') {
-        state.isLoading = false
-        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
-        notify()
-        return {
-          success: false,
-          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
-        }
-      }
-    } catch (checkErr) {
-      console.info('Login status check note in profiles:', checkErr)
     }
 
     // A. Coba Supabase Auth terlebih dahulu jika terkonfigurasi
@@ -1195,8 +1286,6 @@ export const authStore = {
     }
 
     // B. Verifikasi Password Ketat untuk Akun Demo / Terdaftar / Password Lokal
-    const expectedPassword = getEffectivePassword(cleanInput, targetRole)
-
     const isDemoEmail =
       isSuperAdminEmail ||
       cleanEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase() ||
@@ -1205,10 +1294,10 @@ export const authStore = {
       cleanEmail === DEMO_ACCOUNTS.student.email.toLowerCase() ||
       cleanEmail === DEMO_ACCOUNTS.parent.email.toLowerCase()
 
-    const matchedStudent = matchedStudentByNis || adminState.students.find(
+    let matchedStudent = matchedStudentByNis || adminState.students.find(
       (s) => s.email.toLowerCase() === cleanEmail || s.nis.toLowerCase() === cleanInput
     )
-    const matchedParent = adminState.parents.find(
+    let matchedParent = adminState.parents.find(
       (p) => p.email.toLowerCase() === cleanEmail
     )
     const matchedApprovedReg = adminState.registrations.find(
@@ -1217,17 +1306,49 @@ export const authStore = {
         (r.studentEmail.toLowerCase() === cleanEmail || r.parentEmail?.toLowerCase() === cleanEmail)
     )
 
+    if (!matchedStudent && (targetRole === 'student' || dbProfile?.role === 'student') && isSupabaseConfigured() && dbProfile) {
+      try {
+        const sb = supabase as any
+        const { data: sRow } = await sb
+          .from('students')
+          .select('id, nis, origin_school, grade_level, class_id')
+          .eq('profile_id', dbProfile.id)
+          .maybeSingle()
+        if (sRow) {
+          matchedStudent = {
+            id: sRow.id,
+            nis: sRow.nis,
+            name: dbProfile.full_name || 'Siswa',
+            email: cleanEmail,
+            phone: dbProfile.phone_number || '',
+            school: sRow.origin_school || '',
+            packageCode: 'UTBK',
+            classId: sRow.class_id || '',
+            className: 'Rombel Aktif',
+            parentName: '',
+            parentPhone: '',
+            joinDate: '2026',
+            status: 'aktif',
+          }
+        }
+      } catch (err) {
+        console.info('[INFO] Lookup student record by profile_id note:', err)
+      }
+    }
+
     const isInstitutionalEmail =
       cleanEmail.endsWith('@siswa.tadulakocendekia.sch.id') ||
       cleanEmail.endsWith('@wali.tadulakocendekia.sch.id') ||
       cleanEmail.endsWith('@tadulakocendekia.sch.id')
 
     const isKnownAccount = Boolean(
-      isDemoEmail || matchedStaff || matchedStudent || matchedParent || matchedApprovedReg || isInstitutionalEmail
+      isDemoEmail || matchedStaff || matchedStudent || matchedParent || matchedApprovedReg || isInstitutionalEmail || dbProfile
     )
 
+    const isPasswordValid = isUserPasswordValid(cleanInput, password, targetRole)
+
     // JIKA PASSWORD SALAH, DILARANG MEMBUAT SESI (TOLAK SEGERA)
-    if (password !== expectedPassword) {
+    if (!isPasswordValid) {
       state.isLoading = false
       state.error = 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.'
       notify()
@@ -1374,8 +1495,16 @@ export const authStore = {
       id: `usr-${matchedRole}-${Date.now().toString().slice(-4)}`,
       email: cleanEmail,
       user_metadata: {
-        full_name: demoInfo ? demoInfo.name : cleanEmail.split('@')[0],
-        phone: demoInfo ? demoInfo.phone : '0812-3456-7890',
+        full_name:
+          matchedStudent?.name ||
+          matchedParent?.name ||
+          dbProfile?.full_name ||
+          (demoInfo ? demoInfo.name : cleanEmail.split('@')[0]),
+        phone:
+          matchedStudent?.phone ||
+          matchedParent?.phone ||
+          dbProfile?.phone_number ||
+          (demoInfo ? demoInfo.phone : '0812-3456-7890'),
         role: matchedRole,
         is_super_admin: isSuperDemo,
       },
@@ -2057,9 +2186,17 @@ export const authStore = {
     }
 
     const userEmail = state.user.email.toLowerCase()
+    const custom = loadSavedCustomPasswords()
     const currentExpected = getEffectivePassword(userEmail, state.role || undefined)
 
     let isOldPasswordValid = trimmedOld === currentExpected
+    if (!isOldPasswordValid && !custom[userEmail]) {
+      if (state.role === 'student' && (trimmedOld === 'siswa2026' || trimmedOld === 'password123')) {
+        isOldPasswordValid = true
+      } else if (state.role === 'parent' && (trimmedOld === 'wali2026' || trimmedOld === 'password123')) {
+        isOldPasswordValid = true
+      }
+    }
 
     if (!isOldPasswordValid && isSupabaseConfigured()) {
       try {
