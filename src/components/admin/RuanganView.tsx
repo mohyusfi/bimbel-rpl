@@ -149,7 +149,7 @@ export function RuanganView() {
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
-              Ruang Belajar Fisik Bimbel
+              Ruang Belajar Fisik Anemone
             </h2>
           </div>
           <span className="text-xs text-[#555555]">
@@ -301,13 +301,13 @@ export function RuanganView() {
         </div>
       </div>
 
-      {/* SECTION 2: Master Paket Program Bimbel */}
+      {/* SECTION 2: Master Paket Program Anemone */}
       <div className="space-y-4 pt-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 pb-2 border-b border-[#D2D2D2]">
           <div className="flex items-center gap-2">
             <Package className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
-              Master Paket Program Bimbingan Belajar
+              Master Paket Program Belajar Anemone
             </h2>
           </div>
           <span className="text-xs text-[#555555]">

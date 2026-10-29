@@ -1500,6 +1500,287 @@ body.landing {
   }
 }
 
+/* ================= DROPDOWN METODE BELAJAR ================= */
+.lp-nav-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lp-nav-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 160ms ease;
+}
+
+.lp-nav-dropdown-btn:hover,
+.lp-nav-dropdown-btn[aria-expanded="true"] {
+  text-decoration-color: var(--accent);
+}
+
+.lp-nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 0;
+  width: 320px;
+  background: #FFFFFF;
+  border: 2px solid #000000;
+  border-radius: 4px;
+  padding: 8px;
+  z-index: 60;
+  list-style: none;
+}
+
+.lp-nav-dropdown-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 2px;
+  text-decoration: none !important;
+  color: #000000;
+  transition: background-color 150ms ease;
+}
+
+.lp-nav-dropdown-item:hover,
+.lp-nav-dropdown-item:focus-visible {
+  background-color: #EEEEEE;
+  outline: none;
+}
+
+.lp-nav-dropdown-item-num {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.lp-nav-dropdown-item-title {
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.lp-nav-dropdown-item-desc {
+  font-size: 0.75rem;
+  color: #555555;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+/* ================= SECTION METODE BELAJAR LANDING ================= */
+.lp-methods-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.lp-method-tab-btn {
+  background: #FFFFFF;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.lp-method-tab-btn:hover {
+  background: #EEEEEE;
+}
+
+.lp-method-tab-btn.is-active {
+  background: #000000;
+  color: #FFFFFF;
+  border-color: #000000;
+}
+
+.lp-method-tab-num {
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  display: block;
+  margin-bottom: 4px;
+  color: var(--accent);
+}
+
+.lp-method-tab-btn.is-active .lp-method-tab-num {
+  color: #FFFFFF;
+}
+
+.lp-method-tab-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.lp-method-preview-card {
+  background: #FFFFFF;
+  border: 2px solid #000000;
+  border-radius: 4px;
+  padding: var(--space-8);
+}
+
+.lp-method-preview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.9fr);
+  gap: var(--space-8);
+  align-items: center;
+}
+
+/* ================= HALAMAN DETAIL METODE BELAJAR (/metode/$slug) ================= */
+.lp-method-hero {
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-12);
+  border-bottom: var(--rule);
+}
+
+.lp-method-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #555555;
+  margin-bottom: var(--space-6);
+}
+
+.lp-method-nav-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: var(--space-6);
+}
+
+.lp-method-nav-pill {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: #000000;
+  text-decoration: none !important;
+  transition: all 160ms ease;
+}
+
+.lp-method-nav-pill:hover,
+.lp-method-nav-pill.is-active {
+  background: #000000;
+  color: #FFFFFF;
+}
+
+.lp-interactive-simulator {
+  background: #FFFFFF;
+  border: 2px solid #000000;
+  border-radius: 4px;
+  padding: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.lp-step-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: var(--space-8);
+}
+
+.lp-step-stepper-btn {
+  padding: 12px;
+  border: 1.5px solid #000000;
+  border-radius: 4px;
+  background: #EEEEEE;
+  text-align: left;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.lp-step-stepper-btn.is-active {
+  background: #000000;
+  color: #FFFFFF;
+}
+
+.lp-comparison-table-wrap {
+  overflow-x: auto;
+  border: 2px solid #000000;
+  border-radius: 4px;
+  background: #FFFFFF;
+}
+
+.lp-comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9375rem;
+}
+
+.lp-comparison-table th,
+.lp-comparison-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #000000;
+}
+
+.lp-comparison-table tr:last-child td {
+  border-bottom: none;
+}
+
+.lp-comparison-table th {
+  background: #EEEEEE;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  color: #000000;
+  border-bottom: 2px solid #000000;
+}
+
+.lp-comparison-table td:nth-child(2) {
+  background: #FFF5F7;
+  color: #A1301C;
+}
+
+.lp-comparison-table td:nth-child(3) {
+  background: #F0FDF4;
+  color: #166534;
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .lp-methods-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lp-method-preview-grid {
+    grid-template-columns: 1fr;
+  }
+  .lp-step-stepper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-methods-tabs {
+    grid-template-columns: 1fr;
+  }
+  .lp-step-stepper {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing *,
   .landing *::before,

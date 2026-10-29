@@ -25,10 +25,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
-      { title: 'Bimbel Tadulako Cendekia — Bimbingan Belajar SD, SMP, SMA & UTBK di Kota Palu' },
+      { title: 'Anemone Cendekia — Lembaga Belajar SD, SMP, SMA & Intensif UTBK di Kota Palu' },
       {
         name: 'description',
-        content: 'Bimbel tatap muka di Kota Palu untuk SD, SMP, SMA, dan persiapan UTBK. Paling banyak 12 siswa per kelas, orang tua dapat kabar kehadiran setiap pertemuan.',
+        content: 'Pendampingan belajar tatap muka di Kota Palu untuk SD, SMP, SMA, dan persiapan UTBK-SNBT. Kelas kecil maksimal 12 siswa, paham dari konsep dasar, dan kehadiran terpantau real-time.',
       },
     ],
     links: [
@@ -47,7 +47,7 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const isLanding = pathname === '/'
+  const isLanding = pathname === '/' || pathname.startsWith('/metode')
 
   return (
     <html lang="id">

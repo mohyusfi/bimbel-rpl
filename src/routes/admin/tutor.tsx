@@ -122,7 +122,7 @@ function AdminTutorPage() {
     },
     {
       key: 'subjects' as const,
-      label: 'Mata Pelajaran Bimbel',
+      label: 'Mata Pelajaran Anemone',
       count: subjects.length,
       unit: 'Bidang Studi',
       description: 'Kurikulum materi bimbingan lintas 4 jenjang program',
@@ -248,7 +248,7 @@ function AdminTutorPage() {
             Direktori Tutor & Mata Pelajaran
           </h1>
           <p className="text-xs sm:text-sm text-[#555555] mt-1">
-            Manajemen pengajar bimbel, kualifikasi akademik, dan distribusi kurikulum mata pelajaran.
+            Manajemen pengajar Anemone, kualifikasi akademik, dan distribusi kurikulum mata pelajaran.
           </p>
         </div>
 
