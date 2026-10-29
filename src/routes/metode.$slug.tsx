@@ -55,11 +55,26 @@ function LearningMethodDetailPage() {
   const [checkedSymptoms, setCheckedSymptoms] = React.useState<Record<string, boolean>>({})
   const [isRegisterOpen, setIsRegisterOpen] = React.useState<boolean>(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState<boolean>(false)
+  const navBarRef = React.useRef<HTMLDivElement>(null)
 
   // Reset active step saat slug metode berganti
   React.useEffect(() => {
     setActiveStepIndex(0)
     setCheckedSymptoms({})
+  }, [method.slug])
+
+  // Auto-scroll active tab into view di mobile saat metode dipilih
+  React.useEffect(() => {
+    if (navBarRef.current) {
+      const activeEl = navBarRef.current.querySelector<HTMLElement>('.lp-method-nav-pill.is-active')
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        })
+      }
+    }
   }, [method.slug])
 
   const currentStep = method.simulationSteps[activeStepIndex] || method.simulationSteps[0]
@@ -110,7 +125,7 @@ function LearningMethodDetailPage() {
               </motion.div>
 
               {/* Badges & Navigation Switcher */}
-              <motion.div variants={fadeInUp} className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div className="inline-flex items-center gap-2">
                   <span className="px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider bg-[#000000] text-[#FFFFFF] rounded-[2px]">
                     Metode {method.number}
@@ -120,17 +135,20 @@ function LearningMethodDetailPage() {
                   </span>
                 </div>
 
-                <div className="lp-method-nav-bar m-0">
-                  {LEARNING_METHODS.map((m) => (
-                    <Link
-                      key={m.slug}
-                      to={`/metode/${m.slug}` as any}
-                      className={`lp-method-nav-pill ${m.slug === method.slug ? 'is-active' : ''}`}
-                    >
-                      <span className="mr-1.5 font-mono font-bold text-[#CB2957]">{m.number}</span>
-                      {m.shortName}
-                    </Link>
-                  ))}
+                <div className="lp-method-nav-wrapper">
+                  <div className="lp-method-nav-bar" ref={navBarRef} role="navigation" aria-label="Pilihan metode belajar">
+                    {LEARNING_METHODS.map((m) => (
+                      <Link
+                        key={m.slug}
+                        to={`/metode/${m.slug}` as any}
+                        className={`lp-method-nav-pill ${m.slug === method.slug ? 'is-active' : ''}`}
+                      >
+                        <span className="mr-1.5 font-mono font-bold text-[#CB2957]">{m.number}</span>
+                        {m.shortName}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="lp-method-nav-fade" aria-hidden="true" />
                 </div>
               </motion.div>
 
