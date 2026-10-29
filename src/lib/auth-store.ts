@@ -1285,6 +1285,23 @@ export const authStore = {
       }
     }
 
+    // Penanganan khusus error email belum dikonfirmasi di Supabase Auth
+    if (supabaseAuthError) {
+      const errCode = supabaseAuthError.code || ''
+      const errMsg = supabaseAuthError.message || ''
+      if (errCode === 'email_not_confirmed' || errMsg.toLowerCase().includes('email not confirmed')) {
+        const helpfulError =
+          'Email akun belum dikonfirmasi di Supabase. Silakan buka Supabase Dashboard > Authentication > Users > klik titik tiga (...) > Confirm email, atau matikan fitur Confirm email di menu Providers.'
+        state.isLoading = false
+        state.error = helpfulError
+        notify()
+        return {
+          success: false,
+          error: helpfulError,
+        }
+      }
+    }
+
     // B. Verifikasi Password Ketat untuk Akun Demo / Terdaftar / Password Lokal
     const isDemoEmail =
       isSuperAdminEmail ||

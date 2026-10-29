@@ -127,4 +127,29 @@ describe('Verified Student & Parent Login with Default Credentials', { timeout: 
     const newLoginRes = await authStore.login(TEST_STUDENT_EMAIL, 'newPasswordSiswa999', 'student')
     expect(newLoginRes.success).toBe(true)
   })
+
+  it('handles email_not_confirmed Supabase error gracefully with informative guidance', async () => {
+    const { supabase } = await import('../supabase/client')
+    const originalSignIn = supabase.auth.signInWithPassword.bind(supabase.auth)
+
+    // Mock unconfirmed email response
+    supabase.auth.signInWithPassword = async () => ({
+      data: { user: null, session: null },
+      error: {
+        code: 'email_not_confirmed',
+        message: 'Email not confirmed',
+        name: 'AuthApiError',
+        status: 400,
+      } as any,
+    })
+
+    try {
+      const res = await authStore.login('unconfirmed.user@gmail.com', 'password123', 'student')
+      expect(res.success).toBe(false)
+      expect(res.error).toContain('Email akun belum dikonfirmasi di Supabase')
+      expect(authStore.getState().isAuthenticated).toBe(false)
+    } finally {
+      supabase.auth.signInWithPassword = originalSignIn
+    }
+  })
 })
