@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
 import { X } from 'lucide-react'
 import { cn } from '~/lib/utils'
+import { LEARNING_METHODS } from '~/lib/learning-methods'
 
 interface MobileDrawerProps {
   isOpen: boolean
@@ -43,7 +44,7 @@ export function MobileDrawer({
       >
         <div className="mobile-drawer-header">
           <span className="lp-logo">
-            Tadulako <span>Cendekia</span>
+            Anemone <span>Cendekia</span>
           </span>
           <button
             type="button"
@@ -55,16 +56,35 @@ export function MobileDrawer({
           </button>
         </div>
         <nav className="mobile-drawer-nav" aria-label="Navigasi utama">
-          <a href="#program" onClick={onClose}>
+          <div className="pt-2 pb-1 border-b border-[#D2D2D2]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] block mb-2">
+              Metode Belajar
+            </span>
+            <div className="space-y-1.5 pl-2">
+              {LEARNING_METHODS.map((m) => (
+                <Link
+                  key={m.slug}
+                  to={`/metode/${m.slug}` as any}
+                  onClick={onClose}
+                  className="block text-sm font-semibold text-[#000000] hover:text-[#CB2957] py-1"
+                >
+                  <span className="text-xs font-mono font-bold text-[#CB2957] mr-2">{m.number}</span>
+                  {m.shortName}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <a href="/#program" onClick={onClose}>
             Program
           </a>
-          <a href="#orang-tua" onClick={onClose}>
+          <a href="/#orang-tua" onClick={onClose}>
             Untuk Orang Tua
           </a>
-          <a href="#cara-daftar" onClick={onClose}>
+          <a href="/#cara-daftar" onClick={onClose}>
             Cara Daftar
           </a>
-          <a href="#faq" onClick={onClose}>
+          <a href="/#faq" onClick={onClose}>
             FAQ
           </a>
         </nav>

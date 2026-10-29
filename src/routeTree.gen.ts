@@ -25,6 +25,7 @@ import { Route as AdminRuanganRouteImport } from './routes/admin/ruangan'
 import { Route as AdminSiswaRouteImport } from './routes/admin/siswa'
 import { Route as AdminStafRouteImport } from './routes/admin/staf'
 import { Route as AdminTutorRouteImport } from './routes/admin/tutor'
+import { Route as MetodeSlugRouteImport } from './routes/metode.$slug'
 import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as ParentKehadiranRouteImport } from './routes/parent/kehadiran'
 import { Route as ParentProfilRouteImport } from './routes/parent/profil'
@@ -126,6 +127,11 @@ const AdminTutorRoute = AdminTutorRouteImport.update({
   id: '/tutor',
   path: '/tutor',
   getParentRoute: () => AdminRoute,
+} as any)
+const MetodeSlugRoute = MetodeSlugRouteImport.update({
+  id: '/metode/$slug',
+  path: '/metode/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ParentIndexRoute = ParentIndexRouteImport.update({
   id: '/',
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
+  '/metode/$slug': typeof MetodeSlugRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
+  '/metode/$slug': typeof MetodeSlugRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -325,6 +333,7 @@ export interface FileRoutesById {
   '/admin/siswa': typeof AdminSiswaRoute
   '/admin/staf': typeof AdminStafRoute
   '/admin/tutor': typeof AdminTutorRoute
+  '/metode/$slug': typeof MetodeSlugRoute
   '/parent/kehadiran': typeof ParentKehadiranRoute
   '/parent/profil': typeof ParentProfilRoute
   '/parent/rapor': typeof ParentRaporRoute
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
+    | '/metode/$slug'
     | '/parent/kehadiran'
     | '/parent/profil'
     | '/parent/rapor'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
+    | '/metode/$slug'
     | '/parent/kehadiran'
     | '/parent/profil'
     | '/parent/rapor'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/admin/siswa'
     | '/admin/staf'
     | '/admin/tutor'
+    | '/metode/$slug'
     | '/parent/kehadiran'
     | '/parent/profil'
     | '/parent/rapor'
@@ -471,6 +483,7 @@ export interface RootRouteChildren {
   ParentRoute: typeof ParentRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
   TutorRoute: typeof TutorRouteWithChildren
+  MetodeSlugRoute: typeof MetodeSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -586,6 +599,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/tutor'
       preLoaderRoute: typeof AdminTutorRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/metode/$slug': {
+      id: '/metode/$slug'
+      path: '/metode/$slug'
+      fullPath: '/metode/$slug'
+      preLoaderRoute: typeof MetodeSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/parent/': {
       id: '/parent/'
@@ -840,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParentRoute: ParentRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
   TutorRoute: TutorRouteWithChildren,
+  MetodeSlugRoute: MetodeSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

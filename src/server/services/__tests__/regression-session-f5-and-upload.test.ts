@@ -62,7 +62,7 @@ describe('REGRESSION: Session Persistence on Refresh and Tutor Material Upload',
         role: 'tutor',
       },
       role: 'tutor',
-      isAuthenticated: true,r
+      isAuthenticated: true,
     })
 
     await authStore.initialize()

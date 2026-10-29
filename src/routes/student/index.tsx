@@ -430,7 +430,7 @@ function StudentDashboardPage() {
             <p className="text-xs text-[#555555] mt-0.5">
               {activeTab === 'kalender'
                 ? `Rekap kehadiran tatap muka kelas ${student?.className || 'UTBK Intensif A'} per sesi kalender.`
-                : `Jadwal rutin mingguan kelas ${student?.className || 'UTBK Intensif A'} di unit Tadulako Cendekia.`}
+                : `Jadwal rutin mingguan kelas ${student?.className || 'UTBK Intensif A'} di unit Anemone Cendekia.`}
             </p>
           </div>
 

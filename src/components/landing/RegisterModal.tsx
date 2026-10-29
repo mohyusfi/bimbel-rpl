@@ -127,10 +127,10 @@ export function RegisterModal({
     if (duplicateStudent) {
       if (duplicateStudent.status === 'nonaktif') {
         setErrorMessage(
-          'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.'
+          'Email ini tercatat sebagai siswa nonaktif di Anemone Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.'
         )
       } else {
-        setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+        setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Anemone Cendekia.')
       }
       return
     }
@@ -302,7 +302,7 @@ export function RegisterModal({
                 <div className="p-3.5 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] space-y-1.5 leading-relaxed text-[#555555]">
                   <p className="font-semibold text-[#000000]">Tahapan Selanjutnya:</p>
                   <p>
-                    1. Staf Tata Usaha Tadulako Cendekia akan memeriksa ketersediaan kursi rombel sesuai paket bimbingan.
+                    1. Staf Tata Usaha Anemone Cendekia akan memeriksa ketersediaan kursi rombel sesuai paket bimbingan.
                   </p>
                   <p>
                     2. Setelah diverifikasi dan diplot ke kelas, kredensial akun portal (Nomor Induk Siswa & Kata Sandi) akan dikirimkan otomatis ke WhatsApp orang tua di nomor <strong className="text-[#000000] font-mono">{submittedTicket.parentPhone}</strong>.

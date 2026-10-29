@@ -320,13 +320,13 @@ function ParentBillingPage() {
           <div className="w-full md:w-auto flex items-center justify-between gap-3 sm:gap-4 bg-[#F8F8F8] border border-[#D2D2D2] px-4 py-2.5 rounded-[10px]">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-[0.06em] text-[#555555] block">
-                Nomor Rekening Bimbel
+                Nomor Rekening Resmi
               </span>
               <span className="font-mono font-bold text-base sm:text-lg text-[#000000] tabular-nums tracking-wider leading-tight block">
                 7123-4567-89
               </span>
               <span className="text-[11px] text-[#555555] block mt-0.5">
-                a.n. Bimbel Tadulako Cendekia
+                a.n. Anemone Cendekia
               </span>
             </div>
 

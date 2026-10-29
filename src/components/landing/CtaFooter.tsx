@@ -2,16 +2,17 @@ import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import { fadeInUp, viewportConfig } from '~/lib/motion'
+import { LEARNING_METHODS } from '~/lib/learning-methods'
 
 interface CtaFooterProps {
   onOpenRegister: () => void
 }
 
 const PROGRAM_LINKS = [
-  { label: 'SD Cendekia', href: '#program' },
-  { label: 'SMP Prestasi', href: '#program' },
-  { label: 'SMA Sukses', href: '#program' },
-  { label: 'Intensif UTBK-SNBT', href: '#program' },
+  { label: 'SD Cendekia', href: '/#program' },
+  { label: 'SMP Prestasi', href: '/#program' },
+  { label: 'SMA Sukses', href: '/#program' },
+  { label: 'Intensif UTBK-SNBT', href: '/#program' },
 ] as const
 
 const LOGIN_LINKS = [
@@ -36,7 +37,7 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
         </h2>
         <div className="lp-cta-bottom">
           <p>
-            Daftar dalam beberapa menit. Admin kami akan menghubungi lewat WhatsApp untuk mengatur jadwal kelas pertama.
+            Daftar dalam beberapa menit. Tim kami akan menghubungi lewat WhatsApp untuk mengatur jadwal konsultasi dan kelas pertama anak Anda.
           </p>
           <div className="lp-cta-actions">
             <button
@@ -62,12 +63,23 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
         <div className="lp-footer-grid">
           <div>
             <Link to="/" className="lp-logo">
-              Tadulako <span>Cendekia</span>
+              Anemone <span>Cendekia</span>
             </Link>
             <p>
-              Bimbingan belajar tatap muka untuk SD, SMP, SMA, dan UTBK di Kota Palu, Sulawesi Tengah.
+              Lembaga pembelajaran tatap muka untuk SD, SMP, SMA, dan persiapan UTBK-SNBT di Kota Palu, Sulawesi Tengah.
             </p>
           </div>
+
+          <nav aria-label="Metode Belajar">
+            <h2>Metode Belajar</h2>
+            <ul>
+              {LEARNING_METHODS.map((m) => (
+                <li key={m.slug}>
+                  <Link to={`/metode/${m.slug}` as any}>{m.shortName}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
           <nav aria-label="Program">
             <h2>Program</h2>
@@ -111,7 +123,7 @@ export function CtaFooter({ onOpenRegister }: CtaFooterProps) {
         </div>
 
         <div className="lp-footer-bottom">
-          © 2026 Bimbel Tadulako Cendekia, Kota Palu.
+          © 2026 Anemone Cendekia, Kota Palu.
         </div>
       </footer>
     </div>

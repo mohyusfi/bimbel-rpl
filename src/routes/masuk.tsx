@@ -167,7 +167,7 @@ export function LoginPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <span className="font-display text-xs font-extrabold tracking-tight text-[#000000]">
-            Tadulako Cendekia<span className="text-[#CB2957]">.</span>
+            Anemone Cendekia<span className="text-[#CB2957]">.</span>
           </span>
         </div>
 
@@ -180,7 +180,7 @@ export function LoginPage() {
                 to="/"
                 className="inline-block font-display text-xl tracking-tight text-[#000000] mb-2.5"
               >
-                <span className="font-extrabold">Tadulako</span>{' '}
+                <span className="font-extrabold">Anemone</span>{' '}
                 <span className="font-medium">Cendekia</span>
                 <span className="text-[#CB2957] font-extrabold">.</span>
               </Link>
@@ -424,7 +424,7 @@ export function LoginPage() {
 
           {/* Catatan Kaki Ketentuan */}
           <p className="mt-8 text-center text-[11px] text-[#555555] leading-relaxed">
-            Dengan masuk ke sistem, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Tadulako Cendekia.
+            Dengan masuk ke sistem, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Anemone Cendekia.
           </p>
         </section>
 
@@ -446,7 +446,7 @@ export function LoginPage() {
           <div className="w-full h-full rounded-[16px] overflow-hidden border-2 border-[#000000] bg-[#000000] relative">
             <img
               src="/assets/login-showcase.webp"
-              alt="Suasana bimbingan belajar tatap muka intensif di Tadulako Cendekia"
+              alt="Suasana bimbingan belajar tatap muka intensif di Anemone Cendekia"
               className="w-full h-full object-cover object-center contrast-[1.05] grayscale-[15%]"
             />
           </div>

@@ -162,7 +162,7 @@ export function UploadProofModal({
               {/* Official Destination Bank Account */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-[#000000] block">
-                  Rekening Resmi Bimbel Tadulako Cendekia:
+                  Rekening Resmi Anemone Cendekia:
                 </label>
                 <div className="p-3 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -171,7 +171,7 @@ export function UploadProofModal({
                     </div>
                     <div>
                       <p className="text-xs font-bold text-[#000000]">BSI (Bank Syariah Indonesia)</p>
-                      <p className="text-xs font-mono text-[#555555] mt-0.5">7123-4567-89 a.n. Bimbel Tadulako</p>
+                      <p className="text-xs font-mono text-[#555555] mt-0.5">7123-4567-89 a.n. Anemone Cendekia</p>
                     </div>
                   </div>
                   <button

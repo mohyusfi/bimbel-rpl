@@ -169,7 +169,7 @@ function AdminSiswaPage() {
 
   const handleCopyCredentials = () => {
     if (!resetSuccessData) return
-    const textToCopy = `[Tadulako Cendekia] Kredensial Akses Akun Bimbel\nNama: ${resetSuccessData.targetName}\nPeran: ${resetSuccessData.targetRole === 'student' ? 'Siswa' : 'Orang Tua / Wali'}\nAkun Masuk: ${resetSuccessData.emailOrNis}\nKata Sandi Baru: ${resetSuccessData.password}\n\nSilakan masuk melalui portal resmi: /masuk`
+    const textToCopy = `[Anemone Cendekia] Kredensial Akses Akun\nNama: ${resetSuccessData.targetName}\nPeran: ${resetSuccessData.targetRole === 'student' ? 'Siswa' : 'Orang Tua / Wali'}\nAkun Masuk: ${resetSuccessData.emailOrNis}\nKata Sandi Baru: ${resetSuccessData.password}\n\nSilakan masuk melalui portal resmi: /masuk`
     navigator.clipboard.writeText(textToCopy)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 3000)
