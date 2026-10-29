@@ -49,9 +49,11 @@ export const turnstileService = {
       }
     }
 
+    const isTestToken = cleanToken === '1x00000000000000000000AA'
     const secretKey =
-      process.env.TURNSTILE_SECRET_KEY ||
-      (process.env.NODE_ENV !== 'production' ? CLOUDFLARE_DUMMY_SECRET_KEY : '')
+      (isTestToken && process.env.NODE_ENV !== 'production')
+        ? CLOUDFLARE_DUMMY_SECRET_KEY
+        : (process.env.TURNSTILE_SECRET_KEY || (process.env.NODE_ENV !== 'production' ? CLOUDFLARE_DUMMY_SECRET_KEY : ''))
 
     if (!secretKey) {
       console.error('[ERROR] TURNSTILE_SECRET_KEY belum dikonfigurasi di environment.')

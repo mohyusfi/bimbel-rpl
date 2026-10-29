@@ -43,7 +43,7 @@ export interface TurnstileWidgetRef {
 
 /**
  * Komponen Client-side Cloudflare Turnstile Widget
- * Mendukung explicit rendering, theme, auto-cleanup, dan fallback test key di dev
+ * Mendukung explicit rendering, stabilitas callback ref, penanganan adblock/CORS, dan dev test bypass
  */
 export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
   function TurnstileWidget(
@@ -60,6 +60,13 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
   ) {
     const containerRef = React.useRef<HTMLDivElement>(null)
     const widgetIdRef = React.useRef<string | null>(null)
+    const [loadError, setLoadError] = React.useState<string | null>(null)
+
+    // Simpan referensi callback agar tidak memicu unmount/remount effect setiap render
+    const callbacksRef = React.useRef({ onSuccess, onError, onExpire })
+    React.useEffect(() => {
+      callbacksRef.current = { onSuccess, onError, onExpire }
+    })
 
     const resolvedSiteKey =
       siteKey ||
@@ -72,7 +79,11 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
       () => ({
         reset: () => {
           if (widgetIdRef.current && window.turnstile) {
-            window.turnstile.reset(widgetIdRef.current)
+            try {
+              window.turnstile.reset(widgetIdRef.current)
+            } catch {
+              // Ignore reset error
+            }
           }
         },
       }),
@@ -85,7 +96,7 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
       const renderWidget = () => {
         if (!containerRef.current || !window.turnstile || !resolvedSiteKey) return
 
-        // Jika widget sudah pernah di-render, jangan render duplikat
+        // Jika widget sudah ter-render, hindari duplikasi
         if (widgetIdRef.current) {
           return
         }
@@ -97,25 +108,30 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
             size,
             callback: (token: string) => {
               if (isMounted) {
-                onSuccess(token)
+                setLoadError(null)
+                callbacksRef.current.onSuccess(token)
               }
             },
             'error-callback': (code: string) => {
               console.warn('[WARN] Turnstile challenge error:', code)
-              if (isMounted && onError) {
-                onError(code)
+              if (isMounted) {
+                setLoadError(code)
+                callbacksRef.current.onError?.(code)
               }
             },
             'expired-callback': () => {
               console.warn('[WARN] Turnstile challenge expired')
-              if (isMounted && onExpire) {
-                onExpire()
+              if (isMounted) {
+                callbacksRef.current.onExpire?.()
               }
             },
           })
           widgetIdRef.current = id
         } catch (err: any) {
           console.error('[ERROR] Gagal merender widget Turnstile:', err?.message)
+          if (isMounted) {
+            setLoadError('RENDER_FAILED')
+          }
         }
       }
 
@@ -128,15 +144,17 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
         script.src = SCRIPT_URL
         script.async = true
         script.defer = true
+        script.crossOrigin = 'anonymous'
         script.onload = () => {
           if (isMounted) {
             renderWidget()
           }
         }
         script.onerror = () => {
-          console.error('[ERROR] Gagal memuat script Turnstile Cloudflare')
-          if (isMounted && onError) {
-            onError('SCRIPT_LOAD_FAILED')
+          console.warn('[WARN] Script Turnstile Cloudflare terblokir oleh browser atau ekstensi.')
+          if (isMounted) {
+            setLoadError('SCRIPT_BLOCKED')
+            callbacksRef.current.onError?.('SCRIPT_BLOCKED')
           }
         }
         document.head.appendChild(script)
@@ -157,14 +175,51 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
           widgetIdRef.current = null
         }
       }
-    }, [resolvedSiteKey, theme, size, onSuccess, onError, onExpire])
+    }, [resolvedSiteKey, theme, size]) // Stabil: TIDAK bergantung pada callback function reference
+
+    const handleDevBypass = () => {
+      setLoadError(null)
+      callbacksRef.current.onSuccess('1x00000000000000000000AA')
+    }
 
     return (
-      <div
-        ref={containerRef}
-        className={`min-h-[65px] flex items-center justify-center my-2 ${className}`}
-        data-testid="turnstile-container"
-      />
+      <div className={`flex flex-col items-center justify-center my-2 ${className}`}>
+        <div
+          ref={containerRef}
+          className="min-h-[65px] flex items-center justify-center"
+          data-testid="turnstile-container"
+        />
+
+        {import.meta.env.DEV && !loadError && (
+          <div className="mt-1 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={handleDevBypass}
+              className="text-[11px] text-[#777777] hover:text-[#111111] underline cursor-pointer"
+            >
+              [Dev: Isi Token Uji Coba Otomatis]
+            </button>
+          </div>
+        )}
+
+        {loadError && (
+          <div className="text-center mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 max-w-sm">
+            <p className="font-medium">Verifikasi bot terhambat ({loadError})</p>
+            <p className="text-[11px] text-red-600 mt-0.5">
+              Jika menggunakan Firefox/Brave atau Adblocker, pastikan proteksi pelacak tidak memblokir <code>challenges.cloudflare.com</code>.
+            </p>
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                onClick={handleDevBypass}
+                className="mt-2 text-xs bg-red-600 text-white px-2.5 py-1 rounded hover:bg-red-700 cursor-pointer"
+              >
+                Gunakan Kunci Uji Coba Dev (Bypass Lokal)
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     )
   }
 )
