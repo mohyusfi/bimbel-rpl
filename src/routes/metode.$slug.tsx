@@ -180,10 +180,12 @@ function LearningMethodDetailPage() {
         <section className="lp-section">
           <div className="container">
             <div className="lp-section-head">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#CB2957]">
-                Simulasi Interaktif
-              </span>
-              <h2 className="lp-h2">Bagaimana metode ini dijalankan di dalam kelas?</h2>
+              <div>
+                <span className="block mb-2 text-xs font-mono font-bold uppercase tracking-wider text-[#CB2957]">
+                  Simulasi Interaktif
+                </span>
+                <h2 className="lp-h2">Bagaimana metode ini dijalankan di dalam kelas?</h2>
+              </div>
               <p>
                 Klik setiap tahapan di bawah untuk melihat alur pendampingan tutor Anemone bersama siswa secara langkah demi langkah.
               </p>
@@ -300,10 +302,12 @@ function LearningMethodDetailPage() {
         <section className="lp-section bg-[#F6F6F6] border-y-2 border-[#000000]">
           <div className="container">
             <div className="lp-section-head">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#CB2957]">
-                Perbandingan Nyata
-              </span>
-              <h2 className="lp-h2">Cara belajar konvensional vs Metode Anemone</h2>
+              <div>
+                <span className="block mb-2 text-xs font-mono font-bold uppercase tracking-wider text-[#CB2957]">
+                  Perbandingan Nyata
+                </span>
+                <h2 className="lp-h2">Cara belajar konvensional vs Metode Anemone</h2>
+              </div>
               <p>
                 Lihat perbedaan mendasar antara pola belajar hafalan pasif dengan pembiasaan nalar aktif di kelas Anemone.
               </p>

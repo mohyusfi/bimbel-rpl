@@ -19,6 +19,11 @@ export interface LearningMethodItem {
   shortName: string
   title: string
   tagline: string
+  cardLine: string
+  cardMetric: {
+    value: string
+    label: string
+  }
   badge: string
   heroLead: string
   recommendedPackage: 'SD' | 'SMP' | 'SMA' | 'UTBK'
@@ -43,6 +48,11 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     shortName: 'Konsep Dasar',
     title: 'Metode Konsep Dasar (First-Principles)',
     tagline: 'Membedah Logika dari Akar, Bukan Hafalan Rumus Cepat',
+    cardLine: 'Paham alasan di balik rumus.',
+    cardMetric: {
+      value: '4 tahap',
+      label: 'alur bedah konsep per topik',
+    },
     badge: 'Fondasi Utama',
     heroLead:
       'Siswa sering kesulitan saat tipe soal sedikit dimodifikasi karena hanya menghafal rumus. Di Anemone, setiap topik diurai dari prinsip pertama hingga siswa paham mengapa rumus itu ada dan kapan harus dipakai.',
@@ -121,6 +131,11 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     shortName: 'Active Recall',
     title: 'Metode Active Recall & Kelas Kecil',
     tagline: 'Diskusi Terarah Maksimal 12 Siswa, Tanpa Menonton Pasif',
+    cardLine: 'Maks. 12 siswa, semua ikut bicara.',
+    cardMetric: {
+      value: '12',
+      label: 'siswa maksimal per kelas',
+    },
     badge: 'Interaktif Nyata',
     heroLead:
       'Membaca buku berulang kali hanya memberi ilusi pemahaman. Anemone membatasi rombel maksimal 10–12 siswa dan mewajibkan uji panggil memori aktif (active recall) di setiap pertemuan kelas.',
@@ -199,6 +214,11 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     shortName: 'Deliberate Practice',
     title: 'Metode Deliberate Practice & Simulasi Adaptif',
     tagline: 'Latihan Terarah pada Titik Lemah Spesifik dengan Ritme UTBK Nyata',
+    cardLine: 'Latihan tepat di bagian yang lemah.',
+    cardMetric: {
+      value: '4x',
+      label: 'simulasi try out per semester',
+    },
     badge: 'Hasil Terukur',
     heroLead:
       'Bukan sekadar memperbanyak latihan soal acak. Deliberate practice Anemone memetakan subtes mana yang masih rapuh, melatih manajemen waktu per soal, dan memberi simulasi try out terstandar.',
@@ -277,6 +297,11 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     shortName: 'Klinik Personal',
     title: 'Metode Pendampingan Personal & Klinik PR',
     tagline: 'Solusi Tugas Sekolah dan Konsultasi Belajar Tanpa Tekanan',
+    cardLine: 'PR selesai, anak paham caranya.',
+    cardMetric: {
+      value: '1-on-1',
+      label: 'sesi klinik pendampingan PR',
+    },
     badge: 'Dukungan Penuh',
     heroLead:
       'Setiap anak memiliki ritme belajar yang berbeda. Melalui klinik personal Anemone, siswa dapat berkonsultasi mengenai tugas harian sekolah, persiapan ulangan harian, serta konsultasi psikologis belajar.',

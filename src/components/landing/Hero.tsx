@@ -68,10 +68,6 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             initial={false}
             animate="visible"
           >
-            <motion.p variants={fadeInUp} className="lp-kicker">
-              Anemone Cendekia · Pendampingan belajar tatap muka di Kota Palu
-            </motion.p>
-
             <motion.h1 variants={fadeInUp} className="lp-hero-title">
               Paham dari konsep dasar, jadwal pasti, orang tua selalu <em>tahu.</em>
             </motion.h1>

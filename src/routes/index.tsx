@@ -71,7 +71,7 @@ function LandingPage() {
           onOpenRegister={handleOpenRegister}
           onSelectProgram={handleSelectProgramAndRegister}
         />
-        <LearningMethodsSection onSelectProgram={handleSelectProgramAndRegister} />
+        <LearningMethodsSection />
         <ProgramsSection onSelectProgram={handleSelectProgramAndRegister} />
         <ParentsSection />
         <StepsSection />

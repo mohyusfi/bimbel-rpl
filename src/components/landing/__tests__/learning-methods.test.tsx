@@ -15,7 +15,7 @@ vi.mock('@tanstack/react-router', () => ({
 import { LearningMethodsSection } from '../LearningMethodsSection'
 
 describe('Metode Belajar Anemone — Data & Komponen', () => {
-  it('menyediakan 4 metode belajar unggulan dengan struktur lengkap', () => {
+  it('menyediakan 4 metode belajar unggulan dengan struktur lengkap termasuk cardLine dan cardMetric', () => {
     expect(LEARNING_METHODS.length).toBe(4)
 
     const slugs = LEARNING_METHODS.map((m) => m.slug)
@@ -24,6 +24,9 @@ describe('Metode Belajar Anemone — Data & Komponen', () => {
     for (const method of LEARNING_METHODS) {
       expect(method.number).toMatch(/^0[1-4]$/)
       expect(method.title).toBeTruthy()
+      expect(method.cardLine).toBeTruthy()
+      expect(method.cardMetric.value).toBeTruthy()
+      expect(method.cardMetric.label).toBeTruthy()
       expect(method.heroLead).toBeTruthy()
       expect(method.metrics.length).toBeGreaterThanOrEqual(3)
       expect(method.simulationSteps.length).toBe(4)
@@ -44,20 +47,21 @@ describe('Metode Belajar Anemone — Data & Komponen', () => {
 
   it('mematuhi aturan AGENTS.md: seluruh teks metode belajar bebas dari karakter emoji', () => {
     const jsonString = JSON.stringify(LEARNING_METHODS)
-    // Regex untuk mendeteksi berbagai rentang karakter emoji
     const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u
     expect(emojiRegex.test(jsonString)).toBe(false)
   })
 
-  it('merender LearningMethodsSection dengan 4 tab metode belajar', () => {
-    const onSelectProgram = vi.fn()
-    const html = renderToString(<LearningMethodsSection onSelectProgram={onSelectProgram} />)
+  it('merender LearningMethodsSection sebagai grid 4 kartu poster yang ringkas', () => {
+    const html = renderToString(<LearningMethodsSection />)
 
     expect(html).toContain('id="metode-belajar"')
-    expect(html).toContain('Empat metode agar anak paham, bukan sekadar hafal')
-    expect(html).toContain('Konsep Dasar')
-    expect(html).toContain('Active Recall')
-    expect(html).toContain('Deliberate Practice')
-    expect(html).toContain('Klinik Personal')
+    expect(html).toContain('Empat cara kami membuat anak paham')
+    expect(html).toContain('Pilih satu untuk melihat cara kerjanya di kelas.')
+    expect(html).toContain('lp-methods-poster-grid')
+    expect(html).toContain('Paham alasan di balik rumus.')
+    expect(html).toContain('Maks. 12 siswa, semua ikut bicara.')
+    expect(html).toContain('Latihan tepat di bagian yang lemah.')
+    expect(html).toContain('PR selesai, anak paham caranya.')
+    expect(html).toContain('Lihat cara kerjanya')
   })
 })
