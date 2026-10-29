@@ -4,8 +4,8 @@ import { X, CheckCircle2, Clock, ArrowRight, UserPlus, AlertCircle, Copy, Check 
 import { adminStore, type PackageCode } from '~/lib/admin-store'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { useNavigate } from '@tanstack/react-router'
-import { supabase } from '~/lib/supabase/client'
-import { registrationService } from '~/server/services/registration.service'
+import { submitRegistrationWithTurnstileFn } from '~/server/functions/registration'
+import { TurnstileWidget, type TurnstileWidgetRef } from '~/components/ui/turnstile-widget'
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -53,6 +53,8 @@ export function RegisterModal({
     parentEmail?: string
   } | null>(null)
   const [isCopied, setIsCopied] = React.useState(false)
+  const [turnstileToken, setTurnstileToken] = React.useState<string>('')
+  const turnstileRef = React.useRef<TurnstileWidgetRef>(null)
 
   React.useEffect(() => {
     if (defaultPackage) {
@@ -69,6 +71,8 @@ export function RegisterModal({
       setErrorMessage(null)
       setFormData(INITIAL_FORM_DATA)
       setIsCopied(false)
+      setTurnstileToken('')
+      turnstileRef.current?.reset()
     }, 200)
   }
 
@@ -135,6 +139,11 @@ export function RegisterModal({
       return
     }
 
+    if (!turnstileToken) {
+      setErrorMessage('Silakan selesaikan verifikasi keamanan bot terlebih dahulu.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -148,31 +157,41 @@ export function RegisterModal({
 
       let registrationNumber: string | undefined
 
-      // 1. Simpan ke tabel registrations Supabase via registrationService
+      // 1. Simpan ke tabel registrations via Server Function terverifikasi Turnstile
       try {
-        const res = await registrationService.createRegistration({
-          studentName: formData.studentName.trim(),
-          studentEmail: formData.studentEmail.trim(),
-          studentPhone: formData.studentPhone.trim(),
-          studentSchool: formData.studentSchool.trim(),
-          packageCode: formData.studentPackage as PackageCode,
-          packageName,
-          parentName: formData.parentName.trim(),
-          parentEmail: formData.parentEmail.trim() || undefined,
-          parentPhone: formData.parentPhone.trim(),
-          parentJob: formData.parentJob.trim() || undefined,
-          parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+        const res = await submitRegistrationWithTurnstileFn({
+          data: {
+            studentName: formData.studentName.trim(),
+            studentEmail: formData.studentEmail.trim(),
+            studentPhone: formData.studentPhone.trim(),
+            studentSchool: formData.studentSchool.trim(),
+            packageCode: formData.studentPackage as PackageCode,
+            packageName,
+            parentName: formData.parentName.trim(),
+            parentEmail: formData.parentEmail.trim() || undefined,
+            parentPhone: formData.parentPhone.trim(),
+            parentJob: formData.parentJob.trim() || undefined,
+            parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+            turnstileToken,
+          },
         })
         if (!res.success) {
           setErrorMessage(res.error)
           setIsSubmitting(false)
+          turnstileRef.current?.reset()
+          setTurnstileToken('')
           return
         }
         if (res.success && res.data) {
           registrationNumber = res.data.registrationNumber
         }
-      } catch (err) {
-        console.info('Supabase registration insert local fallback:', err)
+      } catch (err: any) {
+        console.warn('[WARN] Pendaftaran gagal via server function:', err?.message)
+        setErrorMessage(err?.message || 'Terjadi gangguan saat memproses pendaftaran.')
+        setIsSubmitting(false)
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
+        return
       }
 
       // 2. Sinkronkan ke local admin store
@@ -550,6 +569,25 @@ export function RegisterModal({
                       placeholder="Contoh: Jl. Tadulako No. 12, Besusu Tengah"
                       value={formData.parentAddress}
                       onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="py-2 flex flex-col items-center justify-center border-t border-[#E5E5E5] mt-4 pt-3">
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      action="signup"
+                      onSuccess={(token) => {
+                        setTurnstileToken(token)
+                        if (errorMessage?.includes('keamanan')) {
+                          setErrorMessage(null)
+                        }
+                      }}
+                      onError={(code) => {
+                        console.warn('[WARN] Turnstile challenge error:', code)
+                      }}
+                      onExpire={() => {
+                        setTurnstileToken('')
+                      }}
                     />
                   </div>
                 </div>

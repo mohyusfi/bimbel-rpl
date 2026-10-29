@@ -14,6 +14,8 @@ import {
   Users,
 } from 'lucide-react'
 import { RegisterModal } from '~/components/landing/RegisterModal'
+import { TurnstileWidget, type TurnstileWidgetRef } from '~/components/ui/turnstile-widget'
+import { verifyLoginTurnstileFn } from '~/server/functions/auth'
 import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
 import { isDemoLogin } from '~/lib/login-mode'
 
@@ -36,6 +38,10 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = React.useState<boolean>(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<{ email?: string; password?: string }>({})
+
+  // Turnstile state untuk perlindungan login manual
+  const [turnstileToken, setTurnstileToken] = React.useState<string>('')
+  const turnstileRef = React.useRef<TurnstileWidgetRef>(null)
 
   // Admin role selection for demo mode (Super Admin vs TU Admin)
   const [adminRoleType, setAdminRoleType] = React.useState<'super_admin' | 'regular_admin'>('super_admin')
@@ -78,9 +84,28 @@ export function LoginPage() {
     }
     setFieldErrors({})
 
+    // 1. Verifikasi token Turnstile untuk Login manual
+    if (!turnstileToken) {
+      setErrorMessage('Harap selesaikan verifikasi keamanan bot terlebih dahulu.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // Login tunggal: role ditentukan otomatis oleh profil Supabase / email inference
+      // 2. Validasi token Turnstile sisi server via Server Function
+      const verifyRes = await verifyLoginTurnstileFn({
+        data: { turnstileToken },
+      })
+
+      if (!verifyRes.success) {
+        setErrorMessage(verifyRes.error || 'Verifikasi keamanan bot gagal. Silakan coba kembali.')
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
+        setIsSubmitting(false)
+        return
+      }
+
+      // 3. Login tunggal: role ditentukan otomatis oleh profil Supabase / email inference
       const result = await authStore.login(cleanInput, password)
       if (result.success && result.role) {
         const roleHref = result.href || `/${result.role}`
@@ -90,12 +115,16 @@ export function LoginPage() {
             : roleHref
         navigate({ to: dest as any })
       } else {
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
         setErrorMessage(
           result.error ||
             'Email atau kata sandi yang Anda masukkan tidak sesuai. Silakan periksa kembali.'
         )
       }
     } catch (err: any) {
+      turnstileRef.current?.reset()
+      setTurnstileToken('')
       setErrorMessage(
         err?.message ||
           'Terjadi kesalahan saat menghubungi server. Silakan coba beberapa saat lagi.'
@@ -309,6 +338,28 @@ export function LoginPage() {
                     <span>{fieldErrors.password}</span>
                   </p>
                 )}
+              </div>
+
+              {/* Cloudflare Turnstile Anti-Bot Challenge */}
+              <div className="pt-2 pb-1 flex justify-center">
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  action="login"
+                  size="flexible"
+                  onSuccess={(token) => {
+                    setTurnstileToken(token)
+                    if (errorMessage && errorMessage.includes('keamanan bot')) {
+                      setErrorMessage(null)
+                    }
+                  }}
+                  onError={(code) => {
+                    console.warn('[WARN] Turnstile challenge error:', code)
+                    setTurnstileToken('')
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken('')
+                  }}
+                />
               </div>
 
               {/* Tombol CTA Primer (#CB2957) */}
