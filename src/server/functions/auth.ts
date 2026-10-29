@@ -30,3 +30,16 @@ export const verifyLoginTurnstileFn = createServerFn({ method: 'POST' })
       data: { verified: true },
     }
   })
+
+export const activateUserSchema = z.object({
+  email: z.string().email('Format email tidak valid.'),
+})
+
+export type ActivateUserInput = z.infer<typeof activateUserSchema>
+
+export const activateUnconfirmedUserFn = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => activateUserSchema.parse(d))
+  .handler(async ({ data }): Promise<ServerResult<{ activated: boolean }>> => {
+    const { registrationService } = await import('~/server/services/registration.service')
+    return registrationService.activateUserAccount(data.email)
+  })

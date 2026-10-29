@@ -56,12 +56,26 @@ export async function provisionSupabaseAuthAccount(params: {
         if (existing) {
           await adminClient.auth.admin.updateUserById(existing.id, {
             password: params.password,
+            email_confirm: true,
             user_metadata: {
               role: params.role,
               full_name: params.fullName,
               phone: params.phone || '',
             },
           })
+
+          // Garansi pembaruan email_confirmed_at via direct SQL jika terhubung
+          try {
+            const { db } = await import('~/db')
+            const { sql } = await import('drizzle-orm')
+            await db.execute(
+              sql`UPDATE auth.users 
+                  SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
+                      confirmed_at = COALESCE(confirmed_at, NOW()) 
+                  WHERE LOWER(email) = LOWER(${cleanEmail})`
+            )
+          } catch {}
+
           return { success: true, userId: existing.id }
         }
       }
@@ -98,6 +112,18 @@ export async function provisionSupabaseAuthAccount(params: {
   } catch (signUpErr: any) {
     console.info('[INFO] Supabase signUp provisioning fallback note:', signUpErr?.message)
   }
+
+  // 3. Garansi langsung melalui koneksi Postgres/Drizzle jika terhubung
+  try {
+    const { db } = await import('~/db')
+    const { sql } = await import('drizzle-orm')
+    await db.execute(
+      sql`UPDATE auth.users 
+          SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
+              confirmed_at = COALESCE(confirmed_at, NOW()) 
+          WHERE LOWER(email) = LOWER(${cleanEmail})`
+    )
+  } catch {}
 
   return { success: true }
 }
@@ -876,6 +902,90 @@ export const registrationService = {
     }
 
     return { success: true, data: true }
+  },
+
+  /**
+   * Mengaktifkan akun pengguna di Supabase Auth jika sudah diverifikasi oleh Admin.
+   * Dipanggil saat pengguna login untuk auto-healing status unconfirmed.
+   */
+  async activateUserAccount(email: string): Promise<ServerResult<{ activated: boolean }>> {
+    const cleanEmail = email.trim().toLowerCase()
+
+    // 1. Cek apakah pengguna sudah memiliki profil aktif atau registrasi terverifikasi
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, role, status')
+      .eq('email', cleanEmail)
+      .maybeSingle()
+
+    const { data: reg } = await supabase
+      .from('registrations')
+      .select('id, status')
+      .or(`student_email.eq.${cleanEmail},parent_email.eq.${cleanEmail}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const isVerified = (profile && profile.status === 'aktif') || (reg && reg.status === 'terverifikasi')
+    if (!isVerified) {
+      if (reg && reg.status === 'menunggu') {
+        return {
+          success: false,
+          error: 'Pendaftaran Anda sedang menunggu verifikasi oleh staf Tata Usaha.',
+        }
+      }
+      return {
+        success: false,
+        error: 'Akun belum diverifikasi oleh admin atau tidak ditemukan.',
+      }
+    }
+
+    // 2. Aktifkan via Supabase Admin API jika service key tersedia
+    const serviceKey =
+      (typeof process !== 'undefined' && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)) ||
+      undefined
+
+    const supabaseEndpoint =
+      (typeof process !== 'undefined' && (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)) ||
+      supabaseUrl
+
+    if (serviceKey && supabaseEndpoint) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js')
+        const adminClient = createClient(supabaseEndpoint, serviceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        })
+        const { data: usersList } = await adminClient.auth.admin.listUsers()
+        const user = usersList?.users?.find((u) => u.email?.toLowerCase() === cleanEmail)
+        if (user) {
+          await adminClient.auth.admin.updateUserById(user.id, {
+            email_confirm: true,
+          })
+        }
+      } catch (err: any) {
+        console.warn('[WARN] Admin API activation note:', err?.message)
+      }
+    }
+
+    // 3. Garansi langsung melalui koneksi Postgres/Drizzle jika terhubung
+    try {
+      const { db } = await import('~/db')
+      const { sql } = await import('drizzle-orm')
+      await db.execute(
+        sql`UPDATE auth.users 
+            SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
+                confirmed_at = COALESCE(confirmed_at, NOW()) 
+            WHERE LOWER(email) = LOWER(${cleanEmail})`
+      )
+    } catch {}
+
+    return {
+      success: true,
+      data: { activated: true },
+    }
   },
 
   /**
