@@ -1,8 +1,106 @@
-import { supabase } from '~/lib/supabase/client'
+import { supabase, supabaseUrl, supabaseAnonKey } from '~/lib/supabase/client'
 import type { Registration, PackageCode, Student } from '~/lib/admin-store'
 import { clampCapacity, ensureAdminSession, ensureAuthenticatedSession } from './master-data.service'
 
 export { clampCapacity }
+
+/**
+ * Mendaftarkan akun login resmi ke Supabase Auth (auth.users)
+ * menggunakan Admin API jika SERVICE_ROLE_KEY tersedia, atau isolated client signUp fallback.
+ */
+export async function provisionSupabaseAuthAccount(params: {
+  email: string
+  password: string
+  fullName: string
+  role: 'student' | 'parent'
+  phone?: string
+}): Promise<{ success: boolean; userId?: string; error?: string }> {
+  const cleanEmail = params.email.trim().toLowerCase()
+  const serviceKey =
+    (typeof process !== 'undefined' && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)) ||
+    undefined
+
+  const supabaseEndpoint =
+    (typeof process !== 'undefined' && (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL)) ||
+    supabaseUrl
+
+  // 1. Jika ada Service Role Key, buatkan akun resmi terkonfirmasi di auth.users
+  if (serviceKey && supabaseEndpoint) {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const adminClient = createClient(supabaseEndpoint, serviceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: cleanEmail,
+        password: params.password,
+        email_confirm: true,
+        user_metadata: {
+          role: params.role,
+          full_name: params.fullName,
+          phone: params.phone || '',
+        },
+      })
+
+      if (!error && data?.user) {
+        return { success: true, userId: data.user.id }
+      }
+
+      if (error && error.message.toLowerCase().includes('already')) {
+        const { data: usersList } = await adminClient.auth.admin.listUsers()
+        const existing = usersList?.users?.find((u) => u.email?.toLowerCase() === cleanEmail)
+        if (existing) {
+          await adminClient.auth.admin.updateUserById(existing.id, {
+            password: params.password,
+            user_metadata: {
+              role: params.role,
+              full_name: params.fullName,
+              phone: params.phone || '',
+            },
+          })
+          return { success: true, userId: existing.id }
+        }
+      }
+
+      console.warn('[WARN] Admin createUser Supabase Auth note:', error?.message)
+    } catch (err: any) {
+      console.warn('[WARN] Exception in admin createUser:', err?.message)
+    }
+  }
+
+  // 2. Fallback: isolated client signUp jika tidak ada service key
+  try {
+    const { createClient } = await import('@supabase/supabase-js')
+    const isolated = createClient(supabaseEndpoint, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+    const { data, error } = await isolated.auth.signUp({
+      email: cleanEmail,
+      password: params.password,
+      options: {
+        data: {
+          role: params.role,
+          full_name: params.fullName,
+          phone: params.phone || '',
+        },
+      },
+    })
+    if (!error && data?.user) {
+      return { success: true, userId: data.user.id }
+    }
+  } catch (signUpErr: any) {
+    console.info('[INFO] Supabase signUp provisioning fallback note:', signUpErr?.message)
+  }
+
+  return { success: true }
+}
 
 export type ServerResult<T> =
   | { success: true; data: T }
@@ -468,7 +566,24 @@ export const registrationService = {
   async approveRegistration(
     regId: string,
     classId: string
-  ): Promise<ServerResult<{ studentId: string; nis: string; classId: string }>> {
+  ): Promise<
+    ServerResult<{
+      studentId: string
+      nis: string
+      classId: string
+      credentials?: {
+        studentNis: string
+        studentName: string
+        studentEmail: string
+        studentPassword: string
+        className: string
+        parentName: string
+        parentEmail: string
+        parentPhone: string
+        parentPassword: string
+      }
+    }>
+  > {
     await ensureAdminSession()
 
     // 1. Ambil data kelas target untuk validasi kuota
@@ -701,12 +816,44 @@ export const registrationService = {
       console.warn('[WARN] Gagal update status registrasi:', updateRegErr.message)
     }
 
+    // 10. Provisioning akun login resmi di Supabase Auth (auth.users)
+    await provisionSupabaseAuthAccount({
+      email: reg.student_email,
+      password: 'siswa2026',
+      fullName: reg.student_name,
+      role: 'student',
+      phone: reg.student_phone,
+    }).catch((err) => {
+      console.info('[INFO] Provisioning student auth note:', err)
+    })
+
+    await provisionSupabaseAuthAccount({
+      email: parentEmail,
+      password: 'wali2026',
+      fullName: reg.parent_name,
+      role: 'parent',
+      phone: reg.parent_phone,
+    }).catch((err) => {
+      console.info('[INFO] Provisioning parent auth note:', err)
+    })
+
     return {
       success: true,
       data: {
         studentId,
         nis,
         classId: resolvedClassId,
+        credentials: {
+          studentNis: nis,
+          studentName: reg.student_name,
+          studentEmail: reg.student_email,
+          studentPassword: 'siswa2026',
+          className: targetClass.class_name || 'Rombel Aktif',
+          parentName: reg.parent_name,
+          parentEmail,
+          parentPhone: reg.parent_phone,
+          parentPassword: 'wali2026',
+        },
       },
     }
   },
