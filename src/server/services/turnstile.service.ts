@@ -24,14 +24,25 @@ interface CloudflareSiteverifyRawResponse {
   cdata?: string
 }
 
+export interface VerifyTokenOptions {
+  remoteIp?: string
+  expectedAction?: string
+  expectedHostname?: string
+}
+
 export const turnstileService = {
   /**
    * Memvalidasi token Cloudflare Turnstile sisi server via endpoint siteverify
    */
   async verifyToken(
     token: string,
-    remoteIp?: string
+    remoteIpOrOptions?: string | VerifyTokenOptions
   ): Promise<ServerResult<TurnstileVerificationData>> {
+    const options: VerifyTokenOptions =
+      typeof remoteIpOrOptions === 'string'
+        ? { remoteIp: remoteIpOrOptions }
+        : remoteIpOrOptions || {}
+
     const cleanToken = token ? token.trim() : ''
     if (!cleanToken) {
       return {
@@ -71,8 +82,8 @@ export const turnstileService = {
       const formData = new FormData()
       formData.append('secret', secretKey)
       formData.append('response', cleanToken)
-      if (remoteIp) {
-        formData.append('remoteip', remoteIp)
+      if (options.remoteIp) {
+        formData.append('remoteip', options.remoteIp)
       }
 
       const response = await fetch(SITEVERIFY_URL, {
@@ -98,6 +109,26 @@ export const turnstileService = {
           success: false,
           error: 'Verifikasi bot gagal. Silakan coba kembali atau muat ulang halaman.',
           code: 'TURNSTILE_CHALLENGE_FAILED',
+        }
+      }
+
+      // Validasi kesesuaian action jika ditentukan
+      if (options.expectedAction && data.action && data.action !== options.expectedAction) {
+        console.warn(`[WARN] Action Turnstile tidak cocok. Diharapkan: ${options.expectedAction}, Diterima: ${data.action}`)
+        return {
+          success: false,
+          error: 'Aksi verifikasi keamanan tidak valid.',
+          code: 'TURNSTILE_ACTION_MISMATCH',
+        }
+      }
+
+      // Validasi kesesuaian hostname jika ditentukan
+      if (options.expectedHostname && data.hostname && data.hostname !== options.expectedHostname) {
+        console.warn(`[WARN] Hostname Turnstile tidak cocok. Diharapkan: ${options.expectedHostname}, Diterima: ${data.hostname}`)
+        return {
+          success: false,
+          error: 'Domain verifikasi keamanan tidak valid.',
+          code: 'TURNSTILE_HOSTNAME_MISMATCH',
         }
       }
 

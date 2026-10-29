@@ -100,4 +100,39 @@ describe('TurnstileService — TDD Unit Tests', () => {
     expect(sentFormData).not.toBeNull()
     expect(sentFormData?.get('secret')).toBe('1x0000000000000000000000000000000AA')
   })
+
+  it('memvalidasi expectedAction dan menolak jika action dari Cloudflare tidak cocok', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        action: 'signup',
+      }),
+    } as any)
+
+    const result = await turnstileService.verifyToken('valid-token', {
+      expectedAction: 'login',
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.code).toBe('TURNSTILE_ACTION_MISMATCH')
+    }
+  })
+
+  it('berhasil jika expectedAction sesuai dengan response Cloudflare', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        action: 'login',
+      }),
+    } as any)
+
+    const result = await turnstileService.verifyToken('valid-token', {
+      expectedAction: 'login',
+    })
+
+    expect(result.success).toBe(true)
+  })
 })

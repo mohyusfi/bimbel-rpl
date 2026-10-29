@@ -25,7 +25,9 @@ export const submitRegistrationWithTurnstileFn = createServerFn({ method: 'POST'
   .handler(async ({ data }): Promise<ServerResult<Registration>> => {
     // 1. Verifikasi token Turnstile terlebih dahulu
     const { turnstileService } = await import('~/server/services/turnstile.service')
-    const verifyResult = await turnstileService.verifyToken(data.turnstileToken)
+    const verifyResult = await turnstileService.verifyToken(data.turnstileToken, {
+      expectedAction: 'signup',
+    })
 
     if (!verifyResult.success) {
       console.warn('[WARN] Pendaftaran diblokir: Verifikasi Turnstile gagal', verifyResult.error)

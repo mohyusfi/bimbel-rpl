@@ -14,6 +14,8 @@ declare global {
           sitekey: string
           theme?: 'light' | 'dark' | 'auto'
           size?: 'normal' | 'compact' | 'flexible'
+          action?: string
+          cdata?: string
           callback?: (token: string) => void
           'error-callback'?: (errorCode: string) => void
           'expired-callback'?: () => void
@@ -29,6 +31,7 @@ declare global {
 
 export interface TurnstileWidgetProps {
   siteKey?: string
+  action?: string
   onSuccess: (token: string) => void
   onError?: (errorCode?: string) => void
   onExpire?: () => void
@@ -49,6 +52,7 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
   function TurnstileWidget(
     {
       siteKey,
+      action,
       onSuccess,
       onError,
       onExpire,
@@ -106,6 +110,7 @@ export const TurnstileWidget = React.forwardRef<TurnstileWidgetRef, TurnstileWid
             sitekey: resolvedSiteKey,
             theme,
             size,
+            action,
             callback: (token: string) => {
               if (isMounted) {
                 setLoadError(null)

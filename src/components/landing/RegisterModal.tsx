@@ -575,6 +575,7 @@ export function RegisterModal({
                   <div className="py-2 flex flex-col items-center justify-center border-t border-[#E5E5E5] mt-4 pt-3">
                     <TurnstileWidget
                       ref={turnstileRef}
+                      action="signup"
                       onSuccess={(token) => {
                         setTurnstileToken(token)
                         if (errorMessage?.includes('keamanan')) {
