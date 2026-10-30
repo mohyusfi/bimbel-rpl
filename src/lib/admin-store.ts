@@ -34,6 +34,7 @@ export interface Student {
   packageCode: PackageCode
   classId: string
   className: string
+  parentId?: string
   parentName: string
   parentPhone: string
   parentEmail?: string
@@ -52,6 +53,7 @@ export interface Tutor {
   subjects: string[]
   weeklySessionsCount: number
   status: 'aktif' | 'nonaktif'
+  temporaryPassword?: string
 }
 
 export interface Subject {
@@ -264,7 +266,45 @@ export interface AdminNotification {
 }
 
 // Initial Data (Empty - Database Supabase is 100% SSOT)
-const INITIAL_COURSES: Course[] = []
+// Initial Courses metadata
+const INITIAL_COURSES: Course[] = [
+  {
+    id: 'crs-1',
+    code: 'SD',
+    name: 'SD Cendekia',
+    price: 300000,
+    maxStudents: 10,
+    description: 'Bimbingan calistung, matematika dasar, dan penguatan literasi SD.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-2',
+    code: 'SMP',
+    name: 'SMP Prestasi',
+    price: 350000,
+    maxStudents: 12,
+    description: 'Pendampingan IPA terpadu, matematika, dan persiapan asesmen nasional.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-3',
+    code: 'SMA',
+    name: 'SMA Sukses',
+    price: 400000,
+    maxStudents: 12,
+    description: 'Penguasaan konsep saintek/soshum dan persiapan ujian semester SMA.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-4',
+    code: 'UTBK',
+    name: 'Intensif UTBK-SNBT',
+    price: 450000,
+    maxStudents: 12,
+    description: 'Drilling soal TPS, Penalaran Matematika, Literasi, dan Try Out berkala.',
+    activeClassesCount: 0,
+  },
+]
 const INITIAL_ROOMS: Room[] = []
 const INITIAL_TUTORS: Tutor[] = []
 const INITIAL_SUBJECTS: Subject[] = []
@@ -310,7 +350,7 @@ function loadInitialState(): AdminState {
     tutors: [],
     subjects: [],
     rooms: [],
-    courses: [],
+    courses: INITIAL_COURSES.map((c) => ({ ...c })),
     classes: [],
     schedules: [],
     invoices: [],
@@ -460,6 +500,7 @@ export const adminStore = {
     )
 
     if (parentRecord) {
+      studentRecord.parentId = parentRecord.id
       if (!parentRecord.studentIds.includes(studentRecord.id)) {
         parentRecord.studentIds = [...parentRecord.studentIds, studentRecord.id]
       }
@@ -473,6 +514,7 @@ export const adminStore = {
         address: reg.parentAddress || 'Kota Palu',
         studentIds: [studentRecord.id],
       }
+      studentRecord.parentId = parentRecord.id
       state.parents = [parentRecord, ...state.parents]
     }
 
@@ -525,7 +567,7 @@ export const adminStore = {
   },
 
   // STUDENTS
-  addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) {
+  addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'> & { parentId?: string }) {
     const cls = state.classes.find((c) => c.id === input.classId)
     if (cls) {
       const maxCap = Math.min(12, cls.capacity || 12)
@@ -547,6 +589,36 @@ export const adminStore = {
       status: 'aktif',
     }
 
+    // Hubungkan atau daftarkan profil orang tua
+    const cleanPhone = input.parentPhone ? input.parentPhone.replace(/[^0-9]/g, '') : ''
+    const cleanEmail = input.parentEmail ? input.parentEmail.trim().toLowerCase() : ''
+
+    let parentRecord = state.parents.find(
+      (p) =>
+        (input.parentId && p.id === input.parentId) ||
+        (cleanEmail && p.email && p.email.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && p.phone && p.phone.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+
+    if (parentRecord) {
+      newStudent.parentId = parentRecord.id
+      if (!parentRecord.studentIds.includes(newStudent.id)) {
+        parentRecord.studentIds = [...parentRecord.studentIds, newStudent.id]
+      }
+    } else if (input.parentName) {
+      parentRecord = {
+        id: generateUniqueId('par'),
+        name: input.parentName,
+        email: input.parentEmail || `${input.email.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+        phone: input.parentPhone || '',
+        job: input.parentJob || 'Wali Murid',
+        address: input.parentAddress || 'Kota Palu',
+        studentIds: [newStudent.id],
+      }
+      newStudent.parentId = parentRecord.id
+      state.parents = [parentRecord, ...state.parents]
+    }
+
     state.students = [newStudent, ...state.students]
 
     if (cls) cls.studentCount += 1
@@ -564,9 +636,19 @@ export const adminStore = {
     return true
   },
 
+  deleteStudent(id: string) {
+    state.students = state.students.filter((s) => s.id !== id)
+    saveAndNotify()
+    return true
+  },
+
   assignStudentToClass(studentId: string, targetClassId: string) {
     const student = state.students.find((s) => s.id === studentId)
     if (!student) throw new Error('Siswa tidak ditemukan.')
+
+    if (student.status === 'nonaktif') {
+      throw new Error('Siswa nonaktif tidak dapat didaftarkan ke dalam rombel kelas.')
+    }
 
     const targetClass = state.classes.find((c) => c.id === targetClassId)
     if (!targetClass) throw new Error('Rombel tujuan tidak ditemukan.')
@@ -596,14 +678,15 @@ export const adminStore = {
   },
 
   // TUTORS
-  addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) {
+  addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'> & { id?: string; temporaryPassword?: string }) {
     const newTutor: Tutor = {
       ...input,
-      id: generateUniqueId('tut'),
+      id: input.id || generateUniqueId('tut'),
       weeklySessionsCount: 0,
       status: 'aktif',
+      temporaryPassword: input.temporaryPassword || 'tutor2026',
     }
-    state.tutors = [...state.tutors, newTutor]
+    state.tutors = [...state.tutors.filter((t) => t.id !== newTutor.id), newTutor]
     saveAndNotify()
     return newTutor
   },
@@ -613,6 +696,12 @@ export const adminStore = {
     if (index === -1) return false
 
     state.tutors[index] = { ...state.tutors[index], ...updates }
+    saveAndNotify()
+    return true
+  },
+
+  deleteTutor(id: string) {
+    state.tutors = state.tutors.filter((t) => t.id !== id)
     saveAndNotify()
     return true
   },
@@ -692,7 +781,7 @@ export const adminStore = {
     state.classes = [...state.classes, newClass]
 
     const crs = state.courses.find((c) => c.code === input.courseCode)
-    if (crs) crs.activeClassesCount += 1
+    if (crs) crs.activeClassesCount = (crs.activeClassesCount || 0) + 1
 
     saveAndNotify()
     return newClass
@@ -714,6 +803,11 @@ export const adminStore = {
 
   // SCHEDULES & CONFLICT DETECTION (SCHED-02)
   addSchedule(input: Omit<Schedule, 'id'>) {
+    const tutor = state.tutors.find((t) => t.id === input.tutorId)
+    if (tutor && tutor.status === 'nonaktif') {
+      throw new Error('Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.')
+    }
+
     const conflict = detectScheduleConflicts(input, state.schedules, state.rooms)
     if (conflict.hasConflict) {
       throw new Error(
@@ -735,7 +829,6 @@ export const adminStore = {
     state.schedules = [...state.schedules, newSchedule]
 
     // Update tutor weekly sessions count
-    const tutor = state.tutors.find((t) => t.id === input.tutorId)
     if (tutor) tutor.weeklySessionsCount += 1
 
     // Otomatis generate 1 entri sesi bimbingan perdana di attendanceSessions (SCHED-02)
@@ -799,6 +892,12 @@ export const adminStore = {
       throw new Error(`Jadwal dengan ID "${id}" tidak ditemukan`)
     }
     const oldSchedule = state.schedules[index]
+
+    const tutorIdToCheck = input.tutorId ?? oldSchedule.tutorId
+    const tutor = state.tutors.find((t) => t.id === tutorIdToCheck)
+    if (tutor && tutor.status === 'nonaktif') {
+      throw new Error('Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.')
+    }
 
     const mergedCandidate: ScheduleCandidate = {
       id,
@@ -890,6 +989,11 @@ export const adminStore = {
     dueDate: string
     description?: string
   }) {
+    const student = state.students.find((s) => s.id === input.studentId || s.nis === input.nis)
+    if (student && student.status === 'nonaktif') {
+      throw new Error('Tidak dapat menerbitkan tagihan untuk siswa yang berstatus nonaktif.')
+    }
+
     const invId = `INV-2026-${(state.invoices.length + 306).toString().padStart(4, '0')}`
     const newInvoice: Invoice = {
       ...input,

@@ -1,6 +1,7 @@
 import { supabase } from '~/lib/supabase/client'
 import { ensureAdminSession, ensureAuthenticatedSession } from './master-data.service'
 import { formatLocalDate } from '~/lib/attendance-helpers'
+import { adminStore } from '~/lib/admin-store'
 
 export type ServerResult<T> =
   | { success: true; data: T }
@@ -339,6 +340,28 @@ export const scheduleService = {
   ): Promise<ServerResult<{ schedule: ScheduleItem; session: SessionItem }>> {
     await ensureAdminSession()
 
+    // 0. Validasi tutor tidak sedang dinonaktifkan
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.tutorId)
+    let tutorStatus: string | undefined = undefined
+
+    if (isUUID) {
+      const { data: tutorRecord } = await supabase
+        .from('tutors')
+        .select('id, status, profiles(status)')
+        .eq('id', input.tutorId)
+        .maybeSingle()
+      tutorStatus = tutorRecord?.status || (tutorRecord?.profiles as any)?.status
+    }
+
+    const storeTutor = adminStore.getState().tutors.find((t) => t.id === input.tutorId)
+    if (tutorStatus === 'nonaktif' || storeTutor?.status === 'nonaktif') {
+      return {
+        success: false,
+        error: 'Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.',
+        code: 'TUTOR_DEACTIVATED',
+      }
+    }
+
     // 1. Ambil jadwal dan ruangan saat ini untuk validasi anti-bentrok SCHED-02
     const currentSchedules = await this.getSchedules()
     const { data: roomsData } = await supabase.from('rooms').select('id, room_name')
@@ -509,6 +532,31 @@ export const scheduleService = {
       dayOfWeek: updates.dayOfWeek ?? existing.dayOfWeek,
       startTime: updates.startTime ?? existing.startTime,
       endTime: updates.endTime ?? existing.endTime,
+    }
+
+    // 1.5 Validasi tutor tidak sedang dinonaktifkan
+    const targetTutorId = updates.tutorId ?? existing.tutorId
+    if (targetTutorId) {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetTutorId)
+      let tutorStatus: string | undefined = undefined
+
+      if (isUUID) {
+        const { data: tutorRecord } = await supabase
+          .from('tutors')
+          .select('id, status, profiles(status)')
+          .eq('id', targetTutorId)
+          .maybeSingle()
+        tutorStatus = tutorRecord?.status || (tutorRecord?.profiles as any)?.status
+      }
+
+      const storeTutor = adminStore.getState().tutors.find((t) => t.id === targetTutorId)
+      if (tutorStatus === 'nonaktif' || storeTutor?.status === 'nonaktif') {
+        return {
+          success: false,
+          error: 'Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.',
+          code: 'TUTOR_DEACTIVATED',
+        }
+      }
     }
 
     const { data: roomsData } = await supabase.from('rooms').select('id, room_name')

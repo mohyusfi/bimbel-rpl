@@ -91,12 +91,27 @@ export const attendanceService = {
     // 2. Ambil data sesi untuk verifikasi status
     const { data: sessionData, error: sessionErr } = await supabase
       .from('sessions')
-      .select('id, session_date, is_completed, completed_at, created_at')
+      .select('id, tutor_id, session_date, is_completed, completed_at, created_at')
       .eq('id', sessionId)
       .single()
 
     if (sessionErr || !sessionData) {
       return { success: false, error: `Sesi dengan ID "${sessionId}" tidak ditemukan di database.` }
+    }
+
+    if (sessionData.tutor_id) {
+      const { data: tutorData } = await supabase
+        .from('tutors')
+        .select('status')
+        .eq('id', sessionData.tutor_id)
+        .maybeSingle()
+      if (tutorData?.status === 'nonaktif') {
+        return {
+          success: false,
+          error: 'Tutor pengampu sedang dinonaktifkan dan tidak dapat menyimpan presensi sesi.',
+          code: 'TUTOR_DEACTIVATED',
+        }
+      }
     }
 
     const wasCompleted = Boolean(sessionData.is_completed)

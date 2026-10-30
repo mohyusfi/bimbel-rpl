@@ -4,7 +4,7 @@ import { X, CheckCircle2, Clock, ArrowRight, UserPlus, AlertCircle, Copy, Check 
 import { adminStore, type PackageCode } from '~/lib/admin-store'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { useNavigate } from '@tanstack/react-router'
-import { submitRegistrationWithTurnstileFn } from '~/server/functions/registration'
+import { submitRegistrationWithTurnstileFn, checkExistingParentFn } from '~/server/functions/registration'
 import { TurnstileWidget, type TurnstileWidgetRef } from '~/components/ui/turnstile-widget'
 
 interface RegisterModalProps {
@@ -55,6 +55,79 @@ export function RegisterModal({
   const [isCopied, setIsCopied] = React.useState(false)
   const [turnstileToken, setTurnstileToken] = React.useState<string>('')
   const turnstileRef = React.useRef<TurnstileWidgetRef>(null)
+  const [serverParentInfo, setServerParentInfo] = React.useState<{ name: string; kids?: string } | null>(null)
+
+  const localDetectedParent = React.useMemo(() => {
+    const cleanPhone = formData.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = formData.parentEmail.trim().toLowerCase()
+    if (!cleanPhone && !cleanEmail) return null
+    const { parents = [], students = [] } = adminStore.getState()
+    const foundParent = parents.find(
+      (p) =>
+        (cleanEmail && p.email?.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && p.phone?.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+    if (foundParent) {
+      const kids = students
+        .filter(
+          (s) =>
+            foundParent.studentIds.includes(s.id) ||
+            s.parentId === foundParent.id ||
+            (foundParent.email && s.parentEmail?.toLowerCase() === foundParent.email.toLowerCase())
+        )
+        .map((s) => s.name)
+      return {
+        name: foundParent.name,
+        kids: kids.join(', '),
+      }
+    }
+    const studentWithParent = students.find(
+      (s) =>
+        (cleanEmail && s.parentEmail?.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && s.parentPhone?.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+    if (studentWithParent) {
+      return {
+        name: studentWithParent.parentName,
+        kids: studentWithParent.name,
+      }
+    }
+    return null
+  }, [formData.parentPhone, formData.parentEmail])
+
+  React.useEffect(() => {
+    const cleanPhone = formData.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = formData.parentEmail.trim().toLowerCase()
+    if (!cleanEmail && cleanPhone.length < 10) {
+      setServerParentInfo(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkExistingParentFn({
+          data: {
+            phone: cleanPhone || undefined,
+            email: cleanEmail || undefined,
+          },
+        })
+        if (res.success && res.data?.exists && res.data.parentName) {
+          setServerParentInfo({
+            name: res.data.parentName,
+            kids: res.data.kids,
+          })
+        } else {
+          setServerParentInfo(null)
+        }
+      } catch {
+        // Abaikan error pengecekan server
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [formData.parentPhone, formData.parentEmail])
+
+  const detectedExistingParent = localDetectedParent || serverParentInfo
 
   React.useEffect(() => {
     if (defaultPackage) {
@@ -70,6 +143,7 @@ export function RegisterModal({
       setSubmittedTicket(null)
       setErrorMessage(null)
       setFormData(INITIAL_FORM_DATA)
+      setServerParentInfo(null)
       setIsCopied(false)
       setTurnstileToken('')
       turnstileRef.current?.reset()
@@ -482,6 +556,19 @@ export function RegisterModal({
                   </div>
 
                   <h3 className="lp-form-section">Data Orang Tua / Wali</h3>
+
+                  {detectedExistingParent && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-[8px] text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 text-blue-900 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Akun Wali Terdeteksi: {detectedExistingParent.name}</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 leading-relaxed">
+                        {detectedExistingParent.kids ? `Tercatat sebagai wali dari ${detectedExistingParent.kids}. ` : ''}
+                        Pendaftaran anak baru ini akan otomatis ditautkan ke akun orang tua Anda setelah diverifikasi oleh staf Tata Usaha.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="form-group">
                     <label

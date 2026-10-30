@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Eye,
@@ -25,6 +25,7 @@ export const Route = createFileRoute('/masuk')({
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const rawSearch = useRouterState({ select: (s) => s.location.search }) as Record<string, any>
   const isDemo = isDemoLogin()
   const [isHydrated, setIsHydrated] = React.useState(false)
 
@@ -56,6 +57,10 @@ export function LoginPage() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState<boolean>(false)
   const [deactivatedNotice, setDeactivatedNotice] = React.useState<boolean>(false)
   const [redirectPath, setRedirectPath] = React.useState<string | null>(null)
+
+  const isDeactivatedNotice = Boolean(
+    rawSearch?.deactivated === 'true' || rawSearch?.deactivated === true || deactivatedNotice
+  )
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -239,14 +244,14 @@ export function LoginPage() {
             </div>
 
             {/* Banner Peringatan Akun Dinonaktifkan */}
-            {deactivatedNotice && (
+            {isDeactivatedNotice && (
               <div
                 role="alert"
                 className="mb-5 flex items-start gap-2.5 bg-[#FBEAEF] border-l-4 border-[#A1301C] p-3 rounded-[6px] text-xs font-medium text-[#7A1534]"
               >
                 <AlertCircle className="w-4 h-4 text-[#A1301C] shrink-0 mt-0.5" />
                 <span>
-                  Akun staf Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha untuk informasi pemulihan akun.
+                  Akun Anda telah dinonaktifkan oleh pihak bimbingan belajar. Akses portal bimbingan dibatalkan. Silakan hubungi staf Tata Usaha untuk informasi pemulihan akun.
                 </span>
               </div>
             )}

@@ -275,6 +275,21 @@ export const learningService = {
       return { success: false, error: 'Judul modul belajar wajib diisi.' }
     }
 
+    if (input.tutorId) {
+      const { data: tutorData } = await supabase
+        .from('tutors')
+        .select('status')
+        .eq('id', input.tutorId)
+        .maybeSingle()
+      if (tutorData?.status === 'nonaktif') {
+        return {
+          success: false,
+          error: 'Tutor sedang dinonaktifkan dan tidak dapat mengunggah modul belajar.',
+          code: 'TUTOR_DEACTIVATED',
+        }
+      }
+    }
+
     let finalFileType: 'PDF' | 'PPTX' = input.fileType || 'PDF'
     let finalFileSize = input.fileSize || '0 MB'
     let fileUrl = input.fileUrl || ''
@@ -569,6 +584,38 @@ export const learningService = {
     const realStudentId = await resolveStudentUUID(studentId)
     const realTutorId = await resolveTutorUUID(input.tutorId)
     const assessmentDate = input.assessmentDate || new Date().toISOString().split('T')[0]
+
+    // Validasi tutor aktif
+    if (realTutorId) {
+      const { data: tutorData } = await supabase
+        .from('tutors')
+        .select('status')
+        .eq('id', realTutorId)
+        .maybeSingle()
+      if (tutorData?.status === 'nonaktif') {
+        return {
+          success: false,
+          error: 'Tutor sedang dinonaktifkan dan tidak dapat menginput nilai siswa.',
+          code: 'TUTOR_DEACTIVATED',
+        }
+      }
+    }
+
+    // Validasi siswa aktif
+    if (realStudentId) {
+      const { data: studentData } = await supabase
+        .from('students')
+        .select('status')
+        .eq('id', realStudentId)
+        .maybeSingle()
+      if (studentData?.status === 'nonaktif') {
+        return {
+          success: false,
+          error: 'Siswa berstatus nonaktif dan tidak dapat menerima input nilai evaluasi baru.',
+          code: 'STUDENT_DEACTIVATED',
+        }
+      }
+    }
 
     // 1. Ambil nilai sekelas yang sudah ada untuk asesmen ini guna menghitung class_average
     const { data: existingClassGrades } = await supabase

@@ -597,24 +597,30 @@ async function autoProvisionUser(
         .eq('profile_id', rawUser.id)
         .maybeSingle()
 
-      if (dbParent) {
-        resolvedParentId = dbParent.id
-      } else if (email) {
+      const allParentIds: string[] = []
+      if (dbParent?.id) allParentIds.push(dbParent.id)
+
+      if (email) {
         const { data: pByEmail } = await sb
           .from('profiles')
           .select('id, parents(id, occupation, address, phone_number)')
           .eq('email', email)
           .maybeSingle()
-        if (pByEmail?.parents?.[0]) {
-          resolvedParentId = pByEmail.parents[0].id
+        if (pByEmail?.parents) {
+          const pArr = Array.isArray(pByEmail.parents) ? pByEmail.parents : [pByEmail.parents]
+          pArr.forEach((p: any) => {
+            if (p?.id && !allParentIds.includes(p.id)) allParentIds.push(p.id)
+          })
         }
       }
 
-      if (resolvedParentId) {
+      resolvedParentId = allParentIds[0] || null
+
+      if (allParentIds.length > 0) {
         const { data: dbStudents } = await sb
           .from('students')
-          .select('id, nis, origin_school, grade_level, package_code, class_id, status, profile_id, classes(class_name), profiles!students_profile_id_fkey(full_name, email, phone_number)')
-          .eq('parent_id', resolvedParentId)
+          .select('id, nis, origin_school, grade_level, class_id, status, profile_id, profiles!students_profile_id_fkey(full_name, email, phone_number)')
+          .in('parent_id', allParentIds)
 
         if (dbStudents && dbStudents.length > 0) {
           supabaseChildren = dbStudents.map((s: any) => ({
@@ -1593,6 +1599,114 @@ export const authStore = {
 
   getAdminStaff(): AdminStaffMember[] {
     return state.adminStaff
+  },
+
+  async syncAccountStatus(): Promise<'aktif' | 'nonaktif' | 'not_found'> {
+    if (!state.user?.email) {
+      return 'not_found'
+    }
+    const cleanEmail = state.user.email.toLowerCase().trim()
+
+    // 1. Cek dari database Supabase jika dikonfigurasi
+    if (isSupabaseConfigured()) {
+      try {
+        const sb = supabase as any
+        const { data: dbProfile } = await sb
+          .from('profiles')
+          .select('status')
+          .eq('email', cleanEmail)
+          .maybeSingle()
+
+        if (dbProfile?.status) {
+          const profileStatus = dbProfile.status === 'nonaktif' ? 'nonaktif' : 'aktif'
+          if (state.profile) {
+            state.profile.status = profileStatus
+          }
+          if (profileStatus === 'nonaktif') {
+            notify()
+            return 'nonaktif'
+          }
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal menyinkronkan status profil dari Supabase:', err)
+      }
+    }
+
+    // 2. Cek dari store lokal sesuai peran
+    if (state.role === 'admin') {
+      const matched = state.adminStaff.find((s) => s.email.toLowerCase() === cleanEmail)
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'tutor') {
+      const { tutors = [] } = adminStore.getState()
+      const matched = tutors.find((t) => t.email?.toLowerCase() === cleanEmail)
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'student') {
+      const { students = [] } = adminStore.getState()
+      const matched = students.find(
+        (s) => s.email?.toLowerCase() === cleanEmail || s.nis?.toLowerCase() === cleanEmail
+      )
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'parent') {
+      const { parents = [] } = adminStore.getState()
+      const matched = parents.find((p) => p.email?.toLowerCase() === cleanEmail)
+      if (matched && (matched as any).status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    }
+
+    if (state.profile && state.profile.status === 'nonaktif') {
+      return 'nonaktif'
+    }
+
+    return 'aktif'
+  },
+
+  async checkAccountStatus(email: string): Promise<'aktif' | 'nonaktif' | 'not_found'> {
+    const cleanEmail = email.toLowerCase().trim()
+    if (isSupabaseConfigured()) {
+      try {
+        const sb = supabase as any
+        const { data: dbProfile } = await sb
+          .from('profiles')
+          .select('status')
+          .eq('email', cleanEmail)
+          .maybeSingle()
+
+        if (dbProfile?.status) {
+          return dbProfile.status === 'nonaktif' ? 'nonaktif' : 'aktif'
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal memeriksa status akun dari Supabase:', err)
+      }
+    }
+
+    // Fallback store lokal
+    const matchedStaff = state.adminStaff.find((s) => s.email.toLowerCase() === cleanEmail)
+    if (matchedStaff) return matchedStaff.status
+
+    const { tutors = [], students = [], parents = [] } = adminStore.getState()
+    const matchedTutor = tutors.find((t) => t.email?.toLowerCase() === cleanEmail)
+    if (matchedTutor) return matchedTutor.status
+
+    const matchedStudent = students.find(
+      (s) => s.email?.toLowerCase() === cleanEmail || s.nis?.toLowerCase() === cleanEmail
+    )
+    if (matchedStudent) return matchedStudent.status
+
+    const matchedParent = parents.find((p) => p.email?.toLowerCase() === cleanEmail)
+    if (matchedParent && (matchedParent as any).status) return (matchedParent as any).status
+
+    return 'aktif'
   },
 
   setSuperAdmin(isSuper: boolean): void {

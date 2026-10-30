@@ -21,6 +21,7 @@ import {
   useAdminStudents,
   useAdminClasses,
   useAdminMutations,
+  useAdminParents,
 } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
@@ -81,6 +82,7 @@ const PACKAGE_FILTERS: Array<{
 function AdminSiswaPage() {
   const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
   const { data: classes = [] } = useAdminClasses()
+  const { data: parents = [] } = useAdminParents()
   const { addStudent } = useAdminMutations()
 
   // Filters
@@ -92,6 +94,8 @@ function AdminSiswaPage() {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [addError, setAddError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [parentMode, setParentMode] = React.useState<'new' | 'existing'>('new')
+  const [selectedParentId, setSelectedParentId] = React.useState<string>('')
 
   // Add Form State
   const [newForm, setNewForm] = React.useState({
@@ -108,6 +112,34 @@ function AdminSiswaPage() {
     parentAddress: '',
   })
 
+  const handleSelectParent = (parentId: string) => {
+    setSelectedParentId(parentId)
+    const targetParent = parents.find((p) => p.id === parentId)
+    if (targetParent) {
+      setNewForm((prev) => ({
+        ...prev,
+        parentName: targetParent.name,
+        parentPhone: targetParent.phone,
+        parentEmail: targetParent.email,
+        parentJob: targetParent.job || '',
+        parentAddress: targetParent.address || '',
+      }))
+    }
+  }
+
+  const detectedParent = React.useMemo(() => {
+    if (parentMode !== 'new') return null
+    const cleanPhone = newForm.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = newForm.parentEmail.trim().toLowerCase()
+    return (
+      parents.find(
+        (p) =>
+          (cleanEmail && p.email.toLowerCase() === cleanEmail) ||
+          (cleanPhone.length >= 10 && p.phone.replace(/[^0-9]/g, '') === cleanPhone)
+      ) || null
+    )
+  }, [parentMode, newForm.parentPhone, newForm.parentEmail, parents])
+
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddError(null)
@@ -115,6 +147,11 @@ function AdminSiswaPage() {
       classes.find((c) => c.id === newForm.classId) || classes[0]
     if (!targetClass) {
       setAddError('Silakan pilih rombel kelas tujuan.')
+      return
+    }
+
+    if (parentMode === 'existing' && !selectedParentId) {
+      setAddError('Silakan pilih orang tua terdaftar terlebih dahulu.')
       return
     }
 
@@ -128,6 +165,7 @@ function AdminSiswaPage() {
         packageCode: newForm.packageCode,
         classId: targetClass.id,
         className: targetClass.name,
+        parentId: parentMode === 'existing' ? selectedParentId : undefined,
         parentName: newForm.parentName,
         parentPhone: newForm.parentPhone,
         parentEmail: newForm.parentEmail,
@@ -135,6 +173,8 @@ function AdminSiswaPage() {
         parentAddress: newForm.parentAddress,
       })
       setIsAddModalOpen(false)
+      setParentMode('new')
+      setSelectedParentId('')
       setNewForm({
         name: '',
         email: '',
@@ -542,57 +582,188 @@ function AdminSiswaPage() {
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <h4 className="font-bold text-[#000000] text-[11px] tracking-[0.06em] uppercase border-b border-[#D2D2D2] pb-1.5">
-                    2. Kontak Orang Tua / Wali
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Nama Orang Tua / Wali <span className="text-[#A1301C]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Contoh: Drs. Suharso"
-                        value={newForm.parentName}
-                        onChange={(e) =>
-                          setNewForm({ ...newForm, parentName: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        WhatsApp Orang Tua <span className="text-[#A1301C]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="0811-xxxx-xxxx"
-                        value={newForm.parentPhone}
-                        onChange={(e) =>
-                          setNewForm({ ...newForm, parentPhone: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
+                  <div className="border-b border-[#D2D2D2] pb-1.5 flex items-center justify-between">
+                    <h4 className="font-bold text-[#000000] text-[11px] tracking-[0.06em] uppercase">
+                      2. Kontak Orang Tua / Wali
+                    </h4>
+                    <div className="flex items-center gap-1 bg-[#F5F5F5] p-0.5 rounded-[6px] border border-[#E5E5E5]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setParentMode('new')
+                          setSelectedParentId('')
+                        }}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-semibold rounded-[4px] transition-colors cursor-pointer',
+                          parentMode === 'new'
+                            ? 'bg-[#FFFFFF] text-[#000000] shadow-xs'
+                            : 'text-[#666666] hover:text-[#000000]'
+                        )}
+                      >
+                        Wali Baru
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParentMode('existing')}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-semibold rounded-[4px] transition-colors cursor-pointer',
+                          parentMode === 'existing'
+                            ? 'bg-[#FFFFFF] text-[#000000] shadow-xs'
+                            : 'text-[#666666] hover:text-[#000000]'
+                        )}
+                      >
+                        Pilih Wali Terdaftar
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Alamat Domisili Siswa
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Jl. Tadulako No. 5, Besusu Tengah"
-                      value={newForm.parentAddress}
-                      onChange={(e) =>
-                        setNewForm({ ...newForm, parentAddress: e.target.value })
-                      }
-                      className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
+                  {parentMode === 'existing' ? (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-[#000000] block text-xs">
+                          Pilih Akun Orang Tua Terdaftar <span className="text-[#A1301C]">*</span>
+                        </label>
+                        <SearchableSelect
+                          value={selectedParentId}
+                          onChange={handleSelectParent}
+                          options={parents.map((p) => {
+                            const parentChildren = students.filter(
+                              (s) =>
+                                p.studentIds.includes(s.id) ||
+                                s.parentId === p.id ||
+                                (p.email && s.parentEmail?.toLowerCase() === p.email.toLowerCase())
+                            )
+                            const kids = parentChildren.map((k) => k.name).join(', ')
+                            return {
+                              value: p.id,
+                              label: p.name,
+                              sublabel: kids ? `(Wali dari: ${kids})` : `(WA: ${p.phone})`,
+                            }
+                          })}
+                          placeholder="Cari nama orang tua / nomor WA..."
+                          searchPlaceholder="Ketik nama atau nomor telepon..."
+                          required
+                        />
+                      </div>
+
+                      {selectedParentId && (
+                        <div className="p-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-[8px] space-y-1.5 text-xs">
+                          <div className="font-bold text-[#111111]">{newForm.parentName}</div>
+                          <div className="text-[#555555] grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+                            <div>WhatsApp: <span className="font-medium text-[#111111]">{newForm.parentPhone || '-'}</span></div>
+                            <div>Email: <span className="font-medium text-[#111111]">{newForm.parentEmail || '-'}</span></div>
+                            {newForm.parentJob && <div>Pekerjaan: <span className="font-medium text-[#111111]">{newForm.parentJob}</span></div>}
+                            {newForm.parentAddress && <div className="sm:col-span-2">Alamat: <span className="font-medium text-[#111111]">{newForm.parentAddress}</span></div>}
+                          </div>
+                          <p className="text-[11px] text-[#006622] font-medium pt-1 border-t border-[#EAEAEA]">
+                            [INFO] Siswa baru ini akan otomatis ditautkan ke akun orang tua di atas.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {detectedParent && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-[8px] text-xs flex items-center justify-between gap-2">
+                          <div>
+                            <span className="font-bold text-[#8A5A00] block">[INFO] Terdeteksi Wali Terdaftar:</span>
+                            <span className="text-[#6D4700] text-[11px]">
+                              {detectedParent.name} ({detectedParent.phone})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setParentMode('existing')
+                              handleSelectParent(detectedParent.id)
+                            }}
+                            className="text-xs bg-[#000000] text-white px-2.5 py-1 rounded-[6px] hover:bg-[#333333] cursor-pointer"
+                          >
+                            Tautkan
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Nama Orang Tua / Wali <span className="text-[#A1301C]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Drs. Suharso"
+                            value={newForm.parentName}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentName: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            WhatsApp Orang Tua <span className="text-[#A1301C]">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="0811-xxxx-xxxx"
+                            value={newForm.parentPhone}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentPhone: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Email Orang Tua
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="wali@email.com"
+                            value={newForm.parentEmail}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentEmail: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Pekerjaan Orang Tua
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: PNS / Wiraswasta"
+                            value={newForm.parentJob}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentJob: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-[#000000] block">
+                          Alamat Domisili Siswa
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Jl. Tadulako No. 5, Besusu Tengah"
+                          value={newForm.parentAddress}
+                          onChange={(e) =>
+                            setNewForm({ ...newForm, parentAddress: e.target.value })
+                          }
+                          className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#D2D2D2]">
