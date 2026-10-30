@@ -1334,49 +1334,69 @@ export const authStore = {
       const errCode = supabaseAuthError.code || ''
       const errMsg = supabaseAuthError.message || ''
       if (errCode === 'email_not_confirmed' || errMsg.toLowerCase().includes('email not confirmed')) {
-        // Coba auto-aktivasi sisi server jika akun telah terverifikasi oleh admin
+        let activatedSuccessfully = false
+
+        // 1. Coba aktivasi instan via PostgreSQL RPC SECURITY DEFINER (berfungsi tanpa service role key)
         try {
-          const { activateUnconfirmedUserFn } = await import('~/server/functions/auth')
-          const activateRes = await activateUnconfirmedUserFn({ data: { email: cleanEmail } })
-          if (activateRes.success) {
-            // Percobaan ulang login setelah aktivasi berhasil
-            const retryRes = await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password,
-            })
-            if (!retryRes.error && retryRes.data?.user) {
-              const provisioned = await autoProvisionUser(retryRes.data.user, targetRole)
-              state = {
-                user: {
-                  id: retryRes.data.user.id,
-                  email: retryRes.data.user.email || cleanEmail,
-                  fullName: provisioned.profile.full_name,
-                  role: provisioned.profile.role,
-                  phone: provisioned.profile.phone_number || undefined,
-                  isSuperAdmin: false,
-                },
-                profile: provisioned.profile,
+          const { data: rpcActivated, error: rpcErr } = await supabase.rpc('confirm_verified_user', {
+            user_email: cleanEmail,
+          })
+          if (!rpcErr && rpcActivated) {
+            activatedSuccessfully = true
+          }
+        } catch (rpcEx) {
+          console.info('[INFO] Supabase RPC confirm note:', rpcEx)
+        }
+
+        // 2. Coba auto-aktivasi sisi server jika RPC direct belum berhasil
+        if (!activatedSuccessfully) {
+          try {
+            const { activateUnconfirmedUserFn } = await import('~/server/functions/auth')
+            const activateRes = await activateUnconfirmedUserFn({ data: { email: cleanEmail } })
+            if (activateRes.success) {
+              activatedSuccessfully = true
+            }
+          } catch (actErr) {
+            console.info('[INFO] Auto-activate on unconfirmed error note:', actErr)
+          }
+        }
+
+        if (activatedSuccessfully) {
+          // Percobaan ulang login setelah aktivasi berhasil
+          const retryRes = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          })
+          if (!retryRes.error && retryRes.data?.user) {
+            const provisioned = await autoProvisionUser(retryRes.data.user, targetRole)
+            state = {
+              user: {
+                id: retryRes.data.user.id,
+                email: retryRes.data.user.email || cleanEmail,
+                fullName: provisioned.profile.full_name,
                 role: provisioned.profile.role,
+                phone: provisioned.profile.phone_number || undefined,
                 isSuperAdmin: false,
-                studentProfile: provisioned.student,
-                parentProfile: provisioned.parent,
-                children: provisioned.children,
-                selectedChildId: provisioned.children[0]?.id || null,
-                adminStaff: state.adminStaff,
-                isAuthenticated: true,
-                isLoading: false,
-                error: null,
-              }
-              notify()
-              return {
-                success: true,
-                role: provisioned.profile.role,
-                href: `/${provisioned.profile.role}`,
-              }
+              },
+              profile: provisioned.profile,
+              role: provisioned.profile.role,
+              isSuperAdmin: false,
+              studentProfile: provisioned.student,
+              parentProfile: provisioned.parent,
+              children: provisioned.children,
+              selectedChildId: provisioned.children[0]?.id || null,
+              adminStaff: state.adminStaff,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            }
+            notify()
+            return {
+              success: true,
+              role: provisioned.profile.role,
+              href: `/${provisioned.profile.role}`,
             }
           }
-        } catch (actErr) {
-          console.info('[INFO] Auto-activate on unconfirmed error note:', actErr)
         }
 
         const politeError =

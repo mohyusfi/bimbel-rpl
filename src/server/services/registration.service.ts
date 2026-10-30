@@ -70,10 +70,13 @@ export async function provisionSupabaseAuthAccount(params: {
             const { sql } = await import('drizzle-orm')
             await db.execute(
               sql`UPDATE auth.users 
-                  SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
-                      confirmed_at = COALESCE(confirmed_at, NOW()) 
+                  SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()) 
                   WHERE LOWER(email) = LOWER(${cleanEmail})`
             )
+          } catch {}
+
+          try {
+            await supabase.rpc('confirm_verified_user', { user_email: cleanEmail })
           } catch {}
 
           return { success: true, userId: existing.id }
@@ -119,10 +122,14 @@ export async function provisionSupabaseAuthAccount(params: {
     const { sql } = await import('drizzle-orm')
     await db.execute(
       sql`UPDATE auth.users 
-          SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
-              confirmed_at = COALESCE(confirmed_at, NOW()) 
+          SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()) 
           WHERE LOWER(email) = LOWER(${cleanEmail})`
     )
+  } catch {}
+
+  // 4. Garansi via PostgreSQL RPC SECURITY DEFINER (bisa berjalan via anon client)
+  try {
+    await supabase.rpc('confirm_verified_user', { user_email: cleanEmail })
   } catch {}
 
   return { success: true }
@@ -940,7 +947,22 @@ export const registrationService = {
       }
     }
 
-    // 2. Aktifkan via Supabase Admin API jika service key tersedia
+    // 2. Jalankan konfirmasi instan via PostgreSQL RPC SECURITY DEFINER
+    try {
+      const { data: rpcSuccess } = await supabase.rpc('confirm_verified_user', {
+        user_email: cleanEmail,
+      })
+      if (rpcSuccess) {
+        return {
+          success: true,
+          data: { activated: true },
+        }
+      }
+    } catch (rpcErr: any) {
+      console.info('[INFO] RPC confirm_verified_user note:', rpcErr?.message)
+    }
+
+    // 3. Fallback: Aktifkan via Supabase Admin API jika service key tersedia
     const serviceKey =
       (typeof process !== 'undefined' && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)) ||
       undefined
@@ -970,14 +992,13 @@ export const registrationService = {
       }
     }
 
-    // 3. Garansi langsung melalui koneksi Postgres/Drizzle jika terhubung
+    // 4. Garansi langsung melalui koneksi Postgres/Drizzle jika terhubung
     try {
       const { db } = await import('~/db')
       const { sql } = await import('drizzle-orm')
       await db.execute(
         sql`UPDATE auth.users 
-            SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()), 
-                confirmed_at = COALESCE(confirmed_at, NOW()) 
+            SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()) 
             WHERE LOWER(email) = LOWER(${cleanEmail})`
       )
     } catch {}
