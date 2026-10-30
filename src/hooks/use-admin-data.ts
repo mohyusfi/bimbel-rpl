@@ -7,7 +7,7 @@ import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
 import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
 import { billingService } from '~/server/services/billing.service'
-import { calculateAttendancePercentage } from '~/lib/attendance-helpers'
+import { calculateAttendancePercentage, filterStudentSessionsByJoinDate } from '~/lib/attendance-helpers'
 import { authStore } from '~/lib/auth-store'
 import {
   adminStore,
@@ -1889,12 +1889,12 @@ export function useStudentDashboardData(targetStudentId?: string) {
   // Filtered schedules for student's class
   const classSchedules = schedules.filter((s) => s.classId === currentStudent?.classId)
 
-  // Attendance sessions for student (by class or student entry)
-  const studentSessions = sessions.filter(
-    (s) =>
-      s.classId === currentStudent?.classId ||
-      s.entries.some((e) => e.studentId === studentId)
-  )
+  // Attendance sessions for student (filtered strictly by student's join/verification date)
+  const studentSessions = filterStudentSessionsByJoinDate(sessions, {
+    studentId: currentStudent?.id || studentId,
+    classId: currentStudent?.classId,
+    joinDate: (currentStudent as any)?.joinDateIso || currentStudent?.joinDate,
+  })
 
   const completedSessions = studentSessions.filter((s) => s.isCompleted)
   const hadirCount = completedSessions.filter((s) => {
