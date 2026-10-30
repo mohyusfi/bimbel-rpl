@@ -23,6 +23,7 @@ import {
 import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { StatusBadge } from '~/components/ui/status-badge'
+import { resolveStudentSessionStatus } from '~/lib/attendance-helpers'
 import { formatRupiah, cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/')({
@@ -50,9 +51,13 @@ function ParentDashboardOverview() {
     (e) => e.studentId === student?.id
   )
   const attendanceStatus = latestSession
-    ? latestSession.isCompleted
-      ? childSessionEntry?.status || 'belum_diabsen'
-      : 'terjadwal'
+    ? resolveStudentSessionStatus({
+        isCompleted: latestSession.isCompleted,
+        sessionDate: latestSession.sessionDate,
+        endTime: latestSession.endTime,
+        entryStatus: childSessionEntry?.status,
+        hasEntry: Boolean(childSessionEntry),
+      })
     : 'terjadwal'
 
   // 2. Latest Grade & Tutor Feedback

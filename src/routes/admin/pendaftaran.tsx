@@ -23,6 +23,8 @@ import {
   useAdminRegistrations,
   useAdminClasses,
   useAdminMutations,
+  useAdminParents,
+  useAdminStudents,
 } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
@@ -46,6 +48,8 @@ const PACKAGE_NAMES: Record<PackageCode, string> = {
 function AdminPendaftaranPage() {
   const { data: registrations = [], isLoading: isLoadingRegistrations } = useAdminRegistrations()
   const { data: classes = [] } = useAdminClasses()
+  const { data: parents = [] } = useAdminParents()
+  const { data: students = [] } = useAdminStudents()
   const { approveRegistration, rejectRegistration, addRegistration } =
     useAdminMutations()
 
@@ -66,6 +70,30 @@ function AdminPendaftaranPage() {
   const [rejectionError, setRejectionError] = React.useState<string | null>(null)
   const [isRejecting, setIsRejecting] = React.useState(false)
 
+  // Matching existing parent for approval target
+  const matchedParent = React.useMemo(() => {
+    if (!approvalTarget) return null
+    const cleanPhone = approvalTarget.parentPhone?.replace(/[^0-9]/g, '')
+    const cleanEmail = approvalTarget.parentEmail?.trim().toLowerCase()
+    return (
+      parents.find(
+        (p) =>
+          (cleanEmail && p.email.toLowerCase() === cleanEmail) ||
+          (cleanPhone && cleanPhone.length >= 10 && p.phone.replace(/[^0-9]/g, '') === cleanPhone)
+      ) || null
+    )
+  }, [approvalTarget, parents])
+
+  const matchedParentChildren = React.useMemo(() => {
+    if (!matchedParent) return []
+    return students.filter(
+      (s) =>
+        matchedParent.studentIds.includes(s.id) ||
+        s.parentId === matchedParent.id ||
+        (matchedParent.email && s.parentEmail?.toLowerCase() === matchedParent.email.toLowerCase())
+    )
+  }, [matchedParent, students])
+
   // Approval Credentials Modal State
   const [credentialsModalData, setCredentialsModalData] = React.useState<{
     studentName: string
@@ -78,6 +106,7 @@ function AdminPendaftaranPage() {
     parentEmail: string
     parentPhone: string
     parentPassword: string
+    parentAlreadyExists?: boolean
   } | null>(null)
   const [isTemplateCopied, setIsTemplateCopied] = React.useState(false)
 
@@ -130,6 +159,16 @@ function AdminPendaftaranPage() {
     }
   }
 
+  React.useEffect(() => {
+    if (approvalTarget && !selectedClassId && classes.length > 0) {
+      const matchingClasses = classes.filter(
+        (c) => c.courseCode === approvalTarget.packageCode
+      )
+      const availableClass = matchingClasses.find((c) => c.studentCount < 12)
+      setSelectedClassId(availableClass?.id || matchingClasses[0]?.id || classes[0].id)
+    }
+  }, [approvalTarget, selectedClassId, classes])
+
   // Plotting and approval handler (anti-overcapacity verification)
   const handleApproveRegistration = async () => {
     if (!approvalTarget || !selectedClassId || isApproving) return
@@ -160,6 +199,7 @@ function AdminPendaftaranPage() {
       })
 
       const creds = (result as any)?.credentials
+      const isExistingParent = Boolean(creds?.parentAlreadyExists ?? Boolean(matchedParent))
       if (creds) {
         setCredentialsModalData({
           studentName: creds.studentName,
@@ -172,6 +212,7 @@ function AdminPendaftaranPage() {
           parentEmail: creds.parentEmail,
           parentPhone: creds.parentPhone,
           parentPassword: creds.parentPassword,
+          parentAlreadyExists: isExistingParent,
         })
       } else {
         setCredentialsModalData({
@@ -186,7 +227,8 @@ function AdminPendaftaranPage() {
             reg.parentEmail ||
             `${reg.studentEmail.split('@')[0]}.wali@tadulakocendekia.sch.id`,
           parentPhone: reg.parentPhone,
-          parentPassword: 'wali2026',
+          parentPassword: isExistingParent ? '(Akun wali telah aktif)' : 'wali2026',
+          parentAlreadyExists: isExistingParent,
         })
       }
 
@@ -231,6 +273,10 @@ function AdminPendaftaranPage() {
   // Copy structured WhatsApp template for parent
   const handleCopyWhatsAppTemplate = () => {
     if (!credentialsModalData) return
+    const parentCredsInfo = credentialsModalData.parentAlreadyExists
+      ? '• Status Akun: Akun wali telah aktif (Gunakan akun Anda saat ini untuk mengakses anak baru di Multi-Child Switcher)'
+      : `• Email: ${credentialsModalData.parentEmail}\n• Kata Sandi: ${credentialsModalData.parentPassword}`
+
     const text = `*TADULAKO CENDEKIA — KREDENSIAL AKSES PORTAL*
 Yth. Bapak/Ibu ${credentialsModalData.parentName},
 Pendaftaran putra/putri Anda, *${credentialsModalData.studentName}*, untuk program *${credentialsModalData.packageName}* telah diverifikasi dan resmi terdaftar di kelas *${credentialsModalData.className}*.
@@ -242,9 +288,8 @@ Pendaftaran putra/putri Anda, *${credentialsModalData.studentName}*, untuk progr
 • Tautan Masuk: https://tadulakocendekia.sch.id/masuk
 
 *Akses Portal Orang Tua / Wali:*
-• Email: ${credentialsModalData.parentEmail}
-• Kata Sandi: ${credentialsModalData.parentPassword}
-• Tautan Masuk: /masuk
+${parentCredsInfo}
+• Tautan Masuk: https://tadulakocendekia.sch.id/masuk
 
 Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Anemone Cendekia.`
 
@@ -698,6 +743,21 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                       Wali: {approvalTarget.parentName} ({approvalTarget.parentPhone})
                     </p>
                   </div>
+
+                  {matchedParent && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-[8px] space-y-1">
+                      <div className="flex items-center gap-1.5 text-blue-900 font-semibold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Wali Murid Sudah Terdaftar: {matchedParent.name}</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700">
+                        {matchedParentChildren.length > 0
+                          ? `Tercatat sebagai wali dari: ${matchedParentChildren.map((k) => k.name).join(', ')}. `
+                          : ''}
+                        Siswa baru ini akan otomatis ditautkan ke akun wali yang sudah ada tanpa membuat akun ganda.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="font-medium text-[#000000] block">
@@ -1301,10 +1361,18 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                         </span>
                       </div>
                       <div className="min-w-0 space-y-0.5">
-                        <span className="text-[#555555] block text-[11px]">Kata Sandi Sementara:</span>
-                        <span className="font-mono text-[#CB2957] font-bold block select-all">
-                          {credentialsModalData.parentPassword}
+                        <span className="text-[#555555] block text-[11px]">
+                          {credentialsModalData.parentAlreadyExists ? 'Status Akun Wali:' : 'Kata Sandi Sementara:'}
                         </span>
+                        {credentialsModalData.parentAlreadyExists ? (
+                          <span className="text-[#006622] font-semibold block text-xs">
+                            Akun Telah Aktif (Gunakan akun yang telah ada)
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[#CB2957] font-bold block select-all">
+                            {credentialsModalData.parentPassword}
+                          </span>
+                        )}
                       </div>
                       <div className="min-w-0 space-y-0.5">
                         <span className="text-[#555555] block text-[11px]">Hak Pemantauan:</span>

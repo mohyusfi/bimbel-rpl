@@ -56,3 +56,24 @@ export const submitRegistrationWithTurnstileFn = createServerFn({ method: 'POST'
 
     return createResult
   })
+
+export const checkExistingParentSchema = z.object({
+  phone: z.string().optional(),
+  email: z.string().optional(),
+})
+
+export type CheckExistingParentInput = z.infer<typeof checkExistingParentSchema>
+
+export const checkExistingParentFn = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => checkExistingParentSchema.parse(d))
+  .handler(async ({ data }): Promise<ServerResult<{
+    exists: boolean
+    parentName?: string
+    kids?: string
+  }>> => {
+    const { registrationService } = await import('~/server/services/registration.service')
+    return await registrationService.checkExistingParent({
+      phone: data.phone,
+      email: data.email,
+    })
+  })

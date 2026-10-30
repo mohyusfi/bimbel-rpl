@@ -294,6 +294,7 @@ export interface CreateStudentInput {
   parentEmail?: string
   parentJob?: string
   parentAddress?: string
+  parentId?: string
 }
 
 export interface StudentDetail extends Student {
@@ -608,6 +609,7 @@ export const registrationService = {
         parentEmail: string
         parentPhone: string
         parentPassword: string
+        parentAlreadyExists?: boolean
       }
     }>
   > {
@@ -722,8 +724,10 @@ export const registrationService = {
 
     // 6. Cek atau buat profil orang tua
     let parentId: string | null = null
+    let isExistingParent = false
     const parentEmail = reg.parent_email?.trim().toLowerCase() || `${reg.student_email.split('@')[0]}.wali@tadulakocendekia.sch.id`
 
+    // Cari orang tua berdasarkan email terlebih dahulu
     const { data: existingParentProfile } = await supabase
       .from('profiles')
       .select('id, parents(id)')
@@ -732,10 +736,32 @@ export const registrationService = {
 
     if (existingParentProfile) {
       const parentRecord = (existingParentProfile as any).parents?.[0]
-      if (parentRecord) {
+      if (parentRecord?.id) {
         parentId = parentRecord.id
+        isExistingParent = true
       }
-    } else {
+    }
+
+    // Jika belum ditemukan, periksa berdasarkan nomor telepon orang tua
+    if (!parentId && reg.parent_phone?.trim()) {
+      const cleanPhone = reg.parent_phone.trim()
+      const { data: profileByPhone } = await supabase
+        .from('profiles')
+        .select('id, parents(id)')
+        .eq('phone_number', cleanPhone)
+        .eq('role', 'parent')
+        .maybeSingle()
+
+      if (profileByPhone) {
+        const parentRecord = (profileByPhone as any).parents?.[0]
+        if (parentRecord?.id) {
+          parentId = parentRecord.id
+          isExistingParent = true
+        }
+      }
+    }
+
+    if (!parentId) {
       const parentProfileId = crypto.randomUUID()
       const { data: newParentProfile } = await supabase
         .from('profiles')
@@ -855,15 +881,17 @@ export const registrationService = {
       console.info('[INFO] Provisioning student auth note:', err)
     })
 
-    await provisionSupabaseAuthAccount({
-      email: parentEmail,
-      password: 'wali2026',
-      fullName: reg.parent_name,
-      role: 'parent',
-      phone: reg.parent_phone,
-    }).catch((err) => {
-      console.info('[INFO] Provisioning parent auth note:', err)
-    })
+    if (!isExistingParent) {
+      await provisionSupabaseAuthAccount({
+        email: parentEmail,
+        password: 'wali2026',
+        fullName: reg.parent_name,
+        role: 'parent',
+        phone: reg.parent_phone,
+      }).catch((err) => {
+        console.info('[INFO] Provisioning parent auth note:', err)
+      })
+    }
 
     return {
       success: true,
@@ -880,7 +908,8 @@ export const registrationService = {
           parentName: reg.parent_name,
           parentEmail,
           parentPhone: reg.parent_phone,
-          parentPassword: 'wali2026',
+          parentPassword: isExistingParent ? '(Akun wali telah aktif)' : 'wali2026',
+          parentAlreadyExists: isExistingParent,
         },
       },
     }
@@ -1289,33 +1318,72 @@ export const registrationService = {
       return { success: false, error: spErr.message }
     }
 
-    // 5. Buat profil & entri orang tua
-    const parentProfileId = crypto.randomUUID()
+    // 5. Cek atau buat profil & entri orang tua
+    let parentRecordId = input.parentId || null
+    let isExistingParent = Boolean(parentRecordId)
     const parentEmail =
       input.parentEmail?.trim().toLowerCase() ||
       `${input.email.split('@')[0]}.wali@tadulakocendekia.sch.id`
 
-    await supabase
-      .from('profiles')
-      .insert([{
-        id: parentProfileId,
-        full_name: input.parentName.trim(),
-        email: parentEmail,
-        phone_number: input.parentPhone.trim(),
-        role: 'parent',
-        status: 'aktif',
-      }])
+    if (!parentRecordId && input.parentEmail?.trim()) {
+      const { data: pEmail } = await supabase
+        .from('profiles')
+        .select('id, parents(id)')
+        .eq('email', input.parentEmail.trim().toLowerCase())
+        .eq('role', 'parent')
+        .maybeSingle()
 
-    const parentRecordId = crypto.randomUUID()
-    await supabase
-      .from('parents')
-      .insert([{
-        id: parentRecordId,
-        profile_id: parentProfileId,
-        occupation: input.parentJob?.trim() || 'Wali Murid',
-        address: input.parentAddress?.trim() || 'Kota Palu',
-        phone_number: input.parentPhone.trim(),
-      }])
+      if (pEmail) {
+        const pRec = (pEmail as any).parents?.[0]
+        if (pRec?.id) {
+          parentRecordId = pRec.id
+          isExistingParent = true
+        }
+      }
+    }
+
+    if (!parentRecordId && input.parentPhone?.trim()) {
+      const { data: pPhone } = await supabase
+        .from('profiles')
+        .select('id, parents(id)')
+        .eq('phone_number', input.parentPhone.trim())
+        .eq('role', 'parent')
+        .maybeSingle()
+
+      if (pPhone) {
+        const pRec = (pPhone as any).parents?.[0]
+        if (pRec?.id) {
+          parentRecordId = pRec.id
+          isExistingParent = true
+        }
+      }
+    }
+
+    if (!parentRecordId) {
+      const parentProfileId = crypto.randomUUID()
+      await supabase
+        .from('profiles')
+        .insert([{
+          id: parentProfileId,
+          full_name: input.parentName.trim(),
+          email: parentEmail,
+          phone_number: input.parentPhone.trim(),
+          role: 'parent',
+          status: 'aktif',
+        }])
+
+      const generatedParentId = crypto.randomUUID()
+      await supabase
+        .from('parents')
+        .insert([{
+          id: generatedParentId,
+          profile_id: parentProfileId,
+          occupation: input.parentJob?.trim() || 'Wali Murid',
+          address: input.parentAddress?.trim() || 'Kota Palu',
+          phone_number: input.parentPhone.trim(),
+        }])
+      parentRecordId = generatedParentId
+    }
 
     // 6. Buat entri siswa
     const courseCode = (targetClass.courses?.course_code as PackageCode) || input.packageCode
@@ -1360,6 +1428,7 @@ export const registrationService = {
       packageCode: courseCode,
       classId: targetClass.id,
       className: targetClass.class_name,
+      parentId: parentRecordId,
       parentName: input.parentName.trim(),
       parentPhone: input.parentPhone.trim(),
       parentEmail: input.parentEmail?.trim() || undefined,
@@ -1589,5 +1658,76 @@ export const registrationService = {
     }
 
     return { success: true, data: studentDetail }
+  },
+
+  /**
+   * Mengecek apakah orang tua/wali sudah terdaftar berdasarkan email atau nomor telepon
+   */
+  async checkExistingParent(params: { phone?: string; email?: string }): Promise<ServerResult<{
+    exists: boolean
+    parentName?: string
+    kids?: string
+  }>> {
+    await ensureAdminSession()
+    const cleanPhone = params.phone?.replace(/[^0-9]/g, '') || ''
+    const cleanEmail = params.email?.trim().toLowerCase() || ''
+
+    if (!cleanPhone && !cleanEmail) {
+      return { success: true, data: { exists: false } }
+    }
+
+    try {
+      let parentProfile: any = null
+
+      if (cleanEmail) {
+        const { data: pEmail } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone_number, email, parents(id)')
+          .eq('email', cleanEmail)
+          .eq('role', 'parent')
+          .maybeSingle()
+        if (pEmail) parentProfile = pEmail
+      }
+
+      if (!parentProfile && cleanPhone.length >= 10) {
+        const { data: pPhone } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone_number, email, parents(id)')
+          .ilike('phone_number', `%${cleanPhone.slice(-8)}%`)
+          .eq('role', 'parent')
+          .maybeSingle()
+        if (pPhone) parentProfile = pPhone
+      }
+
+      if (parentProfile) {
+        const parentId = (parentProfile as any).parents?.[0]?.id
+        let kidsNames = ''
+        if (parentId) {
+          const { data: children } = await supabase
+            .from('students')
+            .select('id, profiles(full_name)')
+            .eq('parent_id', parentId)
+          if (children && children.length > 0) {
+            kidsNames = children
+              .map((c: any) => c.profiles?.full_name)
+              .filter(Boolean)
+              .join(', ')
+          }
+        }
+        return {
+          success: true,
+          data: {
+            exists: true,
+            parentName: parentProfile.full_name,
+            kids: kidsNames,
+          },
+        }
+      }
+
+      return { success: true, data: { exists: false } }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal memeriksa orang tua terdaftar'
+      return { success: false, error: message }
+    }
   },
 }

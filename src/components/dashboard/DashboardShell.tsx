@@ -130,6 +130,20 @@ export function DashboardShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { profile, user, studentProfile, parentProfile, children: authChildren, isSuperAdmin } = useAuth()
 
+  // Pantau status keaktifan akun secara real-time pada setiap navigasi SPA
+  React.useEffect(() => {
+    let isCancelled = false
+    authStore.syncAccountStatus().then((status) => {
+      if (!isCancelled && status === 'nonaktif') {
+        authStore.clearSession()
+        navigate({ to: '/masuk', search: { deactivated: 'true' } as any })
+      }
+    })
+    return () => {
+      isCancelled = true
+    }
+  }, [pathname, navigate])
+
   const currentUserId =
     role === 'student'
       ? studentProfile?.id || profile?.id || user?.id

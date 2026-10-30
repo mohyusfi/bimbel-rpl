@@ -7,7 +7,7 @@ import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
 import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
 import { billingService } from '~/server/services/billing.service'
-import { calculateAttendancePercentage } from '~/lib/attendance-helpers'
+import { calculateAttendancePercentage, filterStudentSessionsByJoinDate } from '~/lib/attendance-helpers'
 import { authStore } from '~/lib/auth-store'
 import {
   adminStore,
@@ -748,11 +748,15 @@ export function useAdminMutations() {
         parentEmail: input.parentEmail,
         parentJob: input.parentJob,
         parentAddress: input.parentAddress,
+        parentId: input.parentId,
       })
       if (!res.success) {
         throw new Error(res.error)
       }
-      adminStore.addStudent(input)
+      adminStore.addStudent({
+        ...input,
+        parentId: res.data.parentId || input.parentId,
+      })
       return res.data
     },
     onSuccess: () => {
@@ -789,8 +793,25 @@ export function useAdminMutations() {
   })
 
   const addTutorMutation = useMutation({
-    mutationFn: async (input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) => {
-      return adminStore.addTutor(input)
+    mutationFn: async (
+      input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'> & {
+        email?: string
+        password?: string
+      }
+    ) => {
+      const email = input.email || `${input.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@tutor.tadulakocendekia.sch.id`
+      const res = await masterDataService.createTutor({
+        name: input.name,
+        email,
+        phone: input.phone,
+        education: input.education,
+        subjects: input.subjects,
+        password: input.password || input.temporaryPassword,
+      })
+      if (!res.success) {
+        throw new Error(res.error || 'Gagal menambahkan tutor.')
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -799,6 +820,12 @@ export function useAdminMutations() {
 
   const updateTutorMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tutor> }) => {
+      if (updates.status !== undefined) {
+        const res = await masterDataService.toggleTutorStatus(id, updates.status)
+        if (!res.success) {
+          throw new Error(res.error || 'Gagal mengubah status tutor.')
+        }
+      }
       return adminStore.updateTutor(id, updates)
     },
     onSuccess: () => {
@@ -1889,12 +1916,12 @@ export function useStudentDashboardData(targetStudentId?: string) {
   // Filtered schedules for student's class
   const classSchedules = schedules.filter((s) => s.classId === currentStudent?.classId)
 
-  // Attendance sessions for student (by class or student entry)
-  const studentSessions = sessions.filter(
-    (s) =>
-      s.classId === currentStudent?.classId ||
-      s.entries.some((e) => e.studentId === studentId)
-  )
+  // Attendance sessions for student (filtered strictly by student's join/verification date)
+  const studentSessions = filterStudentSessionsByJoinDate(sessions, {
+    studentId: currentStudent?.id || studentId,
+    classId: currentStudent?.classId,
+    joinDate: (currentStudent as any)?.joinDateIso || currentStudent?.joinDate,
+  })
 
   const completedSessions = studentSessions.filter((s) => s.isCompleted)
   const hadirCount = completedSessions.filter((s) => {
