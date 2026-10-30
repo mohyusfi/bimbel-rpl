@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import * as React from 'react'
 import { Header } from '~/components/landing/Header'
 import { Hero } from '~/components/landing/Hero'
+import { LearningMethodsSection } from '~/components/landing/LearningMethodsSection'
 import { ProgramsSection } from '~/components/landing/ProgramsSection'
 import { ParentsSection } from '~/components/landing/ParentsSection'
 import { StepsSection } from '~/components/landing/StepsSection'
@@ -16,14 +17,31 @@ const RegisterModal = React.lazy(() =>
   }))
 )
 
+interface LandingSearchParams {
+  daftar?: string
+}
+
 export const Route = createFileRoute('/')({
+  validateSearch: (search: Record<string, unknown>): LandingSearchParams => {
+    return {
+      daftar: typeof search.daftar === 'string' ? search.daftar : undefined,
+    }
+  },
   component: LandingPage,
 })
 
 function LandingPage() {
+  const search = Route.useSearch()
   const [isRegisterOpen, setIsRegisterOpen] = React.useState(false)
   const [selectedPackage, setSelectedPackage] = React.useState<string>('UTBK')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (search.daftar) {
+      setSelectedPackage(search.daftar.toUpperCase())
+      setIsRegisterOpen(true)
+    }
+  }, [search.daftar])
 
   const handleOpenRegister = () => {
     setIsRegisterOpen(true)
@@ -53,6 +71,7 @@ function LandingPage() {
           onOpenRegister={handleOpenRegister}
           onSelectProgram={handleSelectProgramAndRegister}
         />
+        <LearningMethodsSection />
         <ProgramsSection onSelectProgram={handleSelectProgramAndRegister} />
         <ParentsSection />
         <StepsSection />

@@ -261,14 +261,14 @@ function StudentTagihanPage() {
           </div>
         </div>
 
-        {/* Right: Rekening Resmi Bimbel Tadulako Cendekia */}
+        {/* Right: Rekening Resmi Anemone Cendekia */}
         <div className="xl:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-[#000000] shrink-0" />
                 <span className="font-bold text-sm text-[#000000]">
-                  Rekening Resmi Pembayaran Bimbel
+                  Rekening Resmi Anemone Cendekia
                 </span>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#166534] bg-[#F6F6F6] px-2 py-0.5 rounded-[6px] shrink-0 self-start sm:self-auto">
@@ -314,7 +314,7 @@ function StudentTagihanPage() {
                   </button>
                 </div>
                 <span className="text-xs text-[#555555] block mt-0.5">
-                  a.n. <strong>Bimbel Tadulako Cendekia</strong>
+                  a.n. <strong>Anemone Cendekia</strong>
                 </span>
               </div>
             </div>

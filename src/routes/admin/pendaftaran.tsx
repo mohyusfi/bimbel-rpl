@@ -244,9 +244,9 @@ Pendaftaran putra/putri Anda, *${credentialsModalData.studentName}*, untuk progr
 *Akses Portal Orang Tua / Wali:*
 • Email: ${credentialsModalData.parentEmail}
 • Kata Sandi: ${credentialsModalData.parentPassword}
-• Tautan Masuk: https://tadulakocendekia.sch.id/masuk
+• Tautan Masuk: /masuk
 
-Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Tadulako Cendekia.`
+Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Anemone Cendekia.`
 
     navigator.clipboard.writeText(text)
     setIsTemplateCopied(true)
@@ -300,10 +300,10 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
     if (duplicateStudent) {
       if (duplicateStudent.status === 'nonaktif') {
         setAddModalError(
-          'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan ubah status siswa di menu Data Siswa untuk pengaktifan kembali.'
+          'Email ini tercatat sebagai siswa nonaktif di Anemone Cendekia. Silakan ubah status siswa di menu Data Siswa untuk pengaktifan kembali.'
         )
       } else {
-        setAddModalError('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+        setAddModalError('Email ini telah terdaftar sebagai siswa aktif di Anemone Cendekia.')
       }
       return
     }
@@ -1043,7 +1043,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                     </div>
                     <div className="space-y-1">
                       <label className="font-medium text-[#000000]">
-                        Pilihan Paket Bimbel *
+                        Pilihan Paket Program *
                       </label>
                       <select
                         value={newForm.packageCode}
