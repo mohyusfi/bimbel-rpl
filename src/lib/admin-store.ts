@@ -34,6 +34,7 @@ export interface Student {
   packageCode: PackageCode
   classId: string
   className: string
+  parentId?: string
   parentName: string
   parentPhone: string
   parentEmail?: string
@@ -52,6 +53,7 @@ export interface Tutor {
   subjects: string[]
   weeklySessionsCount: number
   status: 'aktif' | 'nonaktif'
+  temporaryPassword?: string
 }
 
 export interface Subject {
@@ -460,6 +462,7 @@ export const adminStore = {
     )
 
     if (parentRecord) {
+      studentRecord.parentId = parentRecord.id
       if (!parentRecord.studentIds.includes(studentRecord.id)) {
         parentRecord.studentIds = [...parentRecord.studentIds, studentRecord.id]
       }
@@ -473,6 +476,7 @@ export const adminStore = {
         address: reg.parentAddress || 'Kota Palu',
         studentIds: [studentRecord.id],
       }
+      studentRecord.parentId = parentRecord.id
       state.parents = [parentRecord, ...state.parents]
     }
 
@@ -525,7 +529,7 @@ export const adminStore = {
   },
 
   // STUDENTS
-  addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'>) {
+  addStudent(input: Omit<Student, 'id' | 'nis' | 'joinDate' | 'status'> & { parentId?: string }) {
     const cls = state.classes.find((c) => c.id === input.classId)
     if (cls) {
       const maxCap = Math.min(12, cls.capacity || 12)
@@ -545,6 +549,36 @@ export const adminStore = {
         year: 'numeric',
       }).format(new Date()),
       status: 'aktif',
+    }
+
+    // Hubungkan atau daftarkan profil orang tua
+    const cleanPhone = input.parentPhone ? input.parentPhone.replace(/[^0-9]/g, '') : ''
+    const cleanEmail = input.parentEmail ? input.parentEmail.trim().toLowerCase() : ''
+
+    let parentRecord = state.parents.find(
+      (p) =>
+        (input.parentId && p.id === input.parentId) ||
+        (cleanEmail && p.email && p.email.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && p.phone && p.phone.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+
+    if (parentRecord) {
+      newStudent.parentId = parentRecord.id
+      if (!parentRecord.studentIds.includes(newStudent.id)) {
+        parentRecord.studentIds = [...parentRecord.studentIds, newStudent.id]
+      }
+    } else if (input.parentName) {
+      parentRecord = {
+        id: generateUniqueId('par'),
+        name: input.parentName,
+        email: input.parentEmail || `${input.email.split('@')[0]}.wali@tadulakocendekia.sch.id`,
+        phone: input.parentPhone || '',
+        job: input.parentJob || 'Wali Murid',
+        address: input.parentAddress || 'Kota Palu',
+        studentIds: [newStudent.id],
+      }
+      newStudent.parentId = parentRecord.id
+      state.parents = [parentRecord, ...state.parents]
     }
 
     state.students = [newStudent, ...state.students]
@@ -596,14 +630,15 @@ export const adminStore = {
   },
 
   // TUTORS
-  addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) {
+  addTutor(input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'> & { id?: string; temporaryPassword?: string }) {
     const newTutor: Tutor = {
       ...input,
-      id: generateUniqueId('tut'),
+      id: input.id || generateUniqueId('tut'),
       weeklySessionsCount: 0,
       status: 'aktif',
+      temporaryPassword: input.temporaryPassword || 'tutor2026',
     }
-    state.tutors = [...state.tutors, newTutor]
+    state.tutors = [...state.tutors.filter((t) => t.id !== newTutor.id), newTutor]
     saveAndNotify()
     return newTutor
   },
@@ -613,6 +648,12 @@ export const adminStore = {
     if (index === -1) return false
 
     state.tutors[index] = { ...state.tutors[index], ...updates }
+    saveAndNotify()
+    return true
+  },
+
+  deleteTutor(id: string) {
+    state.tutors = state.tutors.filter((t) => t.id !== id)
     saveAndNotify()
     return true
   },
@@ -692,7 +733,7 @@ export const adminStore = {
     state.classes = [...state.classes, newClass]
 
     const crs = state.courses.find((c) => c.code === input.courseCode)
-    if (crs) crs.activeClassesCount += 1
+    if (crs) crs.activeClassesCount = (crs.activeClassesCount || 0) + 1
 
     saveAndNotify()
     return newClass

@@ -748,11 +748,15 @@ export function useAdminMutations() {
         parentEmail: input.parentEmail,
         parentJob: input.parentJob,
         parentAddress: input.parentAddress,
+        parentId: input.parentId,
       })
       if (!res.success) {
         throw new Error(res.error)
       }
-      adminStore.addStudent(input)
+      adminStore.addStudent({
+        ...input,
+        parentId: res.data.parentId || input.parentId,
+      })
       return res.data
     },
     onSuccess: () => {
@@ -789,8 +793,25 @@ export function useAdminMutations() {
   })
 
   const addTutorMutation = useMutation({
-    mutationFn: async (input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'>) => {
-      return adminStore.addTutor(input)
+    mutationFn: async (
+      input: Omit<Tutor, 'id' | 'weeklySessionsCount' | 'status'> & {
+        email?: string
+        password?: string
+      }
+    ) => {
+      const email = input.email || `${input.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@tutor.tadulakocendekia.sch.id`
+      const res = await masterDataService.createTutor({
+        name: input.name,
+        email,
+        phone: input.phone,
+        education: input.education,
+        subjects: input.subjects,
+        password: input.password || input.temporaryPassword,
+      })
+      if (!res.success) {
+        throw new Error(res.error || 'Gagal menambahkan tutor.')
+      }
+      return res.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
@@ -799,6 +820,12 @@ export function useAdminMutations() {
 
   const updateTutorMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tutor> }) => {
+      if (updates.status !== undefined) {
+        const res = await masterDataService.toggleTutorStatus(id, updates.status)
+        if (!res.success) {
+          throw new Error(res.error || 'Gagal mengubah status tutor.')
+        }
+      }
       return adminStore.updateTutor(id, updates)
     },
     onSuccess: () => {

@@ -1,6 +1,6 @@
 import { supabase } from '~/lib/supabase/client'
 import { authStore } from '~/lib/auth-store'
-import type { Room, Course, Tutor, ClassGroup, PackageCode } from '~/lib/admin-store'
+import { adminStore, type Room, type Course, type Tutor, type ClassGroup, type PackageCode } from '~/lib/admin-store'
 
 export type ServerResult<T> =
   | { success: true; data: T }
@@ -342,8 +342,263 @@ export const masterDataService = {
         subjects: subjectsArray,
         weeklySessionsCount: Number(t.weekly_sessions_count) || 0,
         status: (t.status === 'nonaktif' ? 'nonaktif' : 'aktif') as 'aktif' | 'nonaktif',
+        temporaryPassword: 'tutor2026',
       }
     })
+  },
+
+  async createTutor(input: {
+    name: string
+    email: string
+    phone: string
+    education: string
+    subjects: string[]
+    password?: string
+  }): Promise<
+    ServerResult<{
+      tutor: Tutor
+      credentials: {
+        name: string
+        email: string
+        password: string
+        phone: string
+        education: string
+        subjects: string[]
+      }
+    }>
+  > {
+    await ensureAdminSession()
+
+    const cleanEmail = input.email.trim().toLowerCase()
+    const cleanName = input.name.trim()
+    const cleanPhone = input.phone.trim()
+    const cleanEdu = input.education.trim()
+    const tempPassword = input.password || 'tutor2026'
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: 'Alamat email tutor tidak valid' }
+    }
+    if (!cleanName) {
+      return { success: false, error: 'Nama tutor wajib diisi' }
+    }
+
+    // Check if email already exists in profiles
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .eq('email', cleanEmail)
+      .maybeSingle()
+
+    if (existingProfile) {
+      return {
+        success: false,
+        error: `Alamat email ${cleanEmail} sudah terdaftar di sistem.`,
+      }
+    }
+
+    let authUserId: string | null = null
+
+    // Provision via direct RPC
+    try {
+      const { data: rpcUserId, error: rpcErr } = await supabase.rpc('provision_auth_user_direct', {
+        p_email: cleanEmail,
+        p_password: tempPassword,
+        p_full_name: cleanName,
+        p_role: 'tutor',
+        p_phone: cleanPhone,
+      })
+      if (!rpcErr && rpcUserId) {
+        authUserId = rpcUserId
+      }
+    } catch (err: any) {
+      console.warn('[WARN] Direct RPC provisioning note:', err?.message)
+    }
+
+    // Upsert profile record
+    const profilePayload: Record<string, any> = {
+      email: cleanEmail,
+      full_name: cleanName,
+      role: 'tutor',
+      phone_number: cleanPhone,
+      status: 'aktif',
+    }
+    if (authUserId) {
+      profilePayload.id = authUserId
+    }
+
+    const { data: insertedProfile, error: profErr } = await supabase
+      .from('profiles')
+      .upsert(profilePayload)
+      .select('id, full_name, email, phone_number')
+      .single()
+
+    if (profErr || !insertedProfile) {
+      console.warn('[WARN] Gagal membuat profil tutor di Supabase:', profErr?.message)
+      const fallbackTutor = adminStore.addTutor({
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        education: cleanEdu,
+        subjects: input.subjects,
+        temporaryPassword: tempPassword,
+      })
+      return {
+        success: true,
+        data: {
+          tutor: fallbackTutor,
+          credentials: {
+            name: cleanName,
+            email: cleanEmail,
+            password: tempPassword,
+            phone: cleanPhone,
+            education: cleanEdu,
+            subjects: input.subjects,
+          },
+        },
+      }
+    }
+
+    // Insert into tutors table
+    const specialty = input.subjects.join(', ')
+    const { data: insertedTutor, error: tutErr } = await supabase
+      .from('tutors')
+      .insert({
+        profile_id: insertedProfile.id,
+        specialty_subject: specialty,
+        education_background: cleanEdu,
+        weekly_sessions_count: 0,
+        status: 'aktif',
+      })
+      .select('id, profile_id, specialty_subject, education_background, weekly_sessions_count, status')
+      .single()
+
+    if (tutErr || !insertedTutor) {
+      console.warn('[WARN] Gagal menyimpan tabel tutors di Supabase:', tutErr?.message)
+      const fallbackTutor = adminStore.addTutor({
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        education: cleanEdu,
+        subjects: input.subjects,
+        temporaryPassword: tempPassword,
+      })
+      return {
+        success: true,
+        data: {
+          tutor: fallbackTutor,
+          credentials: {
+            name: cleanName,
+            email: cleanEmail,
+            password: tempPassword,
+            phone: cleanPhone,
+            education: cleanEdu,
+            subjects: input.subjects,
+          },
+        },
+      }
+    }
+
+    const createdTutor: Tutor = {
+      id: insertedTutor.id,
+      name: insertedProfile.full_name,
+      email: insertedProfile.email,
+      phone: insertedProfile.phone_number || cleanPhone,
+      education: insertedTutor.education_background || cleanEdu,
+      subjects: input.subjects,
+      weeklySessionsCount: 0,
+      status: 'aktif',
+      temporaryPassword: tempPassword,
+    }
+
+    // Sync to adminStore
+    adminStore.addTutor({
+      ...createdTutor,
+      temporaryPassword: tempPassword,
+    })
+
+    return {
+      success: true,
+      data: {
+        tutor: createdTutor,
+        credentials: {
+          name: cleanName,
+          email: cleanEmail,
+          password: tempPassword,
+          phone: cleanPhone,
+          education: cleanEdu,
+          subjects: input.subjects,
+        },
+      },
+    }
+  },
+
+  async toggleTutorStatus(
+    id: string,
+    targetStatus?: 'aktif' | 'nonaktif'
+  ): Promise<ServerResult<{ id: string; status: 'aktif' | 'nonaktif' }>> {
+    await ensureAdminSession()
+
+    const { data: currentTutor } = await supabase
+      .from('tutors')
+      .select('id, profile_id, status')
+      .eq('id', id)
+      .maybeSingle()
+
+    let nextStatus: 'aktif' | 'nonaktif' = 'aktif'
+    if (targetStatus) {
+      nextStatus = targetStatus
+    } else if (currentTutor) {
+      nextStatus = currentTutor.status === 'aktif' ? 'nonaktif' : 'aktif'
+    } else {
+      const storeTutor = adminStore.getState().tutors.find((t) => t.id === id)
+      if (storeTutor) {
+        nextStatus = storeTutor.status === 'aktif' ? 'nonaktif' : 'aktif'
+      }
+    }
+
+    if (currentTutor) {
+      await supabase
+        .from('tutors')
+        .update({ status: nextStatus })
+        .eq('id', id)
+
+      if (currentTutor.profile_id) {
+        await supabase
+          .from('profiles')
+          .update({ status: nextStatus })
+          .eq('id', currentTutor.profile_id)
+      }
+    }
+
+    adminStore.updateTutor(id, { status: nextStatus })
+
+    return {
+      success: true,
+      data: {
+        id,
+        status: nextStatus,
+      },
+    }
+  },
+
+  async deleteTutor(id: string): Promise<ServerResult<{ id: string }>> {
+    await ensureAdminSession()
+
+    const { data: currentTutor } = await supabase
+      .from('tutors')
+      .select('id, profile_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (currentTutor) {
+      await supabase.from('tutors').delete().eq('id', id)
+      if (currentTutor.profile_id) {
+        await supabase.from('profiles').delete().eq('id', currentTutor.profile_id)
+      }
+    }
+
+    adminStore.deleteTutor(id)
+    return { success: true, data: { id } }
   },
 
   // =========================================================================
