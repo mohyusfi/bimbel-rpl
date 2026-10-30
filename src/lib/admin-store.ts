@@ -646,6 +646,10 @@ export const adminStore = {
     const student = state.students.find((s) => s.id === studentId)
     if (!student) throw new Error('Siswa tidak ditemukan.')
 
+    if (student.status === 'nonaktif') {
+      throw new Error('Siswa nonaktif tidak dapat didaftarkan ke dalam rombel kelas.')
+    }
+
     const targetClass = state.classes.find((c) => c.id === targetClassId)
     if (!targetClass) throw new Error('Rombel tujuan tidak ditemukan.')
 
@@ -799,6 +803,11 @@ export const adminStore = {
 
   // SCHEDULES & CONFLICT DETECTION (SCHED-02)
   addSchedule(input: Omit<Schedule, 'id'>) {
+    const tutor = state.tutors.find((t) => t.id === input.tutorId)
+    if (tutor && tutor.status === 'nonaktif') {
+      throw new Error('Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.')
+    }
+
     const conflict = detectScheduleConflicts(input, state.schedules, state.rooms)
     if (conflict.hasConflict) {
       throw new Error(
@@ -820,7 +829,6 @@ export const adminStore = {
     state.schedules = [...state.schedules, newSchedule]
 
     // Update tutor weekly sessions count
-    const tutor = state.tutors.find((t) => t.id === input.tutorId)
     if (tutor) tutor.weeklySessionsCount += 1
 
     // Otomatis generate 1 entri sesi bimbingan perdana di attendanceSessions (SCHED-02)
@@ -884,6 +892,12 @@ export const adminStore = {
       throw new Error(`Jadwal dengan ID "${id}" tidak ditemukan`)
     }
     const oldSchedule = state.schedules[index]
+
+    const tutorIdToCheck = input.tutorId ?? oldSchedule.tutorId
+    const tutor = state.tutors.find((t) => t.id === tutorIdToCheck)
+    if (tutor && tutor.status === 'nonaktif') {
+      throw new Error('Tutor sedang dinonaktifkan dan tidak dapat ditugaskan pada jadwal bimbingan.')
+    }
 
     const mergedCandidate: ScheduleCandidate = {
       id,
@@ -975,6 +989,11 @@ export const adminStore = {
     dueDate: string
     description?: string
   }) {
+    const student = state.students.find((s) => s.id === input.studentId || s.nis === input.nis)
+    if (student && student.status === 'nonaktif') {
+      throw new Error('Tidak dapat menerbitkan tagihan untuk siswa yang berstatus nonaktif.')
+    }
+
     const invId = `INV-2026-${(state.invoices.length + 306).toString().padStart(4, '0')}`
     const newInvoice: Invoice = {
       ...input,

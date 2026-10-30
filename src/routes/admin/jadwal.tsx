@@ -99,7 +99,7 @@ function AdminJadwalPage() {
   // Set default initial values for schedule modal when opened (Create mode)
   const handleOpenScheduleModal = () => {
     const firstClass = classes[0]
-    const firstTutor = tutors[0]
+    const firstTutor = tutors.find((t) => t.status === 'aktif') || tutors[0]
     const firstRoom = rooms[0]
     const firstSubject = subjects[0]
 
@@ -961,11 +961,13 @@ function AdminJadwalPage() {
                             tutorId: val,
                           })
                         }
-                        options={tutors.map((t) => ({
-                          value: t.id,
-                          label: t.name,
-                          sublabel: t.education.split('—')[0].trim(),
-                        }))}
+                        options={tutors
+                          .filter((t) => t.status === 'aktif' || t.id === scheduleForm.tutorId)
+                          .map((t) => ({
+                            value: t.id,
+                            label: t.status === 'nonaktif' ? `${t.name} (Nonaktif)` : t.name,
+                            sublabel: t.education.split('—')[0].trim(),
+                          }))}
                         placeholder="Pilih tutor pengampu..."
                         searchPlaceholder="Cari nama tutor..."
                         required
@@ -1234,11 +1236,13 @@ function AdminJadwalPage() {
                     onChange={(val) =>
                       setClassForm({ ...classForm, tutorName: val })
                     }
-                    options={tutors.map((t) => ({
-                      value: t.name,
-                      label: t.name,
-                      sublabel: t.education.split('—')[0].trim(),
-                    }))}
+                    options={tutors
+                      .filter((t) => t.status === 'aktif' || t.name === classForm.tutorName)
+                      .map((t) => ({
+                        value: t.name,
+                        label: t.status === 'nonaktif' ? `${t.name} (Nonaktif)` : t.name,
+                        sublabel: t.education.split('—')[0].trim(),
+                      }))}
                     placeholder="Pilih tutor wali..."
                     searchPlaceholder="Cari nama tutor..."
                     allowClear

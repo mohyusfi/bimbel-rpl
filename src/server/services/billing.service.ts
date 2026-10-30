@@ -575,6 +575,32 @@ export const billingService = {
       return { success: false, error: 'Siswa tidak ditemukan.' }
     }
 
+    // Validasi siswa tidak berstatus nonaktif
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(realStudentId)
+    let studentStatus: string | undefined = undefined
+
+    if (isUUID) {
+      const { data: studentRecord } = await adminClient
+        .from('students')
+        .select('id, status, profiles(status)')
+        .eq('id', realStudentId)
+        .maybeSingle()
+
+      studentStatus = studentRecord?.status || (studentRecord?.profiles as any)?.status
+    }
+
+    const storeStudent = (await import('~/lib/admin-store')).adminStore
+      .getState()
+      .students.find((s) => s.id === input.studentId || s.id === realStudentId)
+
+    if (studentStatus === 'nonaktif' || storeStudent?.status === 'nonaktif') {
+      return {
+        success: false,
+        error: 'Tidak dapat menerbitkan tagihan untuk siswa yang berstatus nonaktif.',
+        code: 'STUDENT_DEACTIVATED',
+      }
+    }
+
     if (!input.amount || input.amount <= 0) {
       return { success: false, error: 'Nominal tagihan harus lebih besar dari 0.' }
     }

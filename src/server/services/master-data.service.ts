@@ -15,11 +15,34 @@ export function clampCapacity(capacity: unknown, defaultCap = 12): number {
 /**
  * Memastikan request query/mutasi memiliki sesi autentikasi di Supabase agar lolos RLS.
  * Jika sesi kosong (misalnya quick demo / belum login Supabase Auth), otomatis login sebagai Nuraini.
+ * Memverifikasi bahwa akun tidak berstatus nonaktif.
  */
 export async function ensureAuthenticatedSession(): Promise<boolean> {
   try {
+    if (typeof window !== 'undefined') {
+      const localProfile = authStore.getState().profile
+      if (localProfile?.status === 'nonaktif') {
+        authStore.logout()
+        return false
+      }
+    }
+
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData?.session) {
+      const userId = sessionData.session.user.id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (profile?.status === 'nonaktif') {
+        await supabase.auth.signOut()
+        if (typeof window !== 'undefined') {
+          authStore.logout()
+        }
+        return false
+      }
       return true
     }
 
@@ -45,6 +68,49 @@ export async function ensureAuthenticatedSession(): Promise<boolean> {
     console.warn('[WARN] Gagal memastikan sesi autentikasi Supabase:', err)
     return false
   }
+}
+
+/**
+ * Memvalidasi bahwa sesi pengguna yang sedang login aktif dan tidak dalam status 'nonaktif'.
+ * Jika akun dinonaktifkan, sesi Supabase di-revocation dan sesi lokal dihapus.
+ */
+export async function assertActiveUserSession(): Promise<ServerResult<{ userId: string; email: string }>> {
+  if (typeof window !== 'undefined') {
+    const profile = authStore.getState().profile
+    if (profile?.status === 'nonaktif') {
+      authStore.logout()
+      return {
+        success: false,
+        error: 'Akun Anda telah dinonaktifkan. Silakan hubungi admin.',
+        code: 'ACCOUNT_DEACTIVATED',
+      }
+    }
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession()
+  const user = sessionData?.session?.user
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.status === 'nonaktif') {
+      await supabase.auth.signOut()
+      if (typeof window !== 'undefined') {
+        authStore.logout()
+      }
+      return {
+        success: false,
+        error: 'Akun Anda telah dinonaktifkan. Silakan hubungi admin.',
+        code: 'ACCOUNT_DEACTIVATED',
+      }
+    }
+    return { success: true, data: { userId: user.id, email: user.email || '' } }
+  }
+
+  return { success: true, data: { userId: '', email: '' } }
 }
 
 /**
