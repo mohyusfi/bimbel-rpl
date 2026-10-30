@@ -8,6 +8,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test",
     "db:seed": "node --env-file=.env --experimental-strip-types src/db/seed.ts",
     "db:clean": "node --env-file=.env --experimental-strip-types src/db/cleanup-and-seed.ts",
     "db:generate": "drizzle-kit generate",
@@ -36,6 +39,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.0",

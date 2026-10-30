@@ -15,6 +15,8 @@ import {
   RotateCcw,
   ChevronDown,
   Clock,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import {
   useAdminSchedules,
@@ -87,6 +89,12 @@ function AdminJadwalPage() {
 
   // Delete confirmation state
   const [scheduleToDelete, setScheduleToDelete] = React.useState<Schedule | null>(null)
+  const [isSubmittingSchedule, setIsSubmittingSchedule] = React.useState(false)
+  const [scheduleSubmitError, setScheduleSubmitError] = React.useState<string | null>(null)
+  const [isSubmittingClass, setIsSubmittingClass] = React.useState(false)
+  const [classSubmitError, setClassSubmitError] = React.useState<string | null>(null)
+  const [isDeletingSchedule, setIsDeletingSchedule] = React.useState(false)
+  const [deleteScheduleError, setDeleteScheduleError] = React.useState<string | null>(null)
 
   // Set default initial values for schedule modal when opened (Create mode)
   const handleOpenScheduleModal = () => {
@@ -173,7 +181,7 @@ function AdminJadwalPage() {
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isSubmitDisabled) return
+    if (isSubmitDisabled || isSubmittingSchedule) return
 
     const targetClass = classes.find((c) => c.id === scheduleForm.classId)
     const targetTutor = tutors.find((t) => t.id === scheduleForm.tutorId)
@@ -194,6 +202,8 @@ function AdminJadwalPage() {
       endTime: scheduleForm.endTime,
     }
 
+    setScheduleSubmitError(null)
+    setIsSubmittingSchedule(true)
     try {
       if (editingSchedule) {
         await updateSchedule({
@@ -207,33 +217,60 @@ function AdminJadwalPage() {
       setEditingSchedule(null)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan jadwal'
-      alert(message)
+      setScheduleSubmitError(message)
+    } finally {
+      setIsSubmittingSchedule(false)
     }
   }
 
   const handleAddClassSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmittingClass) return
     const pkgNames: Record<PackageCode, string> = {
       UTBK: 'Intensif UTBK-SNBT',
       SMA: 'SMA Sukses',
       SMP: 'SMP Prestasi',
       SD: 'SD Cendekia',
     }
-    await addClass({
-      name: classForm.name,
-      courseCode: classForm.courseCode,
-      courseName: pkgNames[classForm.courseCode],
-      capacity: Number(classForm.capacity),
-      tutorName: classForm.tutorName.trim() || 'Belum Ditentukan',
-    })
-    setIsAddClassModalOpen(false)
-    setClassForm({
-      name: '',
-      courseCode: 'UTBK',
-      courseName: 'Intensif UTBK-SNBT',
-      capacity: 12,
-      tutorName: '',
-    })
+    setClassSubmitError(null)
+    setIsSubmittingClass(true)
+    try {
+      await addClass({
+        name: classForm.name,
+        courseCode: classForm.courseCode,
+        courseName: pkgNames[classForm.courseCode],
+        capacity: Number(classForm.capacity),
+        tutorName: classForm.tutorName.trim() || 'Belum Ditentukan',
+      })
+      setIsAddClassModalOpen(false)
+      setClassForm({
+        name: '',
+        courseCode: 'UTBK',
+        courseName: 'Intensif UTBK-SNBT',
+        capacity: 12,
+        tutorName: '',
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan rombel'
+      setClassSubmitError(message)
+    } finally {
+      setIsSubmittingClass(false)
+    }
+  }
+
+  const handleDeleteSchedule = async () => {
+    if (!scheduleToDelete || isDeletingSchedule) return
+    setDeleteScheduleError(null)
+    setIsDeletingSchedule(true)
+    try {
+      await deleteSchedule(scheduleToDelete.id)
+      setScheduleToDelete(null)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menghapus jadwal'
+      setDeleteScheduleError(message)
+    } finally {
+      setIsDeletingSchedule(false)
+    }
   }
 
   // Filtered schedules for views
@@ -709,9 +746,10 @@ function AdminJadwalPage() {
       <Dialog.Root
         open={isScheduleModalOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isSubmittingSchedule) {
             setIsScheduleModalOpen(false)
             setEditingSchedule(null)
+            setScheduleSubmitError(null)
           }
         }}
       >
@@ -732,11 +770,16 @@ function AdminJadwalPage() {
                   </p>
                 </div>
                 <Dialog.Close
+                  disabled={isSubmittingSchedule}
                   render={
                     <button
                       type="button"
-                      onClick={() => setEditingSchedule(null)}
-                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[8px] transition-colors cursor-pointer"
+                      disabled={isSubmittingSchedule}
+                      onClick={() => {
+                        setEditingSchedule(null)
+                        setScheduleSubmitError(null)
+                      }}
+                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F2F2F2] rounded-[8px] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                       aria-label="Tutup dialog"
                     />
                   }
@@ -744,6 +787,16 @@ function AdminJadwalPage() {
                   <X className="w-5 h-5" />
                 </Dialog.Close>
               </div>
+
+              {scheduleSubmitError && (
+                <div
+                  className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                  role="alert"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{scheduleSubmitError}</span>
+                </div>
+              )}
 
               {/* REAL-TIME CONFLICT ALERT CALLOUT (SCHED-02) */}
               {conflictResult.hasConflict && (
@@ -1038,20 +1091,29 @@ function AdminJadwalPage() {
                   <div className="flex items-center justify-end gap-2 shrink-0">
                     <button
                       type="button"
+                      disabled={isSubmittingSchedule}
                       onClick={() => {
                         setIsScheduleModalOpen(false)
                         setEditingSchedule(null)
+                        setScheduleSubmitError(null)
                       }}
-                      className="px-4 py-2.5 text-sm font-semibold text-[#333333] hover:text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      className="px-4 py-2.5 text-sm font-semibold text-[#333333] hover:text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmitDisabled}
-                      className="px-5 py-2.5 text-sm font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none transition-colors cursor-pointer"
+                      disabled={isSubmitDisabled || isSubmittingSchedule}
+                      className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-sm font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none transition-colors cursor-pointer"
                     >
-                      {editingSchedule ? 'Simpan Perubahan' : 'Simpan Jadwal Bimbingan'}
+                      {isSubmittingSchedule ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Menyimpan Jadwal...</span>
+                        </>
+                      ) : (
+                        <span>{editingSchedule ? 'Simpan Perubahan' : 'Simpan Jadwal Bimbingan'}</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1064,7 +1126,12 @@ function AdminJadwalPage() {
       {/* DIALOG 2: Tambah Rombel Baru */}
       <Dialog.Root
         open={isAddClassModalOpen}
-        onOpenChange={(open) => !open && setIsAddClassModalOpen(false)}
+        onOpenChange={(open) => {
+          if (!open && !isSubmittingClass) {
+            setIsAddClassModalOpen(false)
+            setClassSubmitError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -1075,10 +1142,13 @@ function AdminJadwalPage() {
                   Tambah Rombel / Kelas Baru
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isSubmittingClass}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isSubmittingClass}
+                      onClick={() => setClassSubmitError(null)}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -1087,6 +1157,15 @@ function AdminJadwalPage() {
               </div>
 
               <form onSubmit={handleAddClassSubmit} className="space-y-3.5 text-xs">
+                {classSubmitError && (
+                  <div
+                    className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                    role="alert"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{classSubmitError}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="font-medium text-[#000000]">
                     Nama Rombel / Kelas *
@@ -1170,16 +1249,28 @@ function AdminJadwalPage() {
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                   <button
                     type="button"
-                    onClick={() => setIsAddClassModalOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    disabled={isSubmittingClass}
+                    onClick={() => {
+                      setIsAddClassModalOpen(false)
+                      setClassSubmitError(null)
+                    }}
+                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                    disabled={isSubmittingClass}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    Simpan Rombel
+                    {isSubmittingClass ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menyimpan Rombel...</span>
+                      </>
+                    ) : (
+                      <span>Simpan Rombel</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -1191,7 +1282,12 @@ function AdminJadwalPage() {
       {/* Delete Confirmation Dialog */}
       <Dialog.Root
         open={Boolean(scheduleToDelete)}
-        onOpenChange={(open) => !open && setScheduleToDelete(null)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingSchedule) {
+            setScheduleToDelete(null)
+            setDeleteScheduleError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -1202,10 +1298,12 @@ function AdminJadwalPage() {
                   Hapus jadwal bimbingan?
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isDeletingSchedule}
                   render={
                     <button
                       type="button"
-                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px] cursor-pointer"
+                      disabled={isDeletingSchedule}
+                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       aria-label="Tutup"
                     />
                   }
@@ -1213,6 +1311,16 @@ function AdminJadwalPage() {
                   <X className="w-4 h-4" />
                 </Dialog.Close>
               </div>
+
+              {deleteScheduleError && (
+                <div
+                  className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                  role="alert"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{deleteScheduleError}</span>
+                </div>
+              )}
 
               {scheduleToDelete && (
                 <p className="text-xs text-[#555555] leading-relaxed">
@@ -1226,22 +1334,29 @@ function AdminJadwalPage() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                 <button
                   type="button"
-                  onClick={() => setScheduleToDelete(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                  disabled={isDeletingSchedule}
+                  onClick={() => {
+                    setScheduleToDelete(null)
+                    setDeleteScheduleError(null)
+                  }}
+                  className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (scheduleToDelete) {
-                      await deleteSchedule(scheduleToDelete.id)
-                      setScheduleToDelete(null)
-                    }
-                  }}
-                  className="px-4 py-2 text-xs font-semibold bg-[#A1301C] text-[#FFFFFF] rounded-[8px] hover:bg-[#852717] transition-colors cursor-pointer"
+                  disabled={isDeletingSchedule}
+                  onClick={handleDeleteSchedule}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold bg-[#A1301C] text-[#FFFFFF] rounded-[8px] hover:bg-[#852717] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
-                  Hapus jadwal
+                  {isDeletingSchedule ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <span>Hapus jadwal</span>
+                  )}
                 </button>
               </div>
             </Dialog.Popup>

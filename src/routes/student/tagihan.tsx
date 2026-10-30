@@ -15,7 +15,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { useStudentDashboardData } from '~/hooks/use-admin-data'
 import type { Invoice } from '~/lib/admin-store'
-import { formatRupiah } from '~/lib/utils'
+import { formatRupiah, formatDueDate } from '~/lib/utils'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { UploadProofModal } from '~/components/dashboard/UploadProofModal'
@@ -78,7 +78,7 @@ function StudentTagihanPage() {
             {row.original.programName}
           </span>
           <span className="text-xs text-[#555555]">
-            Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{row.original.dueDate}</span>
+            Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{formatDueDate(row.original.dueDate)}</span>
           </span>
         </div>
       ),
@@ -357,7 +357,7 @@ function StudentTagihanPage() {
                     {row.programName}
                   </h3>
                   <p className="text-xs text-[#555555] mt-0.5">
-                    Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{row.dueDate}</span>
+                    Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{formatDueDate(row.dueDate)}</span>
                   </p>
                 </div>
                 <div className="text-right shrink-0">

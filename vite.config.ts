@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  ssr: {
+    external: ['react', 'react-dom'],
+  },
   plugins: [
     tanstackStart(),
     nitro(),

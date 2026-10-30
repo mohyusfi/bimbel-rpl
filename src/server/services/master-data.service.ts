@@ -23,10 +23,19 @@ export async function ensureAuthenticatedSession(): Promise<boolean> {
       return true
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: 'nuraini.tu@tadulakocendekia.sch.id',
       password: 'password123',
     })
+
+    if (error) {
+      const pimpinanRes = await supabase.auth.signInWithPassword({
+        email: 'pimpinan@tadulakocendekia.sch.id',
+        password: 'password123',
+      })
+      data = pimpinanRes.data
+      error = pimpinanRes.error
+    }
 
     if (!error && data?.session) {
       return true
@@ -85,10 +94,19 @@ export async function ensureAdminSession(): Promise<boolean> {
       // fallback to default nuraini
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: targetEmail,
       password: 'password123',
     })
+
+    if (error && targetEmail !== 'pimpinan@tadulakocendekia.sch.id') {
+      const pimpinanRes = await supabase.auth.signInWithPassword({
+        email: 'pimpinan@tadulakocendekia.sch.id',
+        password: 'password123',
+      })
+      data = pimpinanRes.data
+      error = pimpinanRes.error
+    }
 
     if (!error && data?.session) {
       return true

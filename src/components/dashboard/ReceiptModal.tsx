@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Dialog } from '@base-ui/react/dialog'
 import { Printer, X, CheckCircle2 } from 'lucide-react'
 import type { Invoice } from '~/lib/admin-store'
+import { formatDueDate } from '~/lib/utils'
 
 interface ReceiptModalProps {
   invoice: Invoice | null
@@ -129,7 +130,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                           Biaya Bimbingan SPP Bulanan
                         </span>
                         <span className="text-[11px] text-[#555555]">
-                          No. Tagihan: <span className="tabular-nums font-mono">{invoice.invoiceNumber || invoice.id}</span> · Jatuh Tempo: <span className="tabular-nums">{invoice.dueDate}</span>
+                          No. Tagihan: <span className="tabular-nums font-mono">{invoice.invoiceNumber || invoice.id}</span> · Jatuh Tempo: <span className="tabular-nums">{formatDueDate(invoice.dueDate)}</span>
                         </span>
                       </td>
                       <td className="px-4 py-3 text-[#555555]">

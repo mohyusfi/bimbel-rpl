@@ -30,7 +30,7 @@ import { downloadMaterialFile } from '~/lib/download-material'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge, type BadgeStatus } from '~/components/ui/status-badge'
-import { cn } from '~/lib/utils'
+import { cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/')({
   ssr: false,
@@ -114,12 +114,16 @@ function StudentDashboardPage() {
         topic: session.topic || session.subjectName,
         roomName: session.roomName,
         tutorName: session.tutorName,
-        status: session.isCompleted ? (entry?.status || 'hadir') : 'terjadwal',
+        status: session.isCompleted ? (entry?.status || 'belum_diabsen') : 'terjadwal',
         isCompleted: session.isCompleted,
         note: entry?.note,
       }
     })
   }, [sessions, student?.id])
+
+  const belumDiabsenCount = React.useMemo(() => {
+    return actualSessionRows.filter((r) => r.status === 'belum_diabsen').length
+  }, [actualSessionRows])
 
   // Filtered actual sessions
   const filteredActualSessions = React.useMemo(() => {
@@ -303,7 +307,11 @@ function StudentDashboardPage() {
         <SummaryMetricCard
           title="Tingkat Kehadiran"
           value={`${attendanceRate}%`}
-          description={`${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`}
+          description={
+            totalCompleted > 0
+              ? `${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`
+              : 'Belum ada sesi evaluasi presensi'
+          }
           icon={CheckCircle2}
           footer={
             <div className="flex items-center justify-end">
@@ -346,7 +354,7 @@ function StudentDashboardPage() {
           value={sppStatusLabel}
           description={
             latestInvoice?.dueDate
-              ? `Jatuh tempo: ${latestInvoice.dueDate}`
+              ? `Jatuh tempo: ${formatDueDate(latestInvoice.dueDate)}`
               : 'Tagihan SPP bulan berjalan'
           }
           icon={CreditCard}
@@ -491,6 +499,9 @@ function StudentDashboardPage() {
                   <option value="sakit">Sakit ({sakitCount})</option>
                   <option value="izin">Izin ({izinCount})</option>
                   <option value="alpa">Alpa ({alpaCount})</option>
+                  {belumDiabsenCount > 0 && (
+                    <option value="belum_diabsen">Belum Diabsen ({belumDiabsenCount})</option>
+                  )}
                   <option value="terjadwal">Sesi Terjadwal</option>
                 </select>
               </div>

@@ -17,6 +17,7 @@ import {
   KeyRound,
   Copy,
   Check,
+  Loader2,
 } from 'lucide-react'
 import {
   useAdminRegistrations,
@@ -58,9 +59,12 @@ function AdminPendaftaranPage() {
     React.useState<Registration | null>(null)
   const [selectedClassId, setSelectedClassId] = React.useState<string>('')
   const [approvalError, setApprovalError] = React.useState<string | null>(null)
+  const [isApproving, setIsApproving] = React.useState(false)
   const [rejectionTarget, setRejectionTarget] =
     React.useState<Registration | null>(null)
   const [rejectionReason, setRejectionReason] = React.useState<string>('')
+  const [rejectionError, setRejectionError] = React.useState<string | null>(null)
+  const [isRejecting, setIsRejecting] = React.useState(false)
 
   // Approval Credentials Modal State
   const [credentialsModalData, setCredentialsModalData] = React.useState<{
@@ -114,6 +118,7 @@ function AdminPendaftaranPage() {
   const handleOpenApproval = (reg: Registration) => {
     setApprovalTarget(reg)
     setApprovalError(null)
+    setIsApproving(false)
     const matchingClasses = classes.filter(
       (c) => c.courseCode === reg.packageCode
     )
@@ -127,7 +132,7 @@ function AdminPendaftaranPage() {
 
   // Plotting and approval handler (anti-overcapacity verification)
   const handleApproveRegistration = async () => {
-    if (!approvalTarget || !selectedClassId) return
+    if (!approvalTarget || !selectedClassId || isApproving) return
     const reg = approvalTarget
     const targetClass = classes.find((c) => c.id === selectedClassId)
 
@@ -145,6 +150,7 @@ function AdminPendaftaranPage() {
     }
 
     setApprovalError(null)
+    setIsApproving(true)
 
     try {
       const result = await approveRegistration({
@@ -187,6 +193,8 @@ function AdminPendaftaranPage() {
       setApprovalTarget(null)
     } catch (err: any) {
       setApprovalError(err?.message || 'Gagal memverifikasi pendaftaran.')
+    } finally {
+      setIsApproving(false)
     }
   }
 
@@ -249,16 +257,26 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
   const handleOpenRejection = (reg: Registration) => {
     setRejectionTarget(reg)
     setRejectionReason('')
+    setRejectionError(null)
+    setIsRejecting(false)
   }
 
   const handleConfirmRejection = async () => {
-    if (!rejectionTarget || !rejectionReason.trim()) return
-    await rejectRegistration({
-      regId: rejectionTarget.id,
-      reason: rejectionReason.trim(),
-      reg: rejectionTarget,
-    })
-    setRejectionTarget(null)
+    if (!rejectionTarget || !rejectionReason.trim() || isRejecting) return
+    setRejectionError(null)
+    setIsRejecting(true)
+    try {
+      await rejectRegistration({
+        regId: rejectionTarget.id,
+        reason: rejectionReason.trim(),
+        reg: rejectionTarget,
+      })
+      setRejectionTarget(null)
+    } catch (err: any) {
+      setRejectionError(err?.message || 'Gagal menolak pendaftaran.')
+    } finally {
+      setIsRejecting(false)
+    }
   }
 
   // Submit manual registration
@@ -638,7 +656,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
       {/* MODAL 1: Setujui & Plotting Rombel */}
       <Dialog.Root
         open={Boolean(approvalTarget)}
-        onOpenChange={(open) => !open && setApprovalTarget(null)}
+        onOpenChange={(open) => !open && !isApproving && setApprovalTarget(null)}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -649,10 +667,12 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   Setujui & Plotting Kelas
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isApproving}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isApproving}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -750,8 +770,9 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
+                      disabled={isApproving}
                       onClick={() => setApprovalTarget(null)}
-                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
@@ -766,15 +787,22 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                         <button
                           type="button"
                           onClick={handleApproveRegistration}
-                          disabled={isFull}
+                          disabled={isFull || isApproving}
                           className={cn(
-                            "px-4 py-2 text-xs font-semibold rounded-[8px] transition-colors cursor-pointer",
-                            isFull
+                            "inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-[8px] transition-colors cursor-pointer",
+                            isFull || isApproving
                               ? "bg-[#D2D2D2] text-[#777777] cursor-not-allowed"
                               : "text-[#FFFFFF] bg-[#000000] hover:bg-[#262626]"
                           )}
                         >
-                          Konfirmasi Persetujuan
+                          {isApproving ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Menyetujui & Menerbitkan Akun...</span>
+                            </>
+                          ) : (
+                            <span>Konfirmasi Persetujuan</span>
+                          )}
                         </button>
                       )
                     })()}
@@ -789,7 +817,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
       {/* MODAL 2: Tolak Pendaftaran */}
       <Dialog.Root
         open={Boolean(rejectionTarget)}
-        onOpenChange={(open) => !open && setRejectionTarget(null)}
+        onOpenChange={(open) => !open && !isRejecting && setRejectionTarget(null)}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -801,10 +829,12 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   <span>Tolak Pendaftaran</span>
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isRejecting}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isRejecting}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -814,6 +844,16 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
 
               {rejectionTarget && (
                 <div className="space-y-4 text-xs text-[#000000]">
+                  {rejectionError && (
+                    <div
+                      className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                      role="alert"
+                    >
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{rejectionError}</span>
+                    </div>
+                  )}
+
                   <p className="text-[#555555]">
                     Anda akan menolak pendaftaran atas nama{' '}
                     <strong className="text-[#000000]">
@@ -829,9 +869,13 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                     <textarea
                       rows={3}
                       value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
+                      disabled={isRejecting}
+                      onChange={(e) => {
+                        setRejectionReason(e.target.value)
+                        if (rejectionError) setRejectionError(null)
+                      }}
                       placeholder="Contoh: Kuota kelas untuk jenjang ini telah penuh / nomor telepon tidak valid."
-                      className="w-full p-2.5 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      className="w-full p-2.5 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] disabled:opacity-60"
                       required
                     />
                   </div>
@@ -839,18 +883,26 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
+                      disabled={isRejecting}
                       onClick={() => setRejectionTarget(null)}
-                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="button"
-                      disabled={!rejectionReason.trim()}
+                      disabled={!rejectionReason.trim() || isRejecting}
                       onClick={handleConfirmRejection}
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[8px] hover:bg-[#921E17] disabled:opacity-50 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[8px] hover:bg-[#921E17] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
-                      Tolak Pendaftar
+                      {isRejecting ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Menolak Pendaftar...</span>
+                        </>
+                      ) : (
+                        <span>Tolak Pendaftar</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -864,7 +916,7 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
       <Dialog.Root
         open={isAddModalOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isAdding) {
             setIsAddModalOpen(false)
             setAddModalError(null)
           }
@@ -879,11 +931,13 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                   Tambah Pendaftar Calon Siswa Manual
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isAdding}
                   render={
                     <button
                       type="button"
+                      disabled={isAdding}
                       onClick={() => setAddModalError(null)}
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -1116,20 +1170,28 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                   <button
                     type="button"
+                    disabled={isAdding}
                     onClick={() => {
                       setIsAddModalOpen(false)
                       setAddModalError(null)
                     }}
-                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={isAdding}
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    {isAdding ? 'Menyimpan...' : 'Simpan Pendaftar'}
+                    {isAdding ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menyimpan Pendaftar...</span>
+                      </>
+                    ) : (
+                      <span>Simpan Pendaftar</span>
+                    )}
                   </button>
                 </div>
               </form>
