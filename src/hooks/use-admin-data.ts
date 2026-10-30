@@ -7,6 +7,7 @@ import { scheduleService } from '~/server/services/schedule.service'
 import { attendanceService } from '~/server/services/attendance.service'
 import { learningService, type UploadMaterialInput, type SaveGradeInput } from '~/server/services/learning.service'
 import { billingService } from '~/server/services/billing.service'
+import { calculateAttendancePercentage } from '~/lib/attendance-helpers'
 import { authStore } from '~/lib/auth-store'
 import {
   adminStore,
@@ -1913,11 +1914,8 @@ export function useStudentDashboardData(targetStudentId?: string) {
     return entry?.status === 'alpa'
   }).length
 
-  const totalCompleted = completedSessions.length
-  const attendanceRate =
-    totalCompleted > 0
-      ? Math.round((hadirCount / totalCompleted) * 100)
-      : 100
+  const totalCompleted = hadirCount + sakitCount + izinCount + alpaCount
+  const attendanceRate = calculateAttendancePercentage(hadirCount, totalCompleted)
 
   // Grades for student (cocokkan UUID database dan ID legacy pengguna aktif)
   const studentGrades = grades.filter(
@@ -2042,30 +2040,32 @@ export function useParentDashboardData(targetParentId?: string, targetChildId?: 
   const { data: allStudents = [], isLoading: isLoadingStudents } = useAdminStudents()
   const auth = authStore.getState()
 
-  const parentId = targetParentId || session?.activeParentId || 'par-1'
+  const parentId = targetParentId || session?.activeParentId || (auth.user?.role === 'parent' ? auth.user.id : null)
   const currentParent =
     (targetParentId ? parents.find((p) => p.id === targetParentId) : null) ||
     (auth.user?.email
       ? parents.find(
-          (p) =>
-            p.email.toLowerCase() === auth.user?.email.toLowerCase() ||
-            (auth.user?.email.includes('dahlan') && p.name.toLowerCase().includes('dahlan'))
+          (p) => p.email.toLowerCase() === auth.user?.email.toLowerCase()
         )
       : null) ||
-    parents.find((p) => p.id === parentId) ||
+    (parentId ? parents.find((p) => p.id === parentId) : null) ||
     parents[0]
 
-  const children = allStudents.filter(
+  const dbMatchedChildren = allStudents.filter(
     (s) =>
       currentParent?.studentIds.includes(s.id) ||
-      (currentParent &&
-        s.parentName?.toLowerCase().includes('dahlan') &&
-        currentParent.name.toLowerCase().includes('dahlan'))
+      (currentParent?.email && s.parentEmail?.toLowerCase() === currentParent.email.toLowerCase()) ||
+      (Boolean((s as any).parentId) && (s as any).parentId === currentParent?.id)
   )
 
+  const children =
+    dbMatchedChildren.length > 0
+      ? dbMatchedChildren
+      : (auth.children && auth.children.length > 0 ? auth.children : [])
+
   const selectedChildId =
-    targetChildId || session?.selectedChildId || children[0]?.id || 'd992d9fc-6f5b-434f-998b-358e54a754b7'
-  const activeChild = children.find((c) => c.id === selectedChildId) || children[0]
+    targetChildId || session?.selectedChildId || auth.selectedChildId || children[0]?.id || null
+  const activeChild = children.find((c) => c.id === selectedChildId) || children[0] || null
 
   const childData = useStudentDashboardData(activeChild?.id)
   const isLoading = isLoadingParents || isLoadingStudents || childData.isLoading

@@ -93,6 +93,10 @@ src/
      - Sukses/Konfirmasi: `[OK]` atau `[INFO]`
      - Operasi Seeder/Migrasi: `[SEED]` atau `[CLEANUP]`
    - Pada komponen antarmuka pengguna (UI), gunakan selalu ikon SVG resmi dari pustaka Lucide React (`AlertCircle`, `CheckCircle2`, `XCircle`, `Clock`, dll.).
+8. **Pembersihan Data Pengujian Wajib (Zero Stale Test Data)**:
+   - Setiap pengujian, baik End-to-End (Playwright) maupun Unit/Integration Test (Vitest), yang membuat atau memanipulasi data uji sementara (akun auth, profil, registrasi, transaksi) di database Supabase maupun memori lokal **WAJIB menghapus tuntas (cleanup/delete)** data tersebut pada hook `afterAll` atau `afterEach`.
+   - Dilarang keras meninggalkan baris data uji sisa di database development, staging, maupun produksi yang dapat mengotori data operasional pengguna asli.
+   - Dilarang menyematkan array data mock statis di dalam kode aplikasi runtime. Seluruh data operasional wajib bersumber murni dari Supabase Database sebagai Single Source of Truth (SSOT).
 
 ---
 

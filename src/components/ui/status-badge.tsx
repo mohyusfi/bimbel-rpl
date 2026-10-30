@@ -18,6 +18,7 @@ export type BadgeStatus =
   | 'alpa'
   | 'terjadwal'
   | 'dibatalkan'
+  | 'belum_diabsen'
 
 export interface StatusBadgeProps {
   status: BadgeStatus
@@ -171,6 +172,21 @@ export function StatusBadge({
       >
         <XCircle className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
         <span>{label || 'Dibatalkan'}</span>
+      </span>
+    )
+  }
+
+  // 6.1 Belum Diabsen (Neutral gray with Clock icon)
+  if (normalized === 'belum_diabsen') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#555555] select-none shrink-0',
+          className
+        )}
+      >
+        <Clock className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
+        <span>{label || 'Belum Diabsen'}</span>
       </span>
     )
   }

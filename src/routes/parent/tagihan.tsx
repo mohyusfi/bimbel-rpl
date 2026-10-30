@@ -21,7 +21,7 @@ import { StatusBadge } from '~/components/ui/status-badge'
 import { UploadProofModal } from '~/components/dashboard/UploadProofModal'
 import { ReceiptModal } from '~/components/dashboard/ReceiptModal'
 import type { Invoice } from '~/lib/admin-store'
-import { formatRupiah, cn } from '~/lib/utils'
+import { formatRupiah, cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/tagihan')({
   ssr: false,
@@ -89,7 +89,7 @@ function ParentBillingPage() {
           </p>
           <p className="text-[11px] text-[#555555] flex items-center gap-1">
             <Clock className="w-3 h-3 text-[#555555]" />
-            <span className="tabular-nums">Jatuh tempo: {row.original.dueDate}</span>
+            <span className="tabular-nums">Jatuh tempo: {formatDueDate(row.original.dueDate)}</span>
           </p>
         </div>
       ),
@@ -197,7 +197,7 @@ function ParentBillingPage() {
             {inv.id}
           </span>
           <span className="text-[11px] text-[#555555]">
-            Jatuh tempo: {inv.dueDate}
+            Jatuh tempo: {formatDueDate(inv.dueDate)}
           </span>
         </div>
         <StatusBadge status={inv.status} />

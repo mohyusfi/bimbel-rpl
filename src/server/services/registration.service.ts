@@ -14,6 +14,7 @@ export async function provisionSupabaseAuthAccount(params: {
   fullName: string
   role: 'student' | 'parent'
   phone?: string
+  profileId?: string
 }): Promise<{ success: boolean; userId?: string; error?: string }> {
   const cleanEmail = params.email.trim().toLowerCase()
   const serviceKey =
@@ -89,31 +90,24 @@ export async function provisionSupabaseAuthAccount(params: {
     }
   }
 
-  // 2. Fallback: isolated client signUp jika tidak ada service key
+  // 2. Direct database provisioning via SECURITY DEFINER RPC (Zero email, safe for Free Tier)
   try {
-    const { createClient } = await import('@supabase/supabase-js')
-    const isolated = createClient(supabaseEndpoint, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+    const { data: rpcUserId, error: rpcError } = await supabase.rpc('provision_auth_user_direct', {
+      p_email: cleanEmail,
+      p_password: params.password,
+      p_full_name: params.fullName,
+      p_role: params.role,
+      p_phone: params.phone || '',
+      p_profile_id: params.profileId || null,
     })
-    const { data, error } = await isolated.auth.signUp({
-      email: cleanEmail,
-      password: params.password,
-      options: {
-        data: {
-          role: params.role,
-          full_name: params.fullName,
-          phone: params.phone || '',
-        },
-      },
-    })
-    if (!error && data?.user) {
-      return { success: true, userId: data.user.id }
+    if (!rpcError && rpcUserId) {
+      return { success: true, userId: rpcUserId }
     }
-  } catch (signUpErr: any) {
-    console.info('[INFO] Supabase signUp provisioning fallback note:', signUpErr?.message)
+    if (rpcError) {
+      console.info('[INFO] Direct RPC provisioning note:', rpcError.message)
+    }
+  } catch (rpcErr: any) {
+    console.info('[INFO] Direct RPC provisioning exception note:', rpcErr?.message)
   }
 
   // 3. Garansi langsung melalui koneksi Postgres/Drizzle jika terhubung
@@ -856,6 +850,7 @@ export const registrationService = {
       fullName: reg.student_name,
       role: 'student',
       phone: reg.student_phone,
+      profileId: studentProfileId,
     }).catch((err) => {
       console.info('[INFO] Provisioning student auth note:', err)
     })

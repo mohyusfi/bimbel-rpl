@@ -23,7 +23,7 @@ import {
 import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { StatusBadge } from '~/components/ui/status-badge'
-import { formatRupiah, cn } from '~/lib/utils'
+import { formatRupiah, cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/')({
   component: ParentDashboardOverview,
@@ -51,7 +51,7 @@ function ParentDashboardOverview() {
   )
   const attendanceStatus = latestSession
     ? latestSession.isCompleted
-      ? childSessionEntry?.status || 'hadir'
+      ? childSessionEntry?.status || 'belum_diabsen'
       : 'terjadwal'
     : 'terjadwal'
 
@@ -184,7 +184,11 @@ function ParentDashboardOverview() {
           title="Tingkat Kehadiran"
           value={attendanceRate}
           unit="%"
-          description={`${attendedSessions} dari ${childData.totalCompleted || totalSessions} pertemuan terlaksana`}
+          description={
+            childData.totalCompleted > 0
+              ? `${attendedSessions} dari ${childData.totalCompleted} pertemuan dihadiri`
+              : 'Belum ada sesi evaluasi presensi'
+          }
           footer={
             <div className="flex items-center justify-between font-medium text-[#292524]">
               <span>Target Lembaga</span>
@@ -250,7 +254,7 @@ function ParentDashboardOverview() {
             <div className="flex items-center justify-between font-medium text-[#292524]">
               <span>Jatuh Tempo</span>
               <span className="text-[11px] text-[#555555] font-semibold">
-                {currentInvoice?.dueDate || 'Tepat Waktu'}
+                {formatDueDate(currentInvoice?.dueDate) || 'Tepat Waktu'}
               </span>
             </div>
           }

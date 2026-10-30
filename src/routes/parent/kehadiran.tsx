@@ -52,10 +52,14 @@ function ParentAttendancePage() {
       topic: session.topic || session.subjectName,
       roomName: session.roomName,
       tutorName: session.tutorName,
-      status: session.isCompleted ? (entry?.status || 'hadir') : 'terjadwal',
+      status: session.isCompleted ? (entry?.status || 'belum_diabsen') : 'terjadwal',
       note: entry?.note,
     }
   })
+
+  const belumDiabsenCount = React.useMemo(() => {
+    return allRows.filter((r) => r.status === 'belum_diabsen').length
+  }, [allRows])
 
   // Summary counters from unified childData
   const { hadirCount, sakitCount, izinCount, alpaCount, totalCompleted, attendanceRate } = childData
@@ -182,6 +186,9 @@ function ParentAttendancePage() {
         <option value="sakit">Sakit ({sakitCount})</option>
         <option value="izin">Izin ({izinCount})</option>
         <option value="alpa">Alpa ({alpaCount})</option>
+        {belumDiabsenCount > 0 && (
+          <option value="belum_diabsen">Belum Diabsen ({belumDiabsenCount})</option>
+        )}
         <option value="terjadwal">Sesi Terjadwal</option>
       </select>
     </div>
