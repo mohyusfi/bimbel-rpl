@@ -266,7 +266,45 @@ export interface AdminNotification {
 }
 
 // Initial Data (Empty - Database Supabase is 100% SSOT)
-const INITIAL_COURSES: Course[] = []
+// Initial Courses metadata
+const INITIAL_COURSES: Course[] = [
+  {
+    id: 'crs-1',
+    code: 'SD',
+    name: 'SD Cendekia',
+    price: 300000,
+    maxStudents: 10,
+    description: 'Bimbingan calistung, matematika dasar, dan penguatan literasi SD.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-2',
+    code: 'SMP',
+    name: 'SMP Prestasi',
+    price: 350000,
+    maxStudents: 12,
+    description: 'Pendampingan IPA terpadu, matematika, dan persiapan asesmen nasional.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-3',
+    code: 'SMA',
+    name: 'SMA Sukses',
+    price: 400000,
+    maxStudents: 12,
+    description: 'Penguasaan konsep saintek/soshum dan persiapan ujian semester SMA.',
+    activeClassesCount: 0,
+  },
+  {
+    id: 'crs-4',
+    code: 'UTBK',
+    name: 'Intensif UTBK-SNBT',
+    price: 450000,
+    maxStudents: 12,
+    description: 'Drilling soal TPS, Penalaran Matematika, Literasi, dan Try Out berkala.',
+    activeClassesCount: 0,
+  },
+]
 const INITIAL_ROOMS: Room[] = []
 const INITIAL_TUTORS: Tutor[] = []
 const INITIAL_SUBJECTS: Subject[] = []
@@ -312,7 +350,7 @@ function loadInitialState(): AdminState {
     tutors: [],
     subjects: [],
     rooms: [],
-    courses: [],
+    courses: INITIAL_COURSES.map((c) => ({ ...c })),
     classes: [],
     schedules: [],
     invoices: [],
@@ -594,6 +632,12 @@ export const adminStore = {
     if (index === -1) return false
 
     state.students[index] = { ...state.students[index], ...updates }
+    saveAndNotify()
+    return true
+  },
+
+  deleteStudent(id: string) {
+    state.students = state.students.filter((s) => s.id !== id)
     saveAndNotify()
     return true
   },
