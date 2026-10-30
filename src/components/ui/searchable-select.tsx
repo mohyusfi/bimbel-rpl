@@ -108,6 +108,7 @@ export function SearchableSelect({
 
       <Popover.Root open={open} onOpenChange={handleOpenChange}>
         <Popover.Trigger
+          nativeButton={false}
           render={
             <div
               className={cn(
