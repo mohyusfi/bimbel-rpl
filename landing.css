@@ -721,6 +721,7 @@ body.landing {
 }
 
 /* Jeda animasi ketika modal sedang terbuka agar GPU tidak memproses 32 kartu bergerak di latar belakang */
+body:has([role="dialog"]) .lp-marquee-track,
 .lp-stories-section[data-modal-open="true"] .lp-marquee-track {
   animation-play-state: paused !important;
 }

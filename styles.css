@@ -1032,6 +1032,7 @@ img, svg {
   overflow: hidden;
 }
 
+.modal-dialog[data-open],
 .modal-overlay.active .modal-dialog {
   transform: translateY(0);
 }
@@ -1074,6 +1075,8 @@ img, svg {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  contain: paint;
+  will-change: scroll-position;
 }
 .modal-body::-webkit-scrollbar {
   display: none;

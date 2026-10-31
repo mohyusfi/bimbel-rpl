@@ -319,10 +319,10 @@ export function RegisterModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="modal-overlay active" />
-        <Dialog.Viewport className="modal-overlay active">
+        <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs transition-opacity duration-200" />
+        <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <Dialog.Popup
-            className="modal-dialog max-w-xl max-h-[90vh] overflow-y-auto"
+            className="modal-dialog max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-labelledby="regTitle"
@@ -355,7 +355,7 @@ export function RegisterModal({
 
             {/* Konten Modal: Layanan Berhasil / Formulir */}
             {submittedTicket ? (
-              <div className="p-5 sm:p-6 space-y-5 text-xs">
+              <div className="p-5 sm:p-6 space-y-5 text-xs overflow-y-auto">
                 {/* Status Box */}
                 <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-3">
                   <div className="flex items-center justify-between pb-2.5 border-b border-[#D2D2D2]">
