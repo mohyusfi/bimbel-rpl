@@ -12,6 +12,18 @@ export const getAnnouncementsFn = createServerFn({ method: 'GET' })
       .parse(d)
   })
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'READ',
+      action: 'announcements:get',
+      targetId: data?.role,
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { announcementService } = await import(
       '~/server/services/announcement.service'
     )
@@ -30,6 +42,18 @@ export const createAnnouncementFn = createServerFn({ method: 'POST' })
     })
   )
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'MUTATION',
+      action: 'announcements:create',
+      targetId: data.author,
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { announcementService } = await import(
       '~/server/services/announcement.service'
     )
@@ -43,6 +67,17 @@ export const deleteAnnouncementFn = createServerFn({ method: 'POST' })
     })
   )
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'MUTATION',
+      action: 'announcements:delete',
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { announcementService } = await import(
       '~/server/services/announcement.service'
     )
@@ -57,6 +92,17 @@ export const togglePinAnnouncementFn = createServerFn({ method: 'POST' })
     })
   )
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'MUTATION',
+      action: 'announcements:toggle-pin',
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { announcementService } = await import(
       '~/server/services/announcement.service'
     )

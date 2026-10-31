@@ -226,6 +226,7 @@ export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserR
     const studentEmail = matchedStudent.email.toLowerCase()
     if (custom[studentEmail]) return custom[studentEmail]
     if (custom[matchedStudent.nis.toLowerCase()]) return custom[matchedStudent.nis.toLowerCase()]
+    return 'siswa2026'
   }
 
   if (clean === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) return DEMO_ACCOUNTS.super_admin.password
@@ -234,11 +235,61 @@ export function getEffectivePassword(cleanEmailOrNis: string, targetRole?: UserR
   if (clean === DEMO_ACCOUNTS.student.email.toLowerCase()) return DEMO_ACCOUNTS.student.password
   if (clean === DEMO_ACCOUNTS.parent.email.toLowerCase()) return DEMO_ACCOUNTS.parent.password
 
+  if (targetRole === 'student') return 'siswa2026'
+  if (targetRole === 'parent') return 'wali2026'
+
   if (targetRole && DEMO_ACCOUNTS[targetRole]) {
     return DEMO_ACCOUNTS[targetRole].password
   }
 
   return 'password123'
+}
+
+export function isUserPasswordValid(
+  cleanEmailOrNis: string,
+  password: string,
+  targetRole?: UserRole
+): boolean {
+  const rawClean = cleanEmailOrNis.trim().toLowerCase()
+  const clean = normalizeLoginEmail(rawClean)
+  const custom = loadSavedCustomPasswords()
+
+  // 1. Password kustom memiliki prioritas mutlak
+  if (custom[rawClean]) return password === custom[rawClean]
+  if (custom[clean]) return password === custom[clean]
+
+  const matchedStudent = adminStore.getState().students.find(
+    (s) => s.nis.toLowerCase() === rawClean || s.email.toLowerCase() === clean
+  )
+  if (matchedStudent) {
+    const studentEmail = matchedStudent.email.toLowerCase()
+    if (custom[studentEmail]) return password === custom[studentEmail]
+    if (custom[matchedStudent.nis.toLowerCase()]) return password === custom[matchedStudent.nis.toLowerCase()]
+  }
+
+  // 2. Akun Demo Tadulako Cendekia
+  if (clean === DEMO_ACCOUNTS.super_admin.email.toLowerCase()) return password === DEMO_ACCOUNTS.super_admin.password
+  if (clean === DEMO_ACCOUNTS.admin.email.toLowerCase()) return password === DEMO_ACCOUNTS.admin.password
+  if (clean === DEMO_ACCOUNTS.tutor.email.toLowerCase()) return password === DEMO_ACCOUNTS.tutor.password
+  if (clean === DEMO_ACCOUNTS.student.email.toLowerCase()) {
+    return password === DEMO_ACCOUNTS.student.password || password === 'siswa2026'
+  }
+  if (clean === DEMO_ACCOUNTS.parent.email.toLowerCase()) {
+    return password === DEMO_ACCOUNTS.parent.password || password === 'wali2026'
+  }
+
+  // 3. Siswa terverifikasi: kata sandi resmi adalah 'siswa2026', dengan fallback 'password123'
+  if (targetRole === 'student' || matchedStudent) {
+    return password === 'siswa2026' || password === 'password123'
+  }
+
+  // 4. Orang tua terverifikasi: kata sandi resmi adalah 'wali2026', dengan fallback 'password123'
+  if (targetRole === 'parent') {
+    return password === 'wali2026' || password === 'password123'
+  }
+
+  // 5. Default akun lain
+  return password === 'password123'
 }
 
 function loadSavedAdminStaff(): AdminStaffMember[] {
@@ -252,19 +303,16 @@ function persistAdminStaff(_staffList: AdminStaffMember[]) {
 function inferRoleFromEmail(email: string, explicitRole?: UserRole): UserRole {
   if (explicitRole) return explicitRole
   const lower = email.toLowerCase()
-  if (lower.includes('pimpinan') || lower.includes('rusdi')) {
+  if (lower.includes('pimpinan') || lower.includes('.tu@') || lower.startsWith('admin') || lower.includes('@admin.')) {
     return 'admin'
   }
-  if (lower.includes('.tu@') || lower.startsWith('admin') || lower.includes('nuraini')) {
-    return 'admin'
-  }
-  if (lower.includes('dian.pratiwi') || lower.includes('tutor.') || lower.includes('tutor')) {
+  if (lower.includes('@tutor.') || lower.includes('tutor.') || lower.startsWith('tutor@')) {
     return 'tutor'
   }
-  if (lower.includes('@wali.') || lower.includes('wali') || lower.includes('orangtua') || lower.includes('dahlan')) {
+  if (lower.includes('@wali.') || lower.includes('wali.') || lower.includes('orangtua')) {
     return 'parent'
   }
-  if (lower.includes('@siswa.') || lower.includes('siswa') || lower.includes('fahri')) {
+  if (lower.includes('@siswa.') || lower.includes('siswa.')) {
     return 'student'
   }
   return 'student'
@@ -400,15 +448,7 @@ async function autoProvisionUser(
     rawUser.user_metadata?.parentName
   const defaultName =
     metaName ||
-    (isSuperAdmin
-      ? 'Drs. H. Rusdi Mastura, M.Si'
-      : role === 'admin'
-      ? 'Hj. Nuraini, S.Pd'
-      : role === 'tutor'
-      ? 'Kak Dian Pratiwi, S.Si'
-      : role === 'parent'
-      ? 'Ir. H. Ahmad Dahlan'
-      : 'Fahri Ramadhan')
+    (email ? email.split('@')[0] : 'Pengguna')
 
   const nowIso = new Date().toISOString()
   let profile: ProfileRow = {
@@ -472,8 +512,7 @@ async function autoProvisionUser(
     let foundStudent = adminState.students.find(
       (s) =>
         s.email.toLowerCase() === email ||
-        s.id === rawUser.id ||
-        (email.includes('fahri') && s.name.toLowerCase().includes('fahri'))
+        s.id === rawUser.id
     )
 
     if (!foundStudent) {
@@ -489,20 +528,20 @@ async function autoProvisionUser(
         adminState.classes[0]
 
       const newStudent: Student = {
-        id: `stu-${Date.now().toString().slice(-4)}`,
-        nis: `TC-2026-${nisNumber}`,
+        id: rawUser.id || `stu-${Date.now().toString().slice(-4)}`,
+        nis: matchingReg?.registrationNumber || `TC-2026-${nisNumber}`,
         name: matchingReg?.studentName || defaultName,
         email,
-        phone: matchingReg?.studentPhone || '0813-7788-9900',
-        school: matchingReg?.studentSchool || 'SMA Negeri 1 Palu',
+        phone: matchingReg?.studentPhone || rawUser.user_metadata?.phone || '',
+        school: matchingReg?.studentSchool || '',
         packageCode: (matchingReg?.packageCode as PackageCode) || 'UTBK',
-        classId: targetClass?.id || 'c1000000-0000-0000-0000-000000000001',
-        className: targetClass?.name || 'UTBK Intensif A',
-        parentName: matchingReg?.parentName || 'Ir. H. Ahmad Dahlan',
-        parentPhone: matchingReg?.parentPhone || '0821-4455-6677',
-        parentEmail: matchingReg?.parentEmail || 'ahmad.dahlan@wali.tadulakocendekia.sch.id',
-        parentJob: matchingReg?.parentJob || 'Wali Murid',
-        parentAddress: matchingReg?.parentAddress || 'Jl. Jenderal Sudirman No. 25, Palu Timur',
+        classId: targetClass?.id || '',
+        className: targetClass?.name || '',
+        parentName: matchingReg?.parentName || '',
+        parentPhone: matchingReg?.parentPhone || '',
+        parentEmail: matchingReg?.parentEmail || '',
+        parentJob: matchingReg?.parentJob || '',
+        parentAddress: matchingReg?.parentAddress || '',
         joinDate: new Intl.DateTimeFormat('id-ID', {
           day: 'numeric',
           month: 'long',
@@ -544,7 +583,7 @@ async function autoProvisionUser(
     let foundParent = adminState.parents.find(
       (p) =>
         p.email.toLowerCase() === email ||
-        (email.includes('dahlan') && p.name.toLowerCase().includes('dahlan'))
+        p.id === rawUser.id
     )
 
     let supabaseChildren: Student[] = []
@@ -558,17 +597,30 @@ async function autoProvisionUser(
         .eq('profile_id', rawUser.id)
         .maybeSingle()
 
-      if (dbParent) {
-        resolvedParentId = dbParent.id
-      } else if (email.includes('dahlan')) {
-        resolvedParentId = '4ef83eaa-2764-4eec-9019-a987a34c4c7b'
+      const allParentIds: string[] = []
+      if (dbParent?.id) allParentIds.push(dbParent.id)
+
+      if (email) {
+        const { data: pByEmail } = await sb
+          .from('profiles')
+          .select('id, parents(id, occupation, address, phone_number)')
+          .eq('email', email)
+          .maybeSingle()
+        if (pByEmail?.parents) {
+          const pArr = Array.isArray(pByEmail.parents) ? pByEmail.parents : [pByEmail.parents]
+          pArr.forEach((p: any) => {
+            if (p?.id && !allParentIds.includes(p.id)) allParentIds.push(p.id)
+          })
+        }
       }
 
-      if (resolvedParentId) {
+      resolvedParentId = allParentIds[0] || null
+
+      if (allParentIds.length > 0) {
         const { data: dbStudents } = await sb
           .from('students')
-          .select('id, nis, origin_school, grade_level, package_code, class_id, status, profile_id, classes(class_name), profiles!students_profile_id_fkey(full_name, email, phone_number)')
-          .eq('parent_id', resolvedParentId)
+          .select('id, nis, origin_school, grade_level, class_id, status, profile_id, profiles!students_profile_id_fkey(full_name, email, phone_number)')
+          .in('parent_id', allParentIds)
 
         if (dbStudents && dbStudents.length > 0) {
           supabaseChildren = dbStudents.map((s: any) => ({
@@ -579,13 +631,13 @@ async function autoProvisionUser(
             phone: s.profiles?.phone_number || '',
             school: s.origin_school || 'Sekolah di Palu',
             packageCode: (s.package_code || 'UTBK') as PackageCode,
-            classId: s.class_id || 'cls-1',
+            classId: s.class_id || '',
             className: s.classes?.class_name || (s.package_code === 'SMP' ? 'SMP Prestasi A' : 'UTBK Intensif A'),
             parentName: defaultName,
-            parentPhone: rawUser.user_metadata?.phone || dbParent?.phone_number || '0821-4455-6677',
+            parentPhone: rawUser.user_metadata?.phone || dbParent?.phone_number || '',
             parentEmail: email,
             parentJob: dbParent?.occupation || 'Wali Murid',
-            parentAddress: dbParent?.address || 'Kota Palu, Sulawesi Tengah',
+            parentAddress: dbParent?.address || '',
             joinDate: '10 Januari 2026',
             status: s.status || 'aktif',
           }))
@@ -604,17 +656,15 @@ async function autoProvisionUser(
     }
 
     if (!foundParent) {
-      const studentIds = supabaseChildren.length > 0
-        ? supabaseChildren.map((s) => s.id)
-        : ['stu-1', 'stu-4']
+      const studentIds = supabaseChildren.map((s) => s.id)
 
       const newParent: ParentProfile = {
-        id: resolvedParentId || `par-${Date.now().toString().slice(-4)}`,
+        id: resolvedParentId || rawUser.id || `par-${Date.now().toString().slice(-4)}`,
         name: defaultName,
         email,
-        phone: rawUser.user_metadata?.phone || '0821-4455-6677',
+        phone: rawUser.user_metadata?.phone || '',
         job: rawUser.user_metadata?.job || 'Wali Murid',
-        address: rawUser.user_metadata?.address || 'Kota Palu, Sulawesi Tengah',
+        address: rawUser.user_metadata?.address || '',
         studentIds,
       }
 
@@ -631,60 +681,11 @@ async function autoProvisionUser(
     if (supabaseChildren.length > 0) {
       mappedChildren = supabaseChildren
     } else {
-      let currentStudents = adminStore.getState().students
-      if (currentStudents.length === 0) {
-        currentStudents = [
-          {
-            id: 'd992d9fc-6f5b-434f-998b-358e54a754b7',
-            nis: 'TC-2026-001',
-            name: 'Fahri Ramadhan',
-            email: 'fahri.ramadhan@siswa.tadulakocendekia.sch.id',
-            phone: '0813-7788-9900',
-            school: 'SMAN 1 Palu',
-            packageCode: 'UTBK',
-            classId: 'c1000000-0000-0000-0000-000000000001',
-            className: 'UTBK Intensif A',
-            parentName: 'Ir. H. Ahmad Dahlan',
-            parentPhone: '0821-4455-6677',
-            parentEmail: email,
-            parentJob: 'Pegawai BNI Cabang Palu',
-            parentAddress: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
-            joinDate: '10 Januari 2026',
-            status: 'aktif',
-          },
-          {
-            id: 'e1a2a3a4-b5b6-c7c8-d9d0-e1e2e3e4e5e7',
-            nis: 'TC-2026-002',
-            name: 'Alya Ramadhani',
-            email: 'alya.ramadhani@gmail.com',
-            phone: '0821-9900-1122',
-            school: 'SMPN 1 Palu',
-            packageCode: 'SMP',
-            classId: 'c1000000-0000-0000-0000-000000000004',
-            className: 'SMP Prestasi A',
-            parentName: 'Ir. H. Ahmad Dahlan',
-            parentPhone: '0821-4455-6677',
-            parentEmail: email,
-            parentJob: 'Pegawai BNI Cabang Palu',
-            parentAddress: 'Jl. Jenderal Sudirman No. 25, Palu Timur',
-            joinDate: '01 Februari 2026',
-            status: 'aktif',
-          },
-        ]
-        for (const s of currentStudents) {
-          adminStore.addStudent(s)
-        }
-      }
-
+      const currentStudents = adminStore.getState().students
       mappedChildren = currentStudents.filter((s) =>
-        parentRecord?.studentIds.includes(s.id) ||
-        s.parentEmail?.toLowerCase() === email ||
-        (s.parentName && parentRecord?.name && s.parentName.toLowerCase().includes('ahmad dahlan') && parentRecord.name.toLowerCase().includes('dahlan')) ||
-        (s.id === 'stu-1' || s.id === 'stu-4' || s.id === 'd992d9fc-6f5b-434f-998b-358e54a754b7' || s.id === 'e1a2a3a4-b5b6-c7c8-d9d0-e1e2e3e4e5e7')
+        parentRecord?.studentIds?.includes(s.id) ||
+        (s.parentEmail && s.parentEmail.toLowerCase() === email)
       )
-      if (mappedChildren.length === 0 && currentStudents.length > 0) {
-        mappedChildren = [currentStudents[0]]
-      }
     }
 
     adminStore.setActiveParentId(parentRecord.id)
@@ -696,7 +697,8 @@ async function autoProvisionUser(
   // 4. Tutor / Admin synchronizer
   if (role === 'tutor') {
     const tutor =
-      adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
+      adminState.tutors.find((t) => t.email?.toLowerCase() === email) ||
+      adminState.tutors.find((t) => t.id === rawUser.id) ||
       adminState.tutors[0]
     if (tutor) adminStore.setActiveTutorId(tutor.id)
   }
@@ -765,8 +767,9 @@ export const authStore = {
         adminState.students.find((s) => s.email.toLowerCase() === demoInfo.email.toLowerCase()) ||
         adminState.students[0] ||
         null
-      const studentId = studentRecord?.id || 'd992d9fc-6f5b-434f-998b-358e54a754b7'
-      adminStore.setActiveStudentId(studentId)
+      if (studentRecord) {
+        adminStore.setActiveStudentId(studentRecord.id)
+      }
     } else if (targetRole === 'parent') {
       parentRecord =
         adminState.parents.find((p) => p.email.toLowerCase() === demoInfo.email.toLowerCase()) ||
@@ -778,16 +781,20 @@ export const authStore = {
       if (mappedChildren.length === 0 && adminState.students.length > 0) {
         mappedChildren = [adminState.students[0]]
       }
-      const parentId = parentRecord?.id || 'ec6f75cb-887a-442b-b91d-f47f9afc5ab8'
-      const childId = mappedChildren[0]?.id || 'd992d9fc-6f5b-434f-998b-358e54a754b7'
-      adminStore.setActiveParentId(parentId)
-      adminStore.setSelectedChildId(childId)
+      if (parentRecord) {
+        adminStore.setActiveParentId(parentRecord.id)
+      }
+      if (mappedChildren[0]?.id) {
+        adminStore.setSelectedChildId(mappedChildren[0].id)
+      }
     } else if (targetRole === 'tutor') {
       const tutor =
-        adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
-        adminState.tutors[0]
-      const tutorId = tutor?.id || '9383fc09-99fc-423c-ac09-e3f94c26f5e9'
-      adminStore.setActiveTutorId(tutorId)
+        adminState.tutors.find((t) => t.email?.toLowerCase() === demoInfo.email.toLowerCase()) ||
+        adminState.tutors[0] ||
+        null
+      if (tutor) {
+        adminStore.setActiveTutorId(tutor.id)
+      }
     }
 
     const resolvedUserId =
@@ -975,7 +982,8 @@ export const authStore = {
           }
         } else if (currentSavedState.role === 'tutor') {
           const tutor =
-            adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
+            adminState.tutors.find((t) => t.email?.toLowerCase() === currentSavedState.user?.email?.toLowerCase()) ||
+            adminState.tutors.find((t) => t.id === currentSavedState.user?.id) ||
             adminState.tutors[0]
           if (tutor) {
             adminStore.setActiveTutorId(tutor.id)
@@ -1071,16 +1079,95 @@ export const authStore = {
     }
 
     // Resolusi jika pengguna login menggunakan NIS siswa
-    const adminState = adminStore.getState()
-    const matchedStudentByNis = adminState.students.find(
-      (s) => s.nis.toLowerCase() === cleanInput
-    )
-    const cleanEmail = matchedStudentByNis ? matchedStudentByNis.email.toLowerCase() : cleanInput
+    let cleanEmail = cleanInput
+
+    // Resolusi via Supabase jika input format mirip NIS
+    if (isSupabaseConfigured() && (cleanInput.startsWith('tc-') || cleanInput.includes('-') || !cleanInput.includes('@'))) {
+      try {
+        const { data: resolvedEmail } = await supabase.rpc('resolve_student_email_by_nis', {
+          p_nis: cleanInput,
+        })
+        if (resolvedEmail) {
+          cleanEmail = String(resolvedEmail).toLowerCase()
+        } else {
+          const sb = supabase as any
+          const { data: dbStudent } = await sb
+            .from('students')
+            .select('id, nis, origin_school, grade_level, class_id, profiles(email, full_name, phone_number, role)')
+            .ilike('nis', cleanInput)
+            .maybeSingle()
+
+          if (dbStudent && dbStudent.profiles) {
+            const prof = Array.isArray(dbStudent.profiles) ? dbStudent.profiles[0] : dbStudent.profiles
+            if (prof?.email) {
+              cleanEmail = prof.email.toLowerCase()
+            }
+          }
+        }
+      } catch (err) {
+        console.info('[INFO] Supabase student lookup by NIS note:', err)
+      }
+    }
+
+    // 2. Cek status di tabel public.profiles Supabase
+    let dbProfile: any = null
+    try {
+      const sb = supabase as any
+      const { data } = await sb
+        .from('profiles')
+        .select('id, full_name, role, status, phone_number')
+        .eq('email', cleanEmail)
+        .maybeSingle()
+
+      dbProfile = data
+      if (dbProfile && dbProfile.status === 'nonaktif') {
+        state.isLoading = false
+        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
+        notify()
+        return {
+          success: false,
+          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
+        }
+      }
+    } catch (checkErr) {
+      console.info('Login status check note in profiles:', checkErr)
+    }
 
     const isSuperAdminEmail = isEmailSuperAdmin(cleanEmail)
-    const targetRole = isSuperAdminEmail ? 'admin' : inferRoleFromEmail(cleanEmail, explicitRole)
+    const targetRole = isSuperAdminEmail
+      ? 'admin'
+      : (dbProfile?.role as UserRole) || inferRoleFromEmail(cleanEmail, explicitRole)
 
     // PENCEKALAN LOGIN (Login Guard):
+    // Calon siswa hanya dicekal jika belum memiliki profil aktif di profiles dan status pendaftarannya masih 'menunggu'
+    if (!dbProfile || dbProfile.status !== 'aktif') {
+      if (isSupabaseConfigured()) {
+        try {
+          const sb = supabase as any
+          const { data: dbPendingReg } = await sb
+            .from('registrations')
+            .select('status')
+            .or(`student_email.eq.${cleanEmail},parent_email.eq.${cleanEmail}`)
+            .eq('status', 'menunggu')
+            .maybeSingle()
+
+          if (dbPendingReg) {
+            state.isLoading = false
+            state.error =
+              'Pendaftaran Anda sedang menunggu verifikasi oleh staf Tata Usaha. Silakan tunggu konfirmasi admin sebelum masuk portal.'
+            notify()
+            return {
+              success: false,
+              error:
+                'Pendaftaran Anda sedang menunggu verifikasi oleh staf Tata Usaha. Silakan tunggu konfirmasi admin sebelum masuk portal.',
+            }
+          }
+        } catch (err) {
+          console.info('[INFO] Pending registration check note:', err)
+        }
+      }
+    }
+
     // 1. Cek status di daftar staf lokal
     const matchedStaff = state.adminStaff.find(
       (s) => s.email.toLowerCase() === cleanEmail
@@ -1093,28 +1180,6 @@ export const authStore = {
         success: false,
         error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
       }
-    }
-
-    // 2. Cek status di tabel public.profiles Supabase
-    try {
-      const sb = supabase as any
-      const { data: dbProfile } = await sb
-        .from('profiles')
-        .select('status')
-        .eq('email', cleanEmail)
-        .maybeSingle()
-
-      if (dbProfile && dbProfile.status === 'nonaktif') {
-        state.isLoading = false
-        state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
-        notify()
-        return {
-          success: false,
-          error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
-        }
-      }
-    } catch (checkErr) {
-      console.info('Login status check note in profiles:', checkErr)
     }
 
     // A. Coba Supabase Auth terlebih dahulu jika terkonfigurasi
@@ -1194,9 +1259,89 @@ export const authStore = {
       }
     }
 
-    // B. Verifikasi Password Ketat untuk Akun Demo / Terdaftar / Password Lokal
-    const expectedPassword = getEffectivePassword(cleanInput, targetRole)
+    // Penanganan khusus error email belum dikonfirmasi di Supabase Auth
+    if (supabaseAuthError) {
+      const errCode = supabaseAuthError.code || ''
+      const errMsg = supabaseAuthError.message || ''
+      if (errCode === 'email_not_confirmed' || errMsg.toLowerCase().includes('email not confirmed')) {
+        let activatedSuccessfully = false
 
+        // 1. Coba aktivasi instan via PostgreSQL RPC SECURITY DEFINER (berfungsi tanpa service role key)
+        try {
+          const { data: rpcActivated, error: rpcErr } = await supabase.rpc('confirm_verified_user', {
+            user_email: cleanEmail,
+          })
+          if (!rpcErr && rpcActivated) {
+            activatedSuccessfully = true
+          }
+        } catch (rpcEx) {
+          console.info('[INFO] Supabase RPC confirm note:', rpcEx)
+        }
+
+        // 2. Coba auto-aktivasi sisi server jika RPC direct belum berhasil
+        if (!activatedSuccessfully) {
+          try {
+            const { activateUnconfirmedUserFn } = await import('~/server/functions/auth')
+            const activateRes = await activateUnconfirmedUserFn({ data: { email: cleanEmail } })
+            if (activateRes.success) {
+              activatedSuccessfully = true
+            }
+          } catch (actErr) {
+            console.info('[INFO] Auto-activate on unconfirmed error note:', actErr)
+          }
+        }
+
+        if (activatedSuccessfully) {
+          // Percobaan ulang login setelah aktivasi berhasil
+          const retryRes = await supabase.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          })
+          if (!retryRes.error && retryRes.data?.user) {
+            const provisioned = await autoProvisionUser(retryRes.data.user, targetRole)
+            state = {
+              user: {
+                id: retryRes.data.user.id,
+                email: retryRes.data.user.email || cleanEmail,
+                fullName: provisioned.profile.full_name,
+                role: provisioned.profile.role,
+                phone: provisioned.profile.phone_number || undefined,
+                isSuperAdmin: false,
+              },
+              profile: provisioned.profile,
+              role: provisioned.profile.role,
+              isSuperAdmin: false,
+              studentProfile: provisioned.student,
+              parentProfile: provisioned.parent,
+              children: provisioned.children,
+              selectedChildId: provisioned.children[0]?.id || null,
+              adminStaff: state.adminStaff,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            }
+            notify()
+            return {
+              success: true,
+              role: provisioned.profile.role,
+              href: `/${provisioned.profile.role}`,
+            }
+          }
+        }
+
+        const politeError =
+          'Akun Anda belum aktif. Silakan hubungi staf Tata Usaha untuk bantuan aktivasi akun pendaftaran Anda.'
+        state.isLoading = false
+        state.error = politeError
+        notify()
+        return {
+          success: false,
+          error: politeError,
+        }
+      }
+    }
+
+    // B. Verifikasi Password Ketat untuk Akun Demo / Terdaftar / Password Lokal
     const isDemoEmail =
       isSuperAdminEmail ||
       cleanEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase() ||
@@ -1205,10 +1350,11 @@ export const authStore = {
       cleanEmail === DEMO_ACCOUNTS.student.email.toLowerCase() ||
       cleanEmail === DEMO_ACCOUNTS.parent.email.toLowerCase()
 
-    const matchedStudent = matchedStudentByNis || adminState.students.find(
+    const adminState = adminStore.getState()
+    let matchedStudent = adminState.students.find(
       (s) => s.email.toLowerCase() === cleanEmail || s.nis.toLowerCase() === cleanInput
     )
-    const matchedParent = adminState.parents.find(
+    let matchedParent = adminState.parents.find(
       (p) => p.email.toLowerCase() === cleanEmail
     )
     const matchedApprovedReg = adminState.registrations.find(
@@ -1217,17 +1363,49 @@ export const authStore = {
         (r.studentEmail.toLowerCase() === cleanEmail || r.parentEmail?.toLowerCase() === cleanEmail)
     )
 
+    if (!matchedStudent && (targetRole === 'student' || dbProfile?.role === 'student') && isSupabaseConfigured() && dbProfile) {
+      try {
+        const sb = supabase as any
+        const { data: sRow } = await sb
+          .from('students')
+          .select('id, nis, origin_school, grade_level, class_id')
+          .eq('profile_id', dbProfile.id)
+          .maybeSingle()
+        if (sRow) {
+          matchedStudent = {
+            id: sRow.id,
+            nis: sRow.nis,
+            name: dbProfile.full_name || 'Siswa',
+            email: cleanEmail,
+            phone: dbProfile.phone_number || '',
+            school: sRow.origin_school || '',
+            packageCode: 'UTBK',
+            classId: sRow.class_id || '',
+            className: 'Rombel Aktif',
+            parentName: '',
+            parentPhone: '',
+            joinDate: '2026',
+            status: 'aktif',
+          }
+        }
+      } catch (err) {
+        console.info('[INFO] Lookup student record by profile_id note:', err)
+      }
+    }
+
     const isInstitutionalEmail =
       cleanEmail.endsWith('@siswa.tadulakocendekia.sch.id') ||
       cleanEmail.endsWith('@wali.tadulakocendekia.sch.id') ||
       cleanEmail.endsWith('@tadulakocendekia.sch.id')
 
     const isKnownAccount = Boolean(
-      isDemoEmail || matchedStaff || matchedStudent || matchedParent || matchedApprovedReg || isInstitutionalEmail
+      isDemoEmail || matchedStaff || matchedStudent || matchedParent || matchedApprovedReg || isInstitutionalEmail || dbProfile
     )
 
+    const isPasswordValid = isUserPasswordValid(cleanInput, password, targetRole)
+
     // JIKA PASSWORD SALAH, DILARANG MEMBUAT SESI (TOLAK SEGERA)
-    if (password !== expectedPassword) {
+    if (!isPasswordValid) {
       state.isLoading = false
       state.error = 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.'
       notify()
@@ -1270,20 +1448,26 @@ export const authStore = {
           matchedApprovedReg?.studentPhone ||
           '0813-7788-9900'
 
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const defaultTargetPw = password || (autoRole === 'parent' ? 'wali2026' : 'siswa2026')
+        try {
+          await supabase.rpc('provision_auth_user_direct', {
+            p_email: actualEmail,
+            p_password: defaultTargetPw,
+            p_full_name: candidateName,
+            p_role: autoRole,
+            p_phone: candidatePhone,
+          })
+        } catch (err: any) {
+          console.info('[INFO] Direct RPC auto-provisioning note:', err?.message)
+        }
+
+        const signInRes = await supabase.auth.signInWithPassword({
           email: actualEmail,
-          password: password || 'password123',
-          options: {
-            data: {
-              full_name: candidateName,
-              role: autoRole,
-              phone: candidatePhone,
-            },
-          },
+          password: defaultTargetPw,
         })
 
-        if (!signUpError && signUpData?.user) {
-          const authUser = signUpData.user
+        if (!signInRes.error && signInRes.data?.user) {
+          const authUser = signInRes.data.user
           const provisioned = await autoProvisionUser(authUser, autoRole)
 
           // Provisioning ke tabel 'students' / 'parents' di Supabase dengan authUser.id
@@ -1355,102 +1539,19 @@ export const authStore = {
       }
     }
 
-    // C. Fallback Akun Demo / Akun Cepat Simulasi
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('tc_bimbel_supabase_auth_token')
-        supabase.auth.signOut().catch(() => {})
-      } catch {}
-    }
-
-    const isSuperDemo = isSuperAdminEmail || cleanEmail === DEMO_ACCOUNTS.super_admin.email.toLowerCase()
-    const demo = isSuperDemo
-      ? DEMO_ACCOUNTS.super_admin
-      : DEMO_ACCOUNTS[targetRole]
-    const matchedRole = isSuperDemo ? 'admin' : (demo?.email.toLowerCase() === cleanEmail ? targetRole : targetRole)
-    const demoInfo = isSuperDemo ? DEMO_ACCOUNTS.super_admin : DEMO_ACCOUNTS[matchedRole]
-
-    const syntheticUser = {
-      id: `usr-${matchedRole}-${Date.now().toString().slice(-4)}`,
-      email: cleanEmail,
-      user_metadata: {
-        full_name: demoInfo ? demoInfo.name : cleanEmail.split('@')[0],
-        phone: demoInfo ? demoInfo.phone : '0812-3456-7890',
-        role: matchedRole,
-        is_super_admin: isSuperDemo,
-      },
-    }
-
-    const provisioned = await autoProvisionUser(syntheticUser, matchedRole)
-    if (provisioned.profile.status === 'nonaktif') {
-      state.isLoading = false
-      state.isAuthenticated = false
-      state.user = null
-      state.error = 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.'
-      notify()
-      return {
-        success: false,
-        error: 'Akun Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha.',
-      }
-    }
-
-    const resolvedUserId =
-      matchedRole === 'student' && provisioned.student?.id
-        ? provisioned.student.id
-        : matchedRole === 'parent' && provisioned.parent?.id
-        ? provisioned.parent.id
-        : syntheticUser.id
-
-    const finalIsSuper = Boolean(isSuperDemo || provisioned.isSuperAdmin)
-
-    state = {
-      user: {
-        id: resolvedUserId,
-        email: cleanEmail,
-        fullName: provisioned.profile.full_name,
-        role: provisioned.profile.role,
-        phone: provisioned.profile.phone_number || undefined,
-        isSuperAdmin: finalIsSuper,
-      },
-      profile: {
-        ...provisioned.profile,
-        id: resolvedUserId,
-        is_super_admin: finalIsSuper,
-        isSuperAdmin: finalIsSuper,
-      },
-      role: provisioned.profile.role,
-      isSuperAdmin: finalIsSuper,
-      studentProfile: provisioned.student,
-      parentProfile: provisioned.parent,
-      children: provisioned.children,
-      selectedChildId: provisioned.children[0]?.id || null,
-      adminStaff: state.adminStaff,
-      isAuthenticated: true,
-      isLoading: false,
-      error: null,
-    }
-
-    if (matchedRole === 'tutor') {
-      const tutor =
-        adminState.tutors.find((t) => t.name.toLowerCase().includes('dian')) ||
-        adminState.tutors[0]
-      if (tutor) {
-        adminStore.setActiveTutorId(tutor.id)
-      }
-    } else if (matchedRole === 'student' && provisioned.student) {
-      adminStore.setActiveStudentId(provisioned.student.id)
-    } else if (matchedRole === 'parent' && provisioned.parent) {
-      adminStore.setActiveParentId(provisioned.parent.id)
-      if (provisioned.children[0]) {
-        adminStore.setSelectedChildId(provisioned.children[0].id)
-      }
-    }
-
+    // Jika Supabase Auth gagal dan auto-signup tidak terpenuhi, tolak login
+    state.isLoading = false
+    const rawError = supabaseAuthError?.message || ''
+    const politeError =
+      rawError.toLowerCase().includes('invalid login credentials') ||
+      rawError.toLowerCase().includes('invalid credential')
+        ? 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.'
+        : rawError || 'Email atau kata sandi tidak cocok. Silakan periksa kembali kata sandi Anda.'
+    state.error = politeError
     notify()
     return {
-      success: true,
-      role: provisioned.profile.role,
-      href: `/${provisioned.profile.role}`,
+      success: false,
+      error: politeError,
     }
   },
 
@@ -1498,6 +1599,114 @@ export const authStore = {
 
   getAdminStaff(): AdminStaffMember[] {
     return state.adminStaff
+  },
+
+  async syncAccountStatus(): Promise<'aktif' | 'nonaktif' | 'not_found'> {
+    if (!state.user?.email) {
+      return 'not_found'
+    }
+    const cleanEmail = state.user.email.toLowerCase().trim()
+
+    // 1. Cek dari database Supabase jika dikonfigurasi
+    if (isSupabaseConfigured()) {
+      try {
+        const sb = supabase as any
+        const { data: dbProfile } = await sb
+          .from('profiles')
+          .select('status')
+          .eq('email', cleanEmail)
+          .maybeSingle()
+
+        if (dbProfile?.status) {
+          const profileStatus = dbProfile.status === 'nonaktif' ? 'nonaktif' : 'aktif'
+          if (state.profile) {
+            state.profile.status = profileStatus
+          }
+          if (profileStatus === 'nonaktif') {
+            notify()
+            return 'nonaktif'
+          }
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal menyinkronkan status profil dari Supabase:', err)
+      }
+    }
+
+    // 2. Cek dari store lokal sesuai peran
+    if (state.role === 'admin') {
+      const matched = state.adminStaff.find((s) => s.email.toLowerCase() === cleanEmail)
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'tutor') {
+      const { tutors = [] } = adminStore.getState()
+      const matched = tutors.find((t) => t.email?.toLowerCase() === cleanEmail)
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'student') {
+      const { students = [] } = adminStore.getState()
+      const matched = students.find(
+        (s) => s.email?.toLowerCase() === cleanEmail || s.nis?.toLowerCase() === cleanEmail
+      )
+      if (matched && matched.status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    } else if (state.role === 'parent') {
+      const { parents = [] } = adminStore.getState()
+      const matched = parents.find((p) => p.email?.toLowerCase() === cleanEmail)
+      if (matched && (matched as any).status === 'nonaktif') {
+        if (state.profile) state.profile.status = 'nonaktif'
+        return 'nonaktif'
+      }
+    }
+
+    if (state.profile && state.profile.status === 'nonaktif') {
+      return 'nonaktif'
+    }
+
+    return 'aktif'
+  },
+
+  async checkAccountStatus(email: string): Promise<'aktif' | 'nonaktif' | 'not_found'> {
+    const cleanEmail = email.toLowerCase().trim()
+    if (isSupabaseConfigured()) {
+      try {
+        const sb = supabase as any
+        const { data: dbProfile } = await sb
+          .from('profiles')
+          .select('status')
+          .eq('email', cleanEmail)
+          .maybeSingle()
+
+        if (dbProfile?.status) {
+          return dbProfile.status === 'nonaktif' ? 'nonaktif' : 'aktif'
+        }
+      } catch (err) {
+        console.warn('[WARN] Gagal memeriksa status akun dari Supabase:', err)
+      }
+    }
+
+    // Fallback store lokal
+    const matchedStaff = state.adminStaff.find((s) => s.email.toLowerCase() === cleanEmail)
+    if (matchedStaff) return matchedStaff.status
+
+    const { tutors = [], students = [], parents = [] } = adminStore.getState()
+    const matchedTutor = tutors.find((t) => t.email?.toLowerCase() === cleanEmail)
+    if (matchedTutor) return matchedTutor.status
+
+    const matchedStudent = students.find(
+      (s) => s.email?.toLowerCase() === cleanEmail || s.nis?.toLowerCase() === cleanEmail
+    )
+    if (matchedStudent) return matchedStudent.status
+
+    const matchedParent = parents.find((p) => p.email?.toLowerCase() === cleanEmail)
+    if (matchedParent && (matchedParent as any).status) return (matchedParent as any).status
+
+    return 'aktif'
   },
 
   setSuperAdmin(isSuper: boolean): void {
@@ -1562,32 +1771,21 @@ export const authStore = {
     persistAdminStaff(updated)
     notify()
 
-    // Buat akun baru ke Supabase Auth & public.profiles
+    // Buat akun baru ke Supabase Auth via Direct RPC & public.profiles
     try {
-      // Gunakan isolated Supabase client agar tidak menimpa sesi login aktif di browser
-      const isolatedClient = createSupabaseClient(undefined, false)
-      const { data: authData, error: authErr } = await isolatedClient.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: {
-            full_name: cleanName,
-            phone: cleanPhone,
-            role: 'admin',
-            is_super_admin: isSuper,
-          },
-        },
+      const { data: authUserId } = await supabase.rpc('provision_auth_user_direct', {
+        p_email: cleanEmail,
+        p_password: password,
+        p_full_name: cleanName,
+        p_role: 'admin',
+        p_phone: cleanPhone,
       })
-
-      if (authErr) {
-        console.warn('Supabase Auth signUp note for admin staff:', authErr.message)
-      }
 
       // Pastikan record profil admin tersimpan di public.profiles
       const sb = supabase as any
       await sb.from('profiles').upsert([
         {
-          id: authData?.user?.id || newStaff.id,
+          id: authUserId || newStaff.id,
           email: cleanEmail,
           full_name: cleanName,
           role: 'admin',
@@ -1596,7 +1794,7 @@ export const authStore = {
         },
       ])
     } catch (err) {
-      console.info('Supabase admin staff profile upsert note:', err)
+      console.warn('[WARN] Error creating admin staff:', err)
     }
 
     return { success: true, staff: newStaff }
@@ -2057,9 +2255,17 @@ export const authStore = {
     }
 
     const userEmail = state.user.email.toLowerCase()
+    const custom = loadSavedCustomPasswords()
     const currentExpected = getEffectivePassword(userEmail, state.role || undefined)
 
     let isOldPasswordValid = trimmedOld === currentExpected
+    if (!isOldPasswordValid && !custom[userEmail]) {
+      if (state.role === 'student' && (trimmedOld === 'siswa2026' || trimmedOld === 'password123')) {
+        isOldPasswordValid = true
+      } else if (state.role === 'parent' && (trimmedOld === 'wali2026' || trimmedOld === 'password123')) {
+        isOldPasswordValid = true
+      }
+    }
 
     if (!isOldPasswordValid && isSupabaseConfigured()) {
       try {

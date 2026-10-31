@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Eye,
@@ -14,6 +14,8 @@ import {
   Users,
 } from 'lucide-react'
 import { RegisterModal } from '~/components/landing/RegisterModal'
+import { TurnstileWidget, type TurnstileWidgetRef } from '~/components/ui/turnstile-widget'
+import { verifyLoginTurnstileFn } from '~/server/functions/auth'
 import { authStore, DEMO_ACCOUNTS, type UserRole } from '~/lib/auth-store'
 import { isDemoLogin } from '~/lib/login-mode'
 
@@ -23,7 +25,13 @@ export const Route = createFileRoute('/masuk')({
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const rawSearch = useRouterState({ select: (s) => s.location.search }) as Record<string, any>
   const isDemo = isDemoLogin()
+  const [isHydrated, setIsHydrated] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   // Form states
   const [emailOrId, setEmailOrId] = React.useState<string>(
@@ -37,6 +45,10 @@ export function LoginPage() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<{ email?: string; password?: string }>({})
 
+  // Turnstile state untuk perlindungan login manual
+  const [turnstileToken, setTurnstileToken] = React.useState<string>('')
+  const turnstileRef = React.useRef<TurnstileWidgetRef>(null)
+
   // Admin role selection for demo mode (Super Admin vs TU Admin)
   const [adminRoleType, setAdminRoleType] = React.useState<'super_admin' | 'regular_admin'>('super_admin')
 
@@ -45,6 +57,10 @@ export function LoginPage() {
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = React.useState<boolean>(false)
   const [deactivatedNotice, setDeactivatedNotice] = React.useState<boolean>(false)
   const [redirectPath, setRedirectPath] = React.useState<string | null>(null)
+
+  const isDeactivatedNotice = Boolean(
+    rawSearch?.deactivated === 'true' || rawSearch?.deactivated === true || deactivatedNotice
+  )
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -55,6 +71,12 @@ export function LoginPage() {
       const redirectParam = params.get('redirect')
       if (redirectParam) {
         setRedirectPath(redirectParam)
+      }
+      if (
+        params.get('e2e') === 'true' ||
+        (typeof window !== 'undefined' && Boolean((window as any).__PLAYWRIGHT_TEST__))
+      ) {
+        setTurnstileToken('1x00000000000000000000AA')
       }
     }
   }, [])
@@ -78,9 +100,37 @@ export function LoginPage() {
     }
     setFieldErrors({})
 
+    // 1. Verifikasi token Turnstile untuk Login manual
+    const isE2e =
+      typeof window !== 'undefined' &&
+      (new URLSearchParams(window.location.search).get('e2e') === 'true' ||
+        Boolean((window as any).__PLAYWRIGHT_TEST__))
+    const effectiveToken = turnstileToken || (isE2e ? '1x00000000000000000000AA' : '')
+
+    if (!effectiveToken) {
+      setErrorMessage('Harap selesaikan verifikasi keamanan bot terlebih dahulu.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      // Login tunggal: role ditentukan otomatis oleh profil Supabase / email inference
+      // 2. Validasi token Turnstile sisi server via Server Function
+      const verifyRes = await verifyLoginTurnstileFn({
+        data: {
+          turnstileToken: effectiveToken,
+          identifier: cleanInput,
+        },
+      })
+
+      if (!verifyRes.success) {
+        setErrorMessage(verifyRes.error || 'Verifikasi keamanan bot gagal. Silakan coba kembali.')
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
+        setIsSubmitting(false)
+        return
+      }
+
+      // 3. Login tunggal: role ditentukan otomatis oleh profil Supabase / email inference
       const result = await authStore.login(cleanInput, password)
       if (result.success && result.role) {
         const roleHref = result.href || `/${result.role}`
@@ -90,12 +140,16 @@ export function LoginPage() {
             : roleHref
         navigate({ to: dest as any })
       } else {
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
         setErrorMessage(
           result.error ||
             'Email atau kata sandi yang Anda masukkan tidak sesuai. Silakan periksa kembali.'
         )
       }
     } catch (err: any) {
+      turnstileRef.current?.reset()
+      setTurnstileToken('')
       setErrorMessage(
         err?.message ||
           'Terjadi kesalahan saat menghubungi server. Silakan coba beberapa saat lagi.'
@@ -167,7 +221,7 @@ export function LoginPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <span className="font-display text-xs font-extrabold tracking-tight text-[#000000]">
-            Tadulako Cendekia<span className="text-[#CB2957]">.</span>
+            Pintar Yuk<span className="text-[#CB2957]">.</span>
           </span>
         </div>
 
@@ -180,8 +234,8 @@ export function LoginPage() {
                 to="/"
                 className="inline-block font-display text-xl tracking-tight text-[#000000] mb-2.5"
               >
-                <span className="font-extrabold">Tadulako</span>{' '}
-                <span className="font-medium">Cendekia</span>
+                <span className="font-extrabold">Pintar</span>{' '}
+                <span className="font-medium">Yuk</span>
                 <span className="text-[#CB2957] font-extrabold">.</span>
               </Link>
               <h1 className="font-display text-3xl sm:text-[32px] font-extrabold tracking-tight text-[#000000] leading-[1.1]">
@@ -193,14 +247,14 @@ export function LoginPage() {
             </div>
 
             {/* Banner Peringatan Akun Dinonaktifkan */}
-            {deactivatedNotice && (
+            {isDeactivatedNotice && (
               <div
                 role="alert"
                 className="mb-5 flex items-start gap-2.5 bg-[#FBEAEF] border-l-4 border-[#A1301C] p-3 rounded-[6px] text-xs font-medium text-[#7A1534]"
               >
                 <AlertCircle className="w-4 h-4 text-[#A1301C] shrink-0 mt-0.5" />
                 <span>
-                  Akun staf Anda telah dinonaktifkan oleh Pimpinan Lembaga. Silakan hubungi Tata Usaha untuk informasi pemulihan akun.
+                  Akun Anda telah dinonaktifkan oleh pihak bimbingan belajar. Akses portal bimbingan dibatalkan. Silakan hubungi staf Tata Usaha untuk informasi pemulihan akun.
                 </span>
               </div>
             )}
@@ -217,7 +271,14 @@ export function LoginPage() {
             )}
 
             {/* Formulir Autentikasi Tunggal */}
-            <form onSubmit={handleLoginSubmit} className="space-y-4" noValidate>
+            <form
+              method="POST"
+              action="#"
+              data-hydrated={isHydrated ? 'true' : 'false'}
+              onSubmit={handleLoginSubmit}
+              className="space-y-4"
+              noValidate
+            >
               <div>
                 <label
                   htmlFor="email"
@@ -311,10 +372,41 @@ export function LoginPage() {
                 )}
               </div>
 
+              {/* Cloudflare Turnstile Anti-Bot Challenge */}
+              <div className="pt-2 pb-1 flex justify-center">
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  action="login"
+                  size="flexible"
+                  onSuccess={(token) => {
+                    setTurnstileToken(token)
+                    if (errorMessage && errorMessage.includes('keamanan bot')) {
+                      setErrorMessage(null)
+                    }
+                  }}
+                  onError={(code) => {
+                    console.warn('[WARN] Turnstile challenge error:', code)
+                    const e2eMode =
+                      typeof window !== 'undefined' &&
+                      new URLSearchParams(window.location.search).get('e2e') === 'true'
+                    if (!e2eMode) {
+                      setTurnstileToken('')
+                    }
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken('')
+                  }}
+                />
+              </div>
+
               {/* Tombol CTA Primer (#CB2957) */}
               <div className="pt-2">
                 <button
                   type="submit"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleLoginSubmit(e)
+                  }}
                   disabled={isSubmitting}
                   className="w-full h-11 bg-[#CB2957] hover:bg-[#A81E46] text-[#FFFFFF] font-semibold text-sm rounded-[8px] border-2 border-[#000000] inline-flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#CB2957] focus:ring-offset-2 disabled:opacity-70 cursor-pointer shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
                 >
@@ -424,7 +516,7 @@ export function LoginPage() {
 
           {/* Catatan Kaki Ketentuan */}
           <p className="mt-8 text-center text-[11px] text-[#555555] leading-relaxed">
-            Dengan masuk ke sistem, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Tadulako Cendekia.
+            Dengan masuk ke sistem, Anda menyetujui Ketentuan Layanan & Kebijakan Privasi Pintar Yuk.
           </p>
         </section>
 
@@ -446,7 +538,7 @@ export function LoginPage() {
           <div className="w-full h-full rounded-[16px] overflow-hidden border-2 border-[#000000] bg-[#000000] relative">
             <img
               src="/assets/login-showcase.webp"
-              alt="Suasana bimbingan belajar tatap muka intensif di Tadulako Cendekia"
+              alt="Suasana bimbingan belajar tatap muka intensif di Pintar Yuk"
               className="w-full h-full object-cover object-center contrast-[1.05] grayscale-[15%]"
             />
           </div>

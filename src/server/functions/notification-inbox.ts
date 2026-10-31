@@ -12,6 +12,19 @@ export const getNotificationInboxFn = createServerFn({ method: 'GET' })
       .parse(d)
   })
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const targetUserKey = data?.email || data?.userIds?.[0]
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'READ',
+      action: 'notifications:get-inbox',
+      targetId: targetUserKey,
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { notificationService } = await import(
       '~/server/services/notification.service'
     )
@@ -31,6 +44,19 @@ export const markNotificationsReadFn = createServerFn({ method: 'POST' })
       .parse(d)
   })
   .handler(async ({ data }) => {
+    const { rateLimitService } = await import(
+      '~/server/services/rate-limit.service'
+    )
+    const targetUserKey = data?.email || data?.userIds?.[0]
+    const rateLimitBlocked = await rateLimitService.enforce({
+      tier: 'MUTATION',
+      action: 'notifications:mark-read',
+      targetId: targetUserKey,
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { notificationService } = await import(
       '~/server/services/notification.service'
     )

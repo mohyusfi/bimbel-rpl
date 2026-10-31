@@ -5,7 +5,7 @@ Dokumen ini adalah **aturan utama (Rules of Engagement)** wajib untuk setiap age
 ---
 
 ## 1. Profil Proyek & Peran Pengguna (RBAC)
-Sistem Informasi Bimbel Berbasis Web (**Tadulako Cendekia**). Platform terpadu single-tenant dengan 4 peran terisolasi:
+Sistem Informasi Bimbel Berbasis Web (**Pintar Yuk**). Platform terpadu single-tenant dengan 4 peran terisolasi:
 1. **Admin**: Tata usaha, verifikasi pendaftaran & pembayaran, manajemen jadwal anti-bentrok, master data.
 2. **Tutor**: Jadwal mengajar, checklist presensi harian, modul/tugas, input nilai & catatan evaluasi.
 3. **Siswa**: Jadwal belajar, unduh materi, pantau kehadiran & nilai, status tagihan SPP.
@@ -93,6 +93,10 @@ src/
      - Sukses/Konfirmasi: `[OK]` atau `[INFO]`
      - Operasi Seeder/Migrasi: `[SEED]` atau `[CLEANUP]`
    - Pada komponen antarmuka pengguna (UI), gunakan selalu ikon SVG resmi dari pustaka Lucide React (`AlertCircle`, `CheckCircle2`, `XCircle`, `Clock`, dll.).
+8. **Pembersihan Data Pengujian Wajib (Zero Stale Test Data)**:
+   - Setiap pengujian, baik End-to-End (Playwright) maupun Unit/Integration Test (Vitest), yang membuat atau memanipulasi data uji sementara (akun auth, profil, registrasi, transaksi) di database Supabase maupun memori lokal **WAJIB menghapus tuntas (cleanup/delete)** data tersebut pada hook `afterAll` atau `afterEach`.
+   - Dilarang keras meninggalkan baris data uji sisa di database development, staging, maupun produksi yang dapat mengotori data operasional pengguna asli.
+   - Dilarang menyematkan array data mock statis di dalam kode aplikasi runtime. Seluruh data operasional wajib bersumber murni dari Supabase Database sebagai Single Source of Truth (SSOT).
 
 ---
 

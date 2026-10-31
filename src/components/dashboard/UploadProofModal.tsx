@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Dialog } from '@base-ui/react/dialog'
 import { useAdminMutations } from '~/hooks/use-admin-data'
-import { formatRupiah } from '~/lib/utils'
+import { formatRupiah, formatDueDate } from '~/lib/utils'
 import { validateReceiptFile } from '~/lib/receipt-validator'
 import type { Invoice } from '~/lib/admin-store'
 
@@ -149,7 +149,7 @@ export function UploadProofModal({
                 </div>
                 <div className="flex items-center justify-between text-xs text-[#555555] pt-1.5 border-t border-[#D2D2D2]/60">
                   <span>Jatuh Tempo:</span>
-                  <span className="font-semibold text-[#000000]">{invoice.dueDate}</span>
+                  <span className="font-semibold text-[#000000]">{formatDueDate(invoice.dueDate)}</span>
                 </div>
                 {invoice.rejectedReason && (
                   <div className="p-2.5 bg-[#FBEAEF] border border-[#CB2957]/30 rounded-[8px] text-xs text-[#A81E46] space-y-1">
@@ -162,7 +162,7 @@ export function UploadProofModal({
               {/* Official Destination Bank Account */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-[#000000] block">
-                  Rekening Resmi Bimbel Tadulako Cendekia:
+                  Rekening Resmi Pintar Yuk:
                 </label>
                 <div className="p-3 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -171,7 +171,7 @@ export function UploadProofModal({
                     </div>
                     <div>
                       <p className="text-xs font-bold text-[#000000]">BSI (Bank Syariah Indonesia)</p>
-                      <p className="text-xs font-mono text-[#555555] mt-0.5">7123-4567-89 a.n. Bimbel Tadulako</p>
+                      <p className="text-xs font-mono text-[#555555] mt-0.5">7123-4567-89 a.n. Pintar Yuk</p>
                     </div>
                   </div>
                   <button

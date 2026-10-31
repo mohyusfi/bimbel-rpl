@@ -1,5 +1,6 @@
 import { redirect } from '@tanstack/react-router'
 import { authStore, type AuthState, type UserRole } from './auth-store'
+import { adminStore } from './admin-store'
 
 export interface RouteAccessResult {
   allowed: boolean
@@ -46,19 +47,83 @@ export function validateRouteAccess(
     }
   }
 
-  // 3. Pencekalan Sesi Aktif Staf Nonaktif (Instant Session Revocation)
-  if (state.role === 'admin' && state.user?.email) {
-    const staffList = authStore.getAdminStaff()
-    const currentEmail = state.user.email.toLowerCase()
-    const matchedStaff = staffList.find(
-      (s) => s.email.toLowerCase() === currentEmail
-    )
+  // 3. Pencekalan Sesi Aktif Pengguna Nonaktif (Instant Session Revocation - Berlaku Semua Peran)
+  if (state.user?.email) {
+    const currentEmail = state.user.email.toLowerCase().trim()
 
-    if (matchedStaff && matchedStaff.status === 'nonaktif') {
+    // A. Cek Admin Staf
+    if (state.role === 'admin') {
+      const staffList = authStore.getAdminStaff()
+      const matchedStaff = staffList.find(
+        (s) => s.email.toLowerCase() === currentEmail
+      )
+
+      if (matchedStaff && matchedStaff.status === 'nonaktif') {
+        return {
+          allowed: false,
+          redirectTo: '/masuk?deactivated=true',
+          reason: 'Akun staf telah dinonaktifkan oleh Pimpinan Lembaga.',
+          shouldClearSession: true,
+        }
+      }
+    }
+
+    // B. Cek Tutor / Pengajar
+    if (state.role === 'tutor') {
+      const { tutors = [] } = adminStore.getState()
+      const matchedTutor = tutors.find(
+        (t) => t.email?.toLowerCase().trim() === currentEmail
+      )
+      if (matchedTutor && matchedTutor.status === 'nonaktif') {
+        return {
+          allowed: false,
+          redirectTo: '/masuk?deactivated=true',
+          reason: 'Akun pengajar Anda telah dinonaktifkan oleh pihak bimbingan belajar.',
+          shouldClearSession: true,
+        }
+      }
+    }
+
+    // C. Cek Siswa
+    if (state.role === 'student') {
+      const { students = [] } = adminStore.getState()
+      const matchedStudent = students.find(
+        (s) =>
+          s.email?.toLowerCase().trim() === currentEmail ||
+          s.nis?.toLowerCase().trim() === currentEmail
+      )
+      if (matchedStudent && matchedStudent.status === 'nonaktif') {
+        return {
+          allowed: false,
+          redirectTo: '/masuk?deactivated=true',
+          reason: 'Akun siswa Anda telah dinonaktifkan oleh pihak bimbingan belajar.',
+          shouldClearSession: true,
+        }
+      }
+    }
+
+    // D. Cek Orang Tua / Wali
+    if (state.role === 'parent') {
+      const { parents = [] } = adminStore.getState()
+      const matchedParent = parents.find(
+        (p) => p.email?.toLowerCase().trim() === currentEmail
+      )
+      if (matchedParent && (matchedParent as any).status === 'nonaktif') {
+        return {
+          allowed: false,
+          redirectTo: '/masuk?deactivated=true',
+          reason: 'Akun wali Anda telah dinonaktifkan oleh pihak bimbingan belajar.',
+          shouldClearSession: true,
+        }
+      }
+    }
+
+    // E. Cek status pada profil pengguna yang sedang login
+    if (state.profile && state.profile.status === 'nonaktif') {
       return {
         allowed: false,
         redirectTo: '/masuk?deactivated=true',
-        reason: 'Akun staf telah dinonaktifkan oleh Pimpinan Lembaga.',
+        reason: 'Akun Anda telah dinonaktifkan oleh pihak bimbingan belajar.',
         shouldClearSession: true,
       }
     }
@@ -89,6 +154,9 @@ export function createRouteGuard(expectedRole: UserRole) {
     // Tunggu pemulihan sesi ter-persist selesai sebelum memutuskan redirect,
     // agar hard refresh tidak salah membuang pengguna ke /masuk.
     await authStore.ensureInitialized()
+
+    // Sinkronkan status keaktifan profil dari Supabase atau store lokal
+    await authStore.syncAccountStatus()
 
     const check = validateRouteAccess(location.pathname, undefined, expectedRole)
     if (!check.allowed && check.redirectTo) {

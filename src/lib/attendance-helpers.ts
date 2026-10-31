@@ -88,3 +88,196 @@ export function calculateAttendancePercentage(
   }
   return Math.round((hadirCount / totalCompleted) * 100)
 }
+
+const INDONESIAN_MONTH_MAP: Record<string, string> = {
+  januari: '01',
+  februari: '02',
+  maret: '03',
+  april: '04',
+  mei: '05',
+  juni: '06',
+  juli: '07',
+  agustus: '08',
+  september: '09',
+  oktober: '10',
+  november: '11',
+  desember: '12',
+}
+
+/**
+ * Mengurai string tanggal bergabung/verifikasi siswa (baik format ISO YYYY-MM-DD
+ * maupun format teks Indonesia "30 Oktober 2026") menjadi format terstandarisasi YYYY-MM-DD
+ * untuk perbandingan leksikografis yang deterministik.
+ */
+export function parseJoinDateToComparableDate(
+  joinDateStr?: string | null
+): string | null {
+  if (!joinDateStr || typeof joinDateStr !== 'string') {
+    return null
+  }
+
+  const trimmed = joinDateStr.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  // 1. Format ISO YYYY-MM-DD atau ISO Timestamp
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+  }
+
+  // 2. Format teks Indonesia: misal "30 Oktober 2026" atau "5 Mei 2026"
+  const idMatch = trimmed.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/)
+  if (idMatch) {
+    const day = idMatch[1].padStart(2, '0')
+    const monthKey = idMatch[2].toLowerCase()
+    const month = INDONESIAN_MONTH_MAP[monthKey]
+    const year = idMatch[3]
+
+    if (month) {
+      return `${year}-${month}-${day}`
+    }
+  }
+
+  // 3. Fallback: coba parsing menggunakan Date bawaan
+  const parsed = new Date(trimmed)
+  if (!isNaN(parsed.getTime())) {
+    return formatLocalDate(parsed)
+  }
+
+  return null
+}
+
+/**
+ * Menentukan apakah sebuah sesi bimbingan sudah terlewat waktunya
+ * berdasarkan tanggal dan jam selesai sesi (WITA / waktu lokal).
+ */
+export function isSessionPast(
+  sessionDate: string,
+  endTime?: string,
+  now: Date = new Date()
+): boolean {
+  const todayStr = formatLocalDate(now)
+
+  if (sessionDate < todayStr) {
+    return true
+  }
+
+  if (sessionDate > todayStr) {
+    return false
+  }
+
+  // Sesi pada hari yang sama: periksa jam selesai
+  if (!endTime) {
+    return false
+  }
+
+  const [endHourStr, endMinuteStr] = endTime.split(':')
+  const endH = parseInt(endHourStr, 10)
+  const endM = parseInt(endMinuteStr, 10)
+
+  if (isNaN(endH) || isNaN(endM)) {
+    return false
+  }
+
+  const currentH = now.getHours()
+  const currentM = now.getMinutes()
+
+  return currentH > endH || (currentH === endH && currentM >= endM)
+}
+
+/**
+ * Menentukan status presensi sesi secara terpadu dari sudut pandang siswa:
+ * 1. Sesi telah disubmit tutor (isCompleted = true):
+ *    - Jika ada entri siswa: 'hadir' | 'sakit' | 'izin' | 'alpa'
+ *    - Jika tidak ada entri siswa: 'belum_dicatat'
+ * 2. Sesi belum disubmit tutor (isCompleted = false):
+ *    - Jika jam sesi sudah terlewat: 'menunggu_tutor' ("Menunggu Presensi Tutor")
+ *    - Jika jam sesi belum mulai / masa depan: 'terjadwal'
+ */
+export function resolveStudentSessionStatus(params: {
+  isCompleted: boolean
+  sessionDate: string
+  endTime?: string
+  entryStatus?: 'hadir' | 'sakit' | 'izin' | 'alpa'
+  hasEntry: boolean
+  now?: Date
+}):
+  | 'hadir'
+  | 'sakit'
+  | 'izin'
+  | 'alpa'
+  | 'terjadwal'
+  | 'menunggu_tutor'
+  | 'belum_dicatat' {
+  const {
+    isCompleted,
+    sessionDate,
+    endTime,
+    entryStatus,
+    hasEntry,
+    now = new Date(),
+  } = params
+
+  if (isCompleted) {
+    if (hasEntry && entryStatus) {
+      return entryStatus
+    }
+    return 'belum_dicatat'
+  }
+
+  if (isSessionPast(sessionDate, endTime, now)) {
+    return 'menunggu_tutor'
+  }
+
+  return 'terjadwal'
+}
+
+/**
+ * Menyaring daftar sesi bimbingan untuk siswa:
+ * 1. Hanya sertakan sesi jika tanggal pelaksanaan sesi >= tanggal verifikasi/bergabung siswa
+ * 2. Sesi sebelum tanggal verifikasi otomatis dikecualikan, KECUALI jika siswa memiliki
+ *    catatan kehadiran eksplisit di sesi tersebut.
+ */
+export function filterStudentSessionsByJoinDate<
+  T extends {
+    sessionDate: string
+    classId?: string
+    entries?: Array<{ studentId: string }>
+  },
+>(
+  sessions: T[],
+  params: {
+    studentId?: string
+    classId?: string
+    joinDate?: string | null
+  }
+): T[] {
+  const { studentId, classId, joinDate } = params
+  const comparableJoinDate = parseJoinDateToComparableDate(joinDate)
+
+  return sessions.filter((s) => {
+    // Siswa secara eksplisit memiliki catatan absensi
+    const hasStudentEntry = Boolean(
+      studentId && s.entries && s.entries.some((e) => e.studentId === studentId)
+    )
+    if (hasStudentEntry) {
+      return true
+    }
+
+    // Jika bukan kelas siswa, abaikan
+    const isClassSession = Boolean(classId && s.classId === classId)
+    if (!isClassSession) {
+      return false
+    }
+
+    // Saring berdasarkan tanggal verifikasi/bergabung
+    if (comparableJoinDate) {
+      return s.sessionDate >= comparableJoinDate
+    }
+
+    return true
+  })
+}
+

@@ -49,7 +49,7 @@ const FACTS = [
   },
   {
     value: '4',
-    label: 'jenjang: SD, SMP, SMA, dan UTBK',
+    label: 'metode belajar terarah & teruji',
   },
   {
     value: 'Gratis',
@@ -68,16 +68,12 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             initial={false}
             animate="visible"
           >
-            <motion.p variants={fadeInUp} className="lp-kicker">
-              Bimbingan belajar tatap muka di Kota Palu
-            </motion.p>
-
             <motion.h1 variants={fadeInUp} className="lp-hero-title">
-              Kelas kecil, jadwal pasti, orang tua selalu <em>tahu.</em>
+              Paham dari konsep dasar, jadwal pasti, orang tua selalu <em>tahu.</em>
             </motion.h1>
 
             <motion.p variants={fadeInUp} className="lp-hero-lead">
-              Untuk siswa SD, SMP, SMA, dan persiapan UTBK. Tutor mendampingi langsung, dan notifikasi kehadiran anak langsung masuk ke akun portal orang tua setiap sesi kelas.
+              Untuk siswa SD, SMP, SMA, dan persiapan UTBK. Kelas kecil maksimal 12 siswa, tutor mendampingi logika berpikir sampai paham, dan notifikasi kehadiran langsung masuk ke akun portal orang tua setiap sesi.
             </motion.p>
             <motion.div variants={fadeInUp} className="lp-hero-actions">
               <motion.button
@@ -89,8 +85,8 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
               >
                 Daftar sekarang <ArrowRight className="lucide" />
               </motion.button>
-              <a href="#program" className="lp-link">
-                Lihat program
+              <a href="#metode-belajar" className="lp-link">
+                Pelajari metode kami
               </a>
             </motion.div>
           </motion.div>
@@ -103,7 +99,7 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             animate="visible"
           >
             <div className="lp-board-head">
-              <span className="lp-board-title">Jadwal Kelas Sore</span>
+              <span className="lp-board-title">Jadwal Kelas</span>
             </div>
             <ul className="lp-board-list">
               {SCHEDULE_BOARD_ITEMS.map((item) => (

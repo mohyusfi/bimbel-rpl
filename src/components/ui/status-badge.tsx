@@ -18,6 +18,9 @@ export type BadgeStatus =
   | 'alpa'
   | 'terjadwal'
   | 'dibatalkan'
+  | 'belum_diabsen'
+  | 'menunggu_tutor'
+  | 'belum_dicatat'
 
 export interface StatusBadgeProps {
   status: BadgeStatus
@@ -171,6 +174,51 @@ export function StatusBadge({
       >
         <XCircle className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
         <span>{label || 'Dibatalkan'}</span>
+      </span>
+    )
+  }
+
+  // 6.1 Belum Diabsen (Neutral gray with Clock icon)
+  if (normalized === 'belum_diabsen') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#555555] select-none shrink-0',
+          className
+        )}
+      >
+        <Clock className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
+        <span>{label || 'Belum Diabsen'}</span>
+      </span>
+    )
+  }
+
+  // 6.2 Menunggu Presensi Tutor (Warm amber with Clock icon)
+  if (normalized === 'menunggu_tutor') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#8C5806] select-none shrink-0',
+          className
+        )}
+      >
+        <Clock className="w-3.5 h-3.5 text-[#8C5806] shrink-0" aria-hidden="true" />
+        <span>{label || 'Menunggu Presensi Tutor'}</span>
+      </span>
+    )
+  }
+
+  // 6.3 Belum Dicatat (Neutral gray with AlertCircle icon)
+  if (normalized === 'belum_dicatat') {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-medium text-[#555555] select-none shrink-0',
+          className
+        )}
+      >
+        <AlertCircle className="w-3.5 h-3.5 text-[#555555] shrink-0" aria-hidden="true" />
+        <span>{label || 'Belum Dicatat'}</span>
       </span>
     )
   }

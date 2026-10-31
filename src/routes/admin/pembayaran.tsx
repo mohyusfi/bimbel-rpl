@@ -16,6 +16,8 @@ import {
   ChevronDown,
   RotateCcw,
   ExternalLink,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import {
   useAdminInvoices,
@@ -27,7 +29,7 @@ import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { ReceiptModal } from '~/components/dashboard/ReceiptModal'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
-import { cn, formatRupiah } from '~/lib/utils'
+import { cn, formatRupiah, formatDueDate } from '~/lib/utils'
 import { SearchableSelect } from '~/components/ui/searchable-select'
 import type { Invoice } from '~/lib/admin-store'
 
@@ -35,6 +37,19 @@ export const Route = createFileRoute('/admin/pembayaran')({
   ssr: false,
   component: AdminPembayaranPage,
 })
+
+function getDefaultDueDate(): string {
+  const now = new Date()
+  const target = new Date(
+    now.getFullYear(),
+    now.getDate() > 10 ? now.getMonth() + 1 : now.getMonth(),
+    10
+  )
+  const y = target.getFullYear()
+  const m = String(target.getMonth() + 1).padStart(2, '0')
+  const d = String(target.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 function AdminPembayaranPage() {
   const { data: invoices = [], isLoading: isLoadingInvoices } = useAdminInvoices()
@@ -56,6 +71,11 @@ function AdminPembayaranPage() {
   const [rejectionReason, setRejectionReason] = React.useState('')
   const [isRejecting, setIsRejecting] = React.useState(false)
   const [resolvedReceiptUrl, setResolvedReceiptUrl] = React.useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = React.useState(false)
+  const [isRejectingSubmit, setIsRejectingSubmit] = React.useState(false)
+  const [verifyError, setVerifyError] = React.useState<string | null>(null)
+  const [isCreatingInvoice, setIsCreatingInvoice] = React.useState(false)
+  const [createInvoiceError, setCreateInvoiceError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     let isMounted = true
@@ -101,7 +121,7 @@ function AdminPembayaranPage() {
   const [invoiceForm, setInvoiceForm] = React.useState({
     studentId: '',
     amount: 450000,
-    dueDate: '10 Mei 2026',
+    dueDate: getDefaultDueDate(),
     programName: 'Intensif UTBK-SNBT',
   })
 
@@ -126,7 +146,7 @@ function AdminPembayaranPage() {
     {
       key: 'ALL' as const,
       label: 'Semua Tagihan',
-      description: 'Rekap tagihan SPP bimbel',
+      description: 'Rekap tagihan SPP Pintar Yuk',
       count: invoices.length,
       amount: invoices.reduce((sum, inv) => sum + inv.amount, 0),
       icon: CreditCard,
@@ -174,52 +194,82 @@ function AdminPembayaranPage() {
   // Handle Create Invoice
   const handleCreateInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isCreatingInvoice) return
     const student =
       students.find((s) => s.id === invoiceForm.studentId) || students[0]
     if (!student) return
 
-    await createInvoice({
-      studentId: student.id,
-      studentName: student.name,
-      nis: student.nis,
-      programName: invoiceForm.programName,
-      amount: Number(invoiceForm.amount),
-      dueDate: invoiceForm.dueDate,
-    })
-
-    setIsAddInvoiceOpen(false)
+    setCreateInvoiceError(null)
+    setIsCreatingInvoice(true)
+    try {
+      await createInvoice({
+        studentId: student.id,
+        studentName: student.name,
+        nis: student.nis,
+        programName: invoiceForm.programName,
+        amount: Number(invoiceForm.amount),
+        dueDate: invoiceForm.dueDate,
+      })
+      setIsAddInvoiceOpen(false)
+      setInvoiceForm({
+        studentId: '',
+        amount: 450000,
+        dueDate: getDefaultDueDate(),
+        programName: 'Intensif UTBK-SNBT',
+      })
+    } catch (err: any) {
+      setCreateInvoiceError(err?.message || 'Gagal menerbitkan tagihan SPP.')
+    } finally {
+      setIsCreatingInvoice(false)
+    }
   }
 
   // Handle Verify Invoice
   const handleConfirmVerify = async () => {
-    if (!inspectingInvoice) return
-    const res = await verifyInvoice(inspectingInvoice.id)
-    const receiptNumber = res?.receiptNumber || inspectingInvoice.receiptNumber || 'KWT-202610-0001'
-    const updated: Invoice = {
-      ...inspectingInvoice,
-      status: 'lunas' as const,
-      receiptNumber,
-      verifiedAt:
-        new Intl.DateTimeFormat('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }).format(new Date()) + ' WITA',
-      verifiedBy: 'Hj. Nuraini, S.Pd',
+    if (!inspectingInvoice || isVerifying || isRejectingSubmit) return
+    setVerifyError(null)
+    setIsVerifying(true)
+    try {
+      const res = await verifyInvoice(inspectingInvoice.id)
+      const receiptNumber = res?.receiptNumber || inspectingInvoice.receiptNumber || 'KWT-202610-0001'
+      const updated: Invoice = {
+        ...inspectingInvoice,
+        status: 'lunas' as const,
+        receiptNumber,
+        verifiedAt:
+          new Intl.DateTimeFormat('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(new Date()) + ' WITA',
+        verifiedBy: 'Hj. Nuraini, S.Pd',
+      }
+      setInspectingInvoice(null)
+      setViewingReceipt(updated)
+    } catch (err: any) {
+      setVerifyError(err?.message || 'Gagal memverifikasi tagihan pembayaran.')
+    } finally {
+      setIsVerifying(false)
     }
-    setInspectingInvoice(null)
-    setViewingReceipt(updated)
   }
 
   // Handle Reject Invoice
   const handleConfirmReject = async () => {
-    if (!inspectingInvoice || !rejectionReason.trim()) return
-    await rejectInvoice(inspectingInvoice.id, rejectionReason.trim())
-    setInspectingInvoice(null)
-    setIsRejecting(false)
-    setRejectionReason('')
+    if (!inspectingInvoice || !rejectionReason.trim() || isRejectingSubmit || isVerifying) return
+    setVerifyError(null)
+    setIsRejectingSubmit(true)
+    try {
+      await rejectInvoice(inspectingInvoice.id, rejectionReason.trim())
+      setInspectingInvoice(null)
+      setIsRejecting(false)
+      setRejectionReason('')
+    } catch (err: any) {
+      setVerifyError(err?.message || 'Gagal menolak bukti transfer.')
+    } finally {
+      setIsRejectingSubmit(false)
+    }
   }
 
   // TanStack Table columns (Clean Editorial Hierarchy)
@@ -260,7 +310,7 @@ function AdminPembayaranPage() {
       header: 'Jatuh tempo',
       cell: ({ getValue }) => (
         <span className="text-sm font-normal text-[#555555] tabular-nums whitespace-nowrap">
-          {getValue() as string}
+          {formatDueDate(getValue() as string)}
         </span>
       ),
     },
@@ -474,10 +524,11 @@ function AdminPembayaranPage() {
       <Dialog.Root
         open={Boolean(inspectingInvoice)}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isVerifying && !isRejectingSubmit) {
             setInspectingInvoice(null)
             setIsRejecting(false)
             setRejectionReason('')
+            setVerifyError(null)
           }
         }}
       >
@@ -490,14 +541,17 @@ function AdminPembayaranPage() {
                   Pemeriksaan Bukti Transfer SPP
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isVerifying || isRejectingSubmit}
                   render={
                     <button
                       type="button"
+                      disabled={isVerifying || isRejectingSubmit}
                       onClick={() => {
                         setIsRejecting(false)
                         setRejectionReason('')
+                        setVerifyError(null)
                       }}
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -507,6 +561,16 @@ function AdminPembayaranPage() {
 
               {inspectingInvoice && (
                 <div className="space-y-4 text-xs text-[#000000]">
+                  {verifyError && (
+                    <div
+                      className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                      role="alert"
+                    >
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{verifyError}</span>
+                    </div>
+                  )}
+
                   {/* Invoice Summary */}
                   <div className="p-3.5 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2] space-y-2">
                     <div className="flex items-center justify-between">
@@ -623,31 +687,46 @@ function AdminPembayaranPage() {
                       <textarea
                         rows={2}
                         value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
+                        disabled={isRejectingSubmit}
+                        onChange={(e) => {
+                          setRejectionReason(e.target.value)
+                          if (verifyError) setVerifyError(null)
+                        }}
                         placeholder="Contoh: Foto struk buram / nominal transfer belum sesuai tagihan."
-                        className="w-full p-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-[#000000] placeholder:text-[#888888] focus:outline-none focus:border-[#A1301C]"
+                        className="w-full p-2.5 text-xs bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] text-[#000000] placeholder:text-[#888888] focus:outline-none focus:border-[#A1301C] disabled:opacity-60"
                         required
                         autoFocus
                       />
                       <div className="flex items-center justify-end gap-2 pt-1">
                         <button
                           type="button"
+                          disabled={isRejectingSubmit}
                           onClick={() => {
                             setIsRejecting(false)
                             setRejectionReason('')
+                            setVerifyError(null)
                           }}
-                          className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                          className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
                           Batal
                         </button>
                         <button
                           type="button"
-                          disabled={!rejectionReason.trim()}
+                          disabled={!rejectionReason.trim() || isRejectingSubmit}
                           onClick={handleConfirmReject}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[8px] hover:bg-[#921E17] disabled:opacity-50 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#B3261E] rounded-[8px] hover:bg-[#921E17] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>Kirim Penolakan</span>
+                          {isRejectingSubmit ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Mengirim Penolakan...</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Kirim Penolakan</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -658,8 +737,9 @@ function AdminPembayaranPage() {
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-3 border-t border-[#D2D2D2]">
                       <button
                         type="button"
+                        disabled={isVerifying}
                         onClick={() => setIsRejecting(true)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#B3261E] bg-[#FFFFFF] border border-[#B3261E]/30 rounded-[8px] hover:bg-[#F6E7E3] hover:border-[#B3261E] transition-colors cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#B3261E] bg-[#FFFFFF] border border-[#B3261E]/30 rounded-[8px] hover:bg-[#F6E7E3] hover:border-[#B3261E] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" />
                         <span>Tolak Bukti</span>
@@ -668,22 +748,34 @@ function AdminPembayaranPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
+                          disabled={isVerifying}
                           onClick={() => {
                             setInspectingInvoice(null)
                             setIsRejecting(false)
                             setRejectionReason('')
+                            setVerifyError(null)
                           }}
-                          className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                          className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
                           Batal
                         </button>
                         <button
                           type="button"
+                          disabled={isVerifying}
                           onClick={handleConfirmVerify}
-                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Verifikasi Lunas</span>
+                          {isVerifying ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Memverifikasi...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Verifikasi Lunas</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -698,7 +790,7 @@ function AdminPembayaranPage() {
       {/* DIALOG 2: Buat Tagihan SPP Baru (BILL-01) */}
       <Dialog.Root
         open={isAddInvoiceOpen}
-        onOpenChange={(open) => !open && setIsAddInvoiceOpen(false)}
+        onOpenChange={(open) => !open && !isCreatingInvoice && setIsAddInvoiceOpen(false)}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -709,10 +801,12 @@ function AdminPembayaranPage() {
                   Buat Tagihan SPP Baru
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isCreatingInvoice}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isCreatingInvoice}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -721,6 +815,15 @@ function AdminPembayaranPage() {
               </div>
 
               <form onSubmit={handleCreateInvoiceSubmit} className="space-y-3.5 text-xs">
+                {createInvoiceError && (
+                  <div
+                    className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                    role="alert"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{createInvoiceError}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="font-medium text-[#000000]">
                     Pilih Siswa *
@@ -785,13 +888,16 @@ function AdminPembayaranPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-medium text-[#000000]">
+                    <label
+                      htmlFor="invoice-due-date"
+                      className="font-medium text-[#000000]"
+                    >
                       Jatuh Tempo *
                     </label>
                     <input
-                      type="text"
+                      id="invoice-due-date"
+                      type="date"
                       required
-                      placeholder="10 Mei 2026"
                       value={invoiceForm.dueDate}
                       onChange={(e) =>
                         setInvoiceForm({
@@ -799,24 +905,44 @@ function AdminPembayaranPage() {
                           dueDate: e.target.value,
                         })
                       }
-                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000]"
+                      className="w-full h-10 px-3 text-xs bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] text-[#000000] focus:outline-none focus:border-[#000000] cursor-pointer tabular-nums [color-scheme:light]"
                     />
+                    {invoiceForm.dueDate && (
+                      <p className="text-[11px] text-[#555555]">
+                        Batas pembayaran:{' '}
+                        <span className="font-semibold text-[#000000]">
+                          {formatDueDate(invoiceForm.dueDate)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                   <button
                     type="button"
-                    onClick={() => setIsAddInvoiceOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    disabled={isCreatingInvoice}
+                    onClick={() => {
+                      setIsAddInvoiceOpen(false)
+                      setCreateInvoiceError(null)
+                    }}
+                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                    disabled={isCreatingInvoice}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    Terbitkan Tagihan
+                    {isCreatingInvoice ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menerbitkan Tagihan...</span>
+                      </>
+                    ) : (
+                      <span>Terbitkan Tagihan</span>
+                    )}
                   </button>
                 </div>
               </form>

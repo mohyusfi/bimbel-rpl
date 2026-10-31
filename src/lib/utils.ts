@@ -29,3 +29,23 @@ export function formatRupiah(val: number): string {
     maximumFractionDigits: 0,
   }).format(val)
 }
+
+/**
+ * Memformat string tanggal (ISO YYYY-MM-DD atau format tanggal teks lain)
+ * ke format standar tanggal Indonesia (contoh: "10 Nov 2026").
+ */
+export function formatDueDate(dateStr?: string | null): string {
+  if (!dateStr) return '-'
+  const isoDateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoDateMatch) {
+    const [, year, month, day] = isoDateMatch
+    const d = new Date(Number(year), Number(month) - 1, Number(day))
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(d)
+  }
+  return dateStr
+}
+

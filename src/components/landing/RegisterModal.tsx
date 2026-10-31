@@ -4,8 +4,8 @@ import { X, CheckCircle2, Clock, ArrowRight, UserPlus, AlertCircle, Copy, Check 
 import { adminStore, type PackageCode } from '~/lib/admin-store'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { useNavigate } from '@tanstack/react-router'
-import { supabase } from '~/lib/supabase/client'
-import { registrationService } from '~/server/services/registration.service'
+import { submitRegistrationWithTurnstileFn, checkExistingParentFn } from '~/server/functions/registration'
+import { TurnstileWidget, type TurnstileWidgetRef } from '~/components/ui/turnstile-widget'
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -53,6 +53,81 @@ export function RegisterModal({
     parentEmail?: string
   } | null>(null)
   const [isCopied, setIsCopied] = React.useState(false)
+  const [turnstileToken, setTurnstileToken] = React.useState<string>('')
+  const turnstileRef = React.useRef<TurnstileWidgetRef>(null)
+  const [serverParentInfo, setServerParentInfo] = React.useState<{ name: string; kids?: string } | null>(null)
+
+  const localDetectedParent = React.useMemo(() => {
+    const cleanPhone = formData.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = formData.parentEmail.trim().toLowerCase()
+    if (!cleanPhone && !cleanEmail) return null
+    const { parents = [], students = [] } = adminStore.getState()
+    const foundParent = parents.find(
+      (p) =>
+        (cleanEmail && p.email?.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && p.phone?.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+    if (foundParent) {
+      const kids = students
+        .filter(
+          (s) =>
+            foundParent.studentIds.includes(s.id) ||
+            s.parentId === foundParent.id ||
+            (foundParent.email && s.parentEmail?.toLowerCase() === foundParent.email.toLowerCase())
+        )
+        .map((s) => s.name)
+      return {
+        name: foundParent.name,
+        kids: kids.join(', '),
+      }
+    }
+    const studentWithParent = students.find(
+      (s) =>
+        (cleanEmail && s.parentEmail?.toLowerCase() === cleanEmail) ||
+        (cleanPhone.length >= 10 && s.parentPhone?.replace(/[^0-9]/g, '') === cleanPhone)
+    )
+    if (studentWithParent) {
+      return {
+        name: studentWithParent.parentName,
+        kids: studentWithParent.name,
+      }
+    }
+    return null
+  }, [formData.parentPhone, formData.parentEmail])
+
+  React.useEffect(() => {
+    const cleanPhone = formData.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = formData.parentEmail.trim().toLowerCase()
+    if (!cleanEmail && cleanPhone.length < 10) {
+      setServerParentInfo(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkExistingParentFn({
+          data: {
+            phone: cleanPhone || undefined,
+            email: cleanEmail || undefined,
+          },
+        })
+        if (res.success && res.data?.exists && res.data.parentName) {
+          setServerParentInfo({
+            name: res.data.parentName,
+            kids: res.data.kids,
+          })
+        } else {
+          setServerParentInfo(null)
+        }
+      } catch {
+        // Abaikan error pengecekan server
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [formData.parentPhone, formData.parentEmail])
+
+  const detectedExistingParent = localDetectedParent || serverParentInfo
 
   React.useEffect(() => {
     if (defaultPackage) {
@@ -68,7 +143,10 @@ export function RegisterModal({
       setSubmittedTicket(null)
       setErrorMessage(null)
       setFormData(INITIAL_FORM_DATA)
+      setServerParentInfo(null)
       setIsCopied(false)
+      setTurnstileToken('')
+      turnstileRef.current?.reset()
     }, 200)
   }
 
@@ -127,11 +205,16 @@ export function RegisterModal({
     if (duplicateStudent) {
       if (duplicateStudent.status === 'nonaktif') {
         setErrorMessage(
-          'Email ini tercatat sebagai siswa nonaktif di Tadulako Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.'
+          'Email ini tercatat sebagai siswa nonaktif di Pintar Yuk. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.'
         )
       } else {
-        setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Tadulako Cendekia.')
+        setErrorMessage('Email ini telah terdaftar sebagai siswa aktif di Pintar Yuk.')
       }
+      return
+    }
+
+    if (!turnstileToken) {
+      setErrorMessage('Silakan selesaikan verifikasi keamanan bot terlebih dahulu.')
       return
     }
 
@@ -148,31 +231,41 @@ export function RegisterModal({
 
       let registrationNumber: string | undefined
 
-      // 1. Simpan ke tabel registrations Supabase via registrationService
+      // 1. Simpan ke tabel registrations via Server Function terverifikasi Turnstile
       try {
-        const res = await registrationService.createRegistration({
-          studentName: formData.studentName.trim(),
-          studentEmail: formData.studentEmail.trim(),
-          studentPhone: formData.studentPhone.trim(),
-          studentSchool: formData.studentSchool.trim(),
-          packageCode: formData.studentPackage as PackageCode,
-          packageName,
-          parentName: formData.parentName.trim(),
-          parentEmail: formData.parentEmail.trim() || undefined,
-          parentPhone: formData.parentPhone.trim(),
-          parentJob: formData.parentJob.trim() || undefined,
-          parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+        const res = await submitRegistrationWithTurnstileFn({
+          data: {
+            studentName: formData.studentName.trim(),
+            studentEmail: formData.studentEmail.trim(),
+            studentPhone: formData.studentPhone.trim(),
+            studentSchool: formData.studentSchool.trim(),
+            packageCode: formData.studentPackage as PackageCode,
+            packageName,
+            parentName: formData.parentName.trim(),
+            parentEmail: formData.parentEmail.trim() || undefined,
+            parentPhone: formData.parentPhone.trim(),
+            parentJob: formData.parentJob.trim() || undefined,
+            parentAddress: formData.parentAddress.trim() || 'Kota Palu',
+            turnstileToken,
+          },
         })
         if (!res.success) {
           setErrorMessage(res.error)
           setIsSubmitting(false)
+          turnstileRef.current?.reset()
+          setTurnstileToken('')
           return
         }
         if (res.success && res.data) {
           registrationNumber = res.data.registrationNumber
         }
-      } catch (err) {
-        console.info('Supabase registration insert local fallback:', err)
+      } catch (err: any) {
+        console.warn('[WARN] Pendaftaran gagal via server function:', err?.message)
+        setErrorMessage(err?.message || 'Terjadi gangguan saat memproses pendaftaran.')
+        setIsSubmitting(false)
+        turnstileRef.current?.reset()
+        setTurnstileToken('')
+        return
       }
 
       // 2. Sinkronkan ke local admin store
@@ -226,10 +319,10 @@ export function RegisterModal({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="modal-overlay active" />
-        <Dialog.Viewport className="modal-overlay active">
+        <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs transition-opacity duration-200" />
+        <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <Dialog.Popup
-            className="modal-dialog max-w-xl max-h-[90vh] overflow-y-auto"
+            className="modal-dialog max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-labelledby="regTitle"
@@ -262,7 +355,7 @@ export function RegisterModal({
 
             {/* Konten Modal: Layanan Berhasil / Formulir */}
             {submittedTicket ? (
-              <div className="p-5 sm:p-6 space-y-5 text-xs">
+              <div className="p-5 sm:p-6 space-y-5 text-xs overflow-y-auto">
                 {/* Status Box */}
                 <div className="p-4 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[10px] space-y-3">
                   <div className="flex items-center justify-between pb-2.5 border-b border-[#D2D2D2]">
@@ -302,7 +395,7 @@ export function RegisterModal({
                 <div className="p-3.5 bg-[#F6F6F6] border border-[#D2D2D2] rounded-[10px] space-y-1.5 leading-relaxed text-[#555555]">
                   <p className="font-semibold text-[#000000]">Tahapan Selanjutnya:</p>
                   <p>
-                    1. Staf Tata Usaha Tadulako Cendekia akan memeriksa ketersediaan kursi rombel sesuai paket bimbingan.
+                    1. Staf Tata Usaha Pintar Yuk akan memeriksa ketersediaan kursi rombel sesuai paket bimbingan.
                   </p>
                   <p>
                     2. Setelah diverifikasi dan diplot ke kelas, kredensial akun portal (Nomor Induk Siswa & Kata Sandi) akan dikirimkan otomatis ke WhatsApp orang tua di nomor <strong className="text-[#000000] font-mono">{submittedTicket.parentPhone}</strong>.
@@ -464,6 +557,19 @@ export function RegisterModal({
 
                   <h3 className="lp-form-section">Data Orang Tua / Wali</h3>
 
+                  {detectedExistingParent && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-[8px] text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 text-blue-900 font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Akun Wali Terdeteksi: {detectedExistingParent.name}</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 leading-relaxed">
+                        {detectedExistingParent.kids ? `Tercatat sebagai wali dari ${detectedExistingParent.kids}. ` : ''}
+                        Pendaftaran anak baru ini akan otomatis ditautkan ke akun orang tua Anda setelah diverifikasi oleh staf Tata Usaha.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label
                       className="form-label form-label-required"
@@ -550,6 +656,25 @@ export function RegisterModal({
                       placeholder="Contoh: Jl. Tadulako No. 12, Besusu Tengah"
                       value={formData.parentAddress}
                       onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="py-2 flex flex-col items-center justify-center border-t border-[#E5E5E5] mt-4 pt-3">
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      action="signup"
+                      onSuccess={(token) => {
+                        setTurnstileToken(token)
+                        if (errorMessage?.includes('keamanan')) {
+                          setErrorMessage(null)
+                        }
+                      }}
+                      onError={(code) => {
+                        console.warn('[WARN] Turnstile challenge error:', code)
+                      }}
+                      onExpire={() => {
+                        setTurnstileToken('')
+                      }}
                     />
                   </div>
                 </div>

@@ -20,6 +20,7 @@ import {
   GraduationCap,
   Megaphone,
   UserCheck,
+  Loader2,
 } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { SidebarBrand } from './SidebarBrand'
@@ -99,11 +100,17 @@ export function DashboardShell({
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false)
   const [notifFilter, setNotifFilter] = React.useState<string>('ALL')
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = React.useState(false)
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
-  const handleLogout = React.useCallback(() => {
-    authStore.logout()
-    setIsLogoutConfirmOpen(false)
-    navigate({ to: '/masuk' as any })
+  const handleLogout = React.useCallback(async () => {
+    setIsLoggingOut(true)
+    try {
+      await authStore.logout()
+      setIsLogoutConfirmOpen(false)
+      navigate({ to: '/masuk' as any })
+    } finally {
+      setIsLoggingOut(false)
+    }
   }, [navigate])
 
   const toggleSidebar = React.useCallback(() => {
@@ -122,6 +129,20 @@ export function DashboardShell({
 
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { profile, user, studentProfile, parentProfile, children: authChildren, isSuperAdmin } = useAuth()
+
+  // Pantau status keaktifan akun secara real-time pada setiap navigasi SPA
+  React.useEffect(() => {
+    let isCancelled = false
+    authStore.syncAccountStatus().then((status) => {
+      if (!isCancelled && status === 'nonaktif') {
+        authStore.clearSession()
+        navigate({ to: '/masuk', search: { deactivated: 'true' } as any })
+      }
+    })
+    return () => {
+      isCancelled = true
+    }
+  }, [pathname, navigate])
 
   const currentUserId =
     role === 'student'
@@ -583,7 +604,7 @@ export function DashboardShell({
             {/* Modal Dialog Konfirmasi Logout */}
             <Dialog.Root
               open={isLogoutConfirmOpen}
-              onOpenChange={(open) => !open && setIsLogoutConfirmOpen(false)}
+              onOpenChange={(open) => !open && !isLoggingOut && setIsLogoutConfirmOpen(false)}
             >
               <Dialog.Portal>
                 <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -595,10 +616,12 @@ export function DashboardShell({
                         <span>Konfirmasi Keluar</span>
                       </Dialog.Title>
                       <Dialog.Close
+                        disabled={isLoggingOut}
                         render={
                           <button
                             type="button"
-                            className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                            disabled={isLoggingOut}
+                            className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                             onClick={() => setIsLogoutConfirmOpen(false)}
                             aria-label="Tutup dialog"
                           />
@@ -621,17 +644,26 @@ export function DashboardShell({
                     <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                       <button
                         type="button"
+                        disabled={isLoggingOut}
                         onClick={() => setIsLogoutConfirmOpen(false)}
-                        className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                        className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                       >
                         Batal
                       </button>
                       <button
                         type="button"
+                        disabled={isLoggingOut}
                         onClick={handleLogout}
-                        className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#901B14] hover:bg-[#721510] rounded-[8px] transition-colors cursor-pointer"
+                        className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#901B14] hover:bg-[#721510] disabled:opacity-50 disabled:cursor-not-allowed rounded-[8px] transition-colors cursor-pointer"
                       >
-                        Ya, Keluar
+                        {isLoggingOut ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Mengeluarkan Sesi...</span>
+                          </>
+                        ) : (
+                          <span>Ya, Keluar</span>
+                        )}
                       </button>
                     </div>
                   </Dialog.Popup>
@@ -643,8 +675,10 @@ export function DashboardShell({
         </header>
 
         {/* Main Content Canvas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full space-y-6">
-          {children}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full">
+          <div className="w-full max-w-[1240px] mx-auto space-y-6">
+            {children}
+          </div>
         </main>
       </div>
       </div>

@@ -1,9 +1,45 @@
+# Version control & tooling
+.git
+.github
+.agents
 .codegraph
+skills-lock.json
+
+# Environment variables (configured in Vercel Dashboard)
+.env*
+
+# Local scratch & experiment scripts
 .scratch
 scratch
-.agents
-manual-guide
-docs
-dfd
 *.sock
-.env*
+
+# Documentation, specs & design assets
+docs
+manual-guide
+dfd
+*.drawio
+*.md
+
+# Testing suites & configs
+e2e
+playwright.config.ts
+vitest.config.ts
+src/**/__tests__
+test-results
+playwright-report
+blob-report
+playwright/.cache
+.playwright-cli
+
+# Database CLI migration files & configs (handled outside runtime serverless)
+drizzle
+drizzle.config.ts
+
+# IDE & Editor configs
+.vscode
+.idea
+
+# Temporary & log files
+*.log
+.DS_Store
+Thumbs.db

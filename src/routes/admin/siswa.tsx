@@ -4,7 +4,6 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { Dialog } from '@base-ui/react/dialog'
 import {
   UserPlus,
-  Edit,
   Eye,
   X,
   Users,
@@ -16,17 +15,13 @@ import {
   CheckCircle2,
   RotateCcw,
   AlertCircle,
-  KeyRound,
-  Copy,
-  Check,
   Lock,
-  Loader2,
 } from 'lucide-react'
-import { useAuth } from '~/hooks/use-auth'
 import {
   useAdminStudents,
   useAdminClasses,
   useAdminMutations,
+  useAdminParents,
 } from '~/hooks/use-admin-data'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
@@ -87,8 +82,8 @@ const PACKAGE_FILTERS: Array<{
 function AdminSiswaPage() {
   const { data: students = [], isLoading: isLoadingStudents } = useAdminStudents()
   const { data: classes = [] } = useAdminClasses()
-  const { addStudent, updateStudent } = useAdminMutations()
-  const { adminResetUserPassword } = useAuth()
+  const { data: parents = [] } = useAdminParents()
+  const { addStudent } = useAdminMutations()
 
   // Filters
   const [packageFilter, setPackageFilter] = React.useState<string>('ALL')
@@ -97,83 +92,10 @@ function AdminSiswaPage() {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
-  const [editingStudent, setEditingStudent] = React.useState<Student | null>(
-    null
-  )
-  const [editError, setEditError] = React.useState<string | null>(null)
   const [addError, setAddError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-
-  // Reset Password Modal State
-  const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
-  const [resetTargetStudent, setResetTargetStudent] = React.useState<Student | null>(null)
-  const [resetRole, setResetRole] = React.useState<'student' | 'parent'>('student')
-  const [resetNewPassword, setResetNewPassword] = React.useState('')
-  const [isResetSubmitting, setIsResetSubmitting] = React.useState(false)
-  const [resetSuccessData, setResetSuccessData] = React.useState<{
-    targetRole: 'student' | 'parent'
-    targetName: string
-    emailOrNis: string
-    password: string
-  } | null>(null)
-  const [resetError, setResetError] = React.useState<string | null>(null)
-  const [isCopied, setIsCopied] = React.useState(false)
-
-  const handleOpenReset = (student: Student) => {
-    setResetTargetStudent(student)
-    setResetRole('student')
-    setResetNewPassword('')
-    setResetSuccessData(null)
-    setResetError(null)
-    setIsCopied(false)
-    setIsResetModalOpen(true)
-  }
-
-  const handleExecuteReset = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!resetTargetStudent) return
-    setIsResetSubmitting(true)
-    setResetError(null)
-    setResetSuccessData(null)
-
-    const isTargetStudent = resetRole === 'student'
-    const targetEmail = isTargetStudent
-      ? resetTargetStudent.email
-      : resetTargetStudent.parentEmail || `${resetTargetStudent.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.wali@tadulakocendekia.sch.id`
-    const targetName = isTargetStudent ? resetTargetStudent.name : resetTargetStudent.parentName
-
-    try {
-      const res = await adminResetUserPassword({
-        targetRole: resetRole,
-        targetId: resetTargetStudent.id,
-        email: targetEmail,
-        newPassword: resetNewPassword || undefined,
-      })
-
-      if (res.success && res.newPassword) {
-        setResetSuccessData({
-          targetRole: resetRole,
-          targetName,
-          emailOrNis: isTargetStudent ? `${resetTargetStudent.email} (NIS: ${resetTargetStudent.nis})` : targetEmail,
-          password: res.newPassword,
-        })
-      } else {
-        setResetError(res.error || '[ERROR] Gagal mereset kata sandi.')
-      }
-    } catch {
-      setResetError('[ERROR] Terjadi kesalahan saat memproses reset kata sandi.')
-    } finally {
-      setIsResetSubmitting(false)
-    }
-  }
-
-  const handleCopyCredentials = () => {
-    if (!resetSuccessData) return
-    const textToCopy = `[Tadulako Cendekia] Kredensial Akses Akun Bimbel\nNama: ${resetSuccessData.targetName}\nPeran: ${resetSuccessData.targetRole === 'student' ? 'Siswa' : 'Orang Tua / Wali'}\nAkun Masuk: ${resetSuccessData.emailOrNis}\nKata Sandi Baru: ${resetSuccessData.password}\n\nSilakan masuk melalui portal resmi: /masuk`
-    navigator.clipboard.writeText(textToCopy)
-    setIsCopied(true)
-    setTimeout(() => setIsCopied(false), 3000)
-  }
+  const [parentMode, setParentMode] = React.useState<'new' | 'existing'>('new')
+  const [selectedParentId, setSelectedParentId] = React.useState<string>('')
 
   // Add Form State
   const [newForm, setNewForm] = React.useState({
@@ -190,70 +112,33 @@ function AdminSiswaPage() {
     parentAddress: '',
   })
 
-  // Edit Form State
-  const [editForm, setEditForm] = React.useState({
-    name: '',
-    email: '',
-    phone: '',
-    school: '',
-    classId: '',
-    parentName: '',
-    parentPhone: '',
-    parentJob: '',
-    parentAddress: '',
-    status: 'aktif' as 'aktif' | 'nonaktif',
-  })
-
-  const handleOpenEdit = (student: Student) => {
-    setEditError(null)
-    setEditingStudent(student)
-    setEditForm({
-      name: student.name,
-      email: student.email || '',
-      phone: student.phone || '',
-      school: student.school,
-      classId: student.classId,
-      parentName: student.parentName,
-      parentPhone: student.parentPhone,
-      parentJob: student.parentJob || '',
-      parentAddress: student.parentAddress || '',
-      status: student.status,
-    })
-  }
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingStudent) return
-
-    setEditError(null)
-    setIsSubmitting(true)
-    const targetClass = classes.find((c) => c.id === editForm.classId)
-
-    try {
-      await updateStudent({
-        id: editingStudent.id,
-        updates: {
-          name: editForm.name,
-          email: editForm.email,
-          phone: editForm.phone,
-          school: editForm.school,
-          classId: editForm.classId,
-          className: targetClass?.name || editingStudent.className,
-          parentName: editForm.parentName,
-          parentPhone: editForm.parentPhone,
-          parentJob: editForm.parentJob,
-          parentAddress: editForm.parentAddress,
-          status: editForm.status,
-        },
-      })
-      setEditingStudent(null)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Gagal menyimpan perubahan data siswa.'
-      setEditError(message)
-    } finally {
-      setIsSubmitting(false)
+  const handleSelectParent = (parentId: string) => {
+    setSelectedParentId(parentId)
+    const targetParent = parents.find((p) => p.id === parentId)
+    if (targetParent) {
+      setNewForm((prev) => ({
+        ...prev,
+        parentName: targetParent.name,
+        parentPhone: targetParent.phone,
+        parentEmail: targetParent.email,
+        parentJob: targetParent.job || '',
+        parentAddress: targetParent.address || '',
+      }))
     }
   }
+
+  const detectedParent = React.useMemo(() => {
+    if (parentMode !== 'new') return null
+    const cleanPhone = newForm.parentPhone.replace(/[^0-9]/g, '')
+    const cleanEmail = newForm.parentEmail.trim().toLowerCase()
+    return (
+      parents.find(
+        (p) =>
+          (cleanEmail && p.email.toLowerCase() === cleanEmail) ||
+          (cleanPhone.length >= 10 && p.phone.replace(/[^0-9]/g, '') === cleanPhone)
+      ) || null
+    )
+  }, [parentMode, newForm.parentPhone, newForm.parentEmail, parents])
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -262,6 +147,11 @@ function AdminSiswaPage() {
       classes.find((c) => c.id === newForm.classId) || classes[0]
     if (!targetClass) {
       setAddError('Silakan pilih rombel kelas tujuan.')
+      return
+    }
+
+    if (parentMode === 'existing' && !selectedParentId) {
+      setAddError('Silakan pilih orang tua terdaftar terlebih dahulu.')
       return
     }
 
@@ -275,6 +165,7 @@ function AdminSiswaPage() {
         packageCode: newForm.packageCode,
         classId: targetClass.id,
         className: targetClass.name,
+        parentId: parentMode === 'existing' ? selectedParentId : undefined,
         parentName: newForm.parentName,
         parentPhone: newForm.parentPhone,
         parentEmail: newForm.parentEmail,
@@ -282,6 +173,8 @@ function AdminSiswaPage() {
         parentAddress: newForm.parentAddress,
       })
       setIsAddModalOpen(false)
+      setParentMode('new')
+      setSelectedParentId('')
       setNewForm({
         name: '',
         email: '',
@@ -408,23 +301,6 @@ function AdminSiswaPage() {
               <Eye className="w-3.5 h-3.5 text-[#555555]" />
               <span>Lihat Detail</span>
             </Link>
-            <button
-              type="button"
-              onClick={() => handleOpenEdit(s)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] hover:border-[#000000] transition-colors cursor-pointer"
-            >
-              <Edit className="w-3.5 h-3.5 text-[#555555]" />
-              <span>Edit</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenReset(s)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-[#CB2957] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#FEF2F2] hover:border-[#CB2957] transition-colors cursor-pointer"
-              title="Reset Kata Sandi Akun Siswa & Wali"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#CB2957]" />
-              <span>Reset Password</span>
-            </button>
           </div>
         )
       },
@@ -706,57 +582,188 @@ function AdminSiswaPage() {
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <h4 className="font-bold text-[#000000] text-[11px] tracking-[0.06em] uppercase border-b border-[#D2D2D2] pb-1.5">
-                    2. Kontak Orang Tua / Wali
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Nama Orang Tua / Wali <span className="text-[#A1301C]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Contoh: Drs. Suharso"
-                        value={newForm.parentName}
-                        onChange={(e) =>
-                          setNewForm({ ...newForm, parentName: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        WhatsApp Orang Tua <span className="text-[#A1301C]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="0811-xxxx-xxxx"
-                        value={newForm.parentPhone}
-                        onChange={(e) =>
-                          setNewForm({ ...newForm, parentPhone: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
+                  <div className="border-b border-[#D2D2D2] pb-1.5 flex items-center justify-between">
+                    <h4 className="font-bold text-[#000000] text-[11px] tracking-[0.06em] uppercase">
+                      2. Kontak Orang Tua / Wali
+                    </h4>
+                    <div className="flex items-center gap-1 bg-[#F5F5F5] p-0.5 rounded-[6px] border border-[#E5E5E5]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setParentMode('new')
+                          setSelectedParentId('')
+                        }}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-semibold rounded-[4px] transition-colors cursor-pointer',
+                          parentMode === 'new'
+                            ? 'bg-[#FFFFFF] text-[#000000] shadow-xs'
+                            : 'text-[#666666] hover:text-[#000000]'
+                        )}
+                      >
+                        Wali Baru
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParentMode('existing')}
+                        className={cn(
+                          'px-2 py-0.5 text-[11px] font-semibold rounded-[4px] transition-colors cursor-pointer',
+                          parentMode === 'existing'
+                            ? 'bg-[#FFFFFF] text-[#000000] shadow-xs'
+                            : 'text-[#666666] hover:text-[#000000]'
+                        )}
+                      >
+                        Pilih Wali Terdaftar
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Alamat Domisili Siswa
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Contoh: Jl. Tadulako No. 5, Besusu Tengah"
-                      value={newForm.parentAddress}
-                      onChange={(e) =>
-                        setNewForm({ ...newForm, parentAddress: e.target.value })
-                      }
-                      className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
+                  {parentMode === 'existing' ? (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-[#000000] block text-xs">
+                          Pilih Akun Orang Tua Terdaftar <span className="text-[#A1301C]">*</span>
+                        </label>
+                        <SearchableSelect
+                          value={selectedParentId}
+                          onChange={handleSelectParent}
+                          options={parents.map((p) => {
+                            const parentChildren = students.filter(
+                              (s) =>
+                                p.studentIds.includes(s.id) ||
+                                s.parentId === p.id ||
+                                (p.email && s.parentEmail?.toLowerCase() === p.email.toLowerCase())
+                            )
+                            const kids = parentChildren.map((k) => k.name).join(', ')
+                            return {
+                              value: p.id,
+                              label: p.name,
+                              sublabel: kids ? `(Wali dari: ${kids})` : `(WA: ${p.phone})`,
+                            }
+                          })}
+                          placeholder="Cari nama orang tua / nomor WA..."
+                          searchPlaceholder="Ketik nama atau nomor telepon..."
+                          required
+                        />
+                      </div>
+
+                      {selectedParentId && (
+                        <div className="p-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-[8px] space-y-1.5 text-xs">
+                          <div className="font-bold text-[#111111]">{newForm.parentName}</div>
+                          <div className="text-[#555555] grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+                            <div>WhatsApp: <span className="font-medium text-[#111111]">{newForm.parentPhone || '-'}</span></div>
+                            <div>Email: <span className="font-medium text-[#111111]">{newForm.parentEmail || '-'}</span></div>
+                            {newForm.parentJob && <div>Pekerjaan: <span className="font-medium text-[#111111]">{newForm.parentJob}</span></div>}
+                            {newForm.parentAddress && <div className="sm:col-span-2">Alamat: <span className="font-medium text-[#111111]">{newForm.parentAddress}</span></div>}
+                          </div>
+                          <p className="text-[11px] text-[#006622] font-medium pt-1 border-t border-[#EAEAEA]">
+                            [INFO] Siswa baru ini akan otomatis ditautkan ke akun orang tua di atas.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {detectedParent && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-[8px] text-xs flex items-center justify-between gap-2">
+                          <div>
+                            <span className="font-bold text-[#8A5A00] block">[INFO] Terdeteksi Wali Terdaftar:</span>
+                            <span className="text-[#6D4700] text-[11px]">
+                              {detectedParent.name} ({detectedParent.phone})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setParentMode('existing')
+                              handleSelectParent(detectedParent.id)
+                            }}
+                            className="text-xs bg-[#000000] text-white px-2.5 py-1 rounded-[6px] hover:bg-[#333333] cursor-pointer"
+                          >
+                            Tautkan
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Nama Orang Tua / Wali <span className="text-[#A1301C]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Contoh: Drs. Suharso"
+                            value={newForm.parentName}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentName: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            WhatsApp Orang Tua <span className="text-[#A1301C]">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            placeholder="0811-xxxx-xxxx"
+                            value={newForm.parentPhone}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentPhone: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Email Orang Tua
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="wali@email.com"
+                            value={newForm.parentEmail}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentEmail: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="font-semibold text-[#000000] block">
+                            Pekerjaan Orang Tua
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Contoh: PNS / Wiraswasta"
+                            value={newForm.parentJob}
+                            onChange={(e) =>
+                              setNewForm({ ...newForm, parentJob: e.target.value })
+                            }
+                            className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-semibold text-[#000000] block">
+                          Alamat Domisili Siswa
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Jl. Tadulako No. 5, Besusu Tengah"
+                          value={newForm.parentAddress}
+                          onChange={(e) =>
+                            setNewForm({ ...newForm, parentAddress: e.target.value })
+                          }
+                          className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#D2D2D2]">
@@ -776,407 +783,6 @@ function AdminSiswaPage() {
                   </button>
                 </div>
               </form>
-            </Dialog.Popup>
-          </Dialog.Viewport>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* DIALOG 2: Detail / Edit Siswa */}
-      <Dialog.Root
-        open={Boolean(editingStudent)}
-        onOpenChange={(open) => !open && setEditingStudent(null)}
-      >
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-            <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3.5">
-                <div>
-                  <Dialog.Title className="font-display font-bold text-base text-[#000000]">
-                    Edit Data Siswa — {editingStudent?.nis}
-                  </Dialog.Title>
-                  <p className="text-xs text-[#555555] mt-0.5">
-                    Perbarui kontak, penempatan kelas, atau ubah status keaktifan siswa.
-                  </p>
-                </div>
-                <Dialog.Close
-                  render={
-                    <button
-                      type="button"
-                      className="p-1.5 text-[#555555] hover:text-[#000000] hover:bg-[#F6F6F6] rounded-[6px]"
-                    />
-                  }
-                >
-                  <X className="w-4 h-4" />
-                </Dialog.Close>
-              </div>
-
-              {editingStudent && (
-                <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
-                  {editError && (
-                    <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-[8px] text-xs text-red-700">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                      <span>{editError}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Nama Lengkap Siswa <span className="text-[#A1301C]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={editForm.name}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, name: e.target.value })
-                      }
-                      className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Email Siswa <span className="text-[#A1301C]">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={editForm.email}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, email: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Telepon / WhatsApp Siswa
-                      </label>
-                      <input
-                        type="tel"
-                        value={editForm.phone}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, phone: e.target.value })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-semibold text-[#000000] block">
-                      Sekolah Asal
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.school}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, school: e.target.value })
-                      }
-                      className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Rombel / Kelas
-                      </label>
-                      <SearchableSelect
-                        value={editForm.classId}
-                        onChange={(val) =>
-                          setEditForm({ ...editForm, classId: val })
-                        }
-                        options={classes.map((c) => ({
-                          value: c.id,
-                          label: c.name,
-                          sublabel: `(${c.studentCount}/${c.capacity} kursi)`,
-                        }))}
-                        placeholder="Pilih rombel / kelas..."
-                        searchPlaceholder="Cari kelas..."
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Status Keaktifan
-                      </label>
-                      <select
-                        value={editForm.status}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            status: e.target.value as Student['status'],
-                          })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] bg-[#FFFFFF] focus:outline-none focus:border-[#000000]"
-                      >
-                        <option value="aktif">Aktif</option>
-                        <option value="nonaktif">Nonaktif</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Nama Orang Tua / Wali
-                      </label>
-                      <input
-                        type="text"
-                        value={editForm.parentName}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            parentName: e.target.value,
-                          })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        WhatsApp Orang Tua
-                      </label>
-                      <input
-                        type="tel"
-                        value={editForm.parentPhone}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            parentPhone: e.target.value,
-                          })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Pekerjaan Orang Tua / Wali
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Pegawai Negeri, Wiraswasta"
-                        value={editForm.parentJob}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            parentJob: e.target.value,
-                          })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-semibold text-[#000000] block">
-                        Alamat Domisili Siswa
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Jl. Tadulako No. 5"
-                        value={editForm.parentAddress}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            parentAddress: e.target.value,
-                          })
-                        }
-                        className="w-full h-10 px-3 text-xs border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#D2D2D2]">
-                    <button
-                      type="button"
-                      onClick={() => setEditingStudent(null)}
-                      className="px-4 py-2 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] cursor-pointer"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 cursor-pointer"
-                    >
-                      {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </Dialog.Popup>
-          </Dialog.Viewport>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* Modal Dialog: Reset Password Siswa & Wali */}
-      <Dialog.Root
-        open={isResetModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsResetModalOpen(false)
-            setResetTargetStudent(null)
-          }
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 bg-black/45 z-50 backdrop-blur-xs transition-opacity duration-200" />
-          <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Popup className="w-full max-w-md bg-[#FFFFFF] border border-[#D2D2D2] rounded-[12px] shadow-2xl p-6 focus:outline-none">
-              <div className="flex items-center justify-between pb-3 border-b border-[#D2D2D2]">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="w-5 h-5 text-[#CB2957]" />
-                  <Dialog.Title className="font-display font-bold text-base text-[#000000]">
-                    Reset Kata Sandi Akun
-                  </Dialog.Title>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsResetModalOpen(false)}
-                  className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px]"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {resetTargetStudent && (
-                <div className="mt-4 space-y-4">
-                  <div className="p-3 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2] space-y-1 text-xs">
-                    <p className="font-bold text-[#000000]">
-                      {resetTargetStudent.name} <span className="font-normal text-[#555555]">(NIS: {resetTargetStudent.nis})</span>
-                    </p>
-                    <p className="text-[#555555]">
-                      Wali: <span className="font-medium text-[#000000]">{resetTargetStudent.parentName}</span>
-                    </p>
-                  </div>
-
-                  {resetSuccessData ? (
-                    <div className="space-y-3">
-                      <div className="p-3.5 bg-[#F0FDF4] border border-[#86EFAC] rounded-[8px] space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-[#166534]">
-                          <CheckCircle2 className="w-4 h-4 shrink-0" />
-                          <span>Kata Sandi Berhasil Direset</span>
-                        </div>
-                        <div className="text-xs text-[#292524] space-y-1 bg-[#FFFFFF] p-2.5 rounded-[6px] border border-[#86EFAC]">
-                          <p><span className="text-[#555555]">Akun:</span> <strong className="font-mono">{resetSuccessData.emailOrNis}</strong></p>
-                          <p><span className="text-[#555555]">Kata Sandi Baru:</span> <strong className="font-mono text-sm text-[#CB2957]">{resetSuccessData.password}</strong></p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleCopyCredentials}
-                        className="w-full py-2.5 px-4 text-xs font-bold text-[#FFFFFF] bg-[#000000] hover:bg-[#292524] rounded-[8px] flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      >
-                        {isCopied ? <Check className="w-4 h-4 text-[#86EFAC]" /> : <Copy className="w-4 h-4" />}
-                        <span>{isCopied ? 'Kredensial Berhasil Disalin!' : 'Salin Kredensial untuk WhatsApp'}</span>
-                      </button>
-
-                      <div className="flex justify-end pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsResetModalOpen(false)}
-                          className="px-4 py-2 text-xs font-semibold text-[#555555] hover:text-[#000000] cursor-pointer"
-                        >
-                          Tutup
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleExecuteReset} className="space-y-4">
-                      {resetError && (
-                        <div className="p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-[8px] flex items-center gap-2 text-xs font-medium text-[#991B1B]">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{resetError}</span>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <label className="block text-xs font-bold text-[#000000]">
-                          Pilih Akun yang Ingin Di-reset:
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setResetRole('student')}
-                            className={cn(
-                              'p-2.5 text-xs text-left rounded-[8px] border transition-colors cursor-pointer',
-                              resetRole === 'student'
-                                ? 'border-[#000000] bg-[#000000] text-[#FFFFFF] font-bold'
-                                : 'border-[#D2D2D2] bg-[#FFFFFF] text-[#292524] hover:bg-[#F6F6F6]'
-                            )}
-                          >
-                            <p className="font-bold">Akun Siswa</p>
-                            <p className={cn('text-[11px] truncate', resetRole === 'student' ? 'text-[#D2D2D2]' : 'text-[#555555]')}>
-                              {resetTargetStudent.name}
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setResetRole('parent')}
-                            className={cn(
-                              'p-2.5 text-xs text-left rounded-[8px] border transition-colors cursor-pointer',
-                              resetRole === 'parent'
-                                ? 'border-[#000000] bg-[#000000] text-[#FFFFFF] font-bold'
-                                : 'border-[#D2D2D2] bg-[#FFFFFF] text-[#292524] hover:bg-[#F6F6F6]'
-                            )}
-                          >
-                            <p className="font-bold">Akun Orang Tua / Wali</p>
-                            <p className={cn('text-[11px] truncate', resetRole === 'parent' ? 'text-[#D2D2D2]' : 'text-[#555555]')}>
-                              {resetTargetStudent.parentName}
-                            </p>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="block text-xs font-bold text-[#000000]">
-                          Kata Sandi Baru (Opsional)
-                        </label>
-                        <input
-                          type="text"
-                          value={resetNewPassword}
-                          onChange={(e) => setResetNewPassword(e.target.value)}
-                          placeholder="Kosongkan untuk bawaan: password123"
-                          className="w-full px-3 py-2 text-xs text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] focus:outline-none focus:border-[#000000]"
-                        />
-                        <p className="text-[11px] text-[#555555]">
-                          Jika dikosongkan, kata sandi otomatis diatur menjadi <strong>password123</strong>.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D2D2D2]">
-                        <button
-                          type="button"
-                          onClick={() => setIsResetModalOpen(false)}
-                          className="px-4 py-2 text-xs font-semibold text-[#292524] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] cursor-pointer"
-                        >
-                          Batal
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isResetSubmitting}
-                          className="px-4 py-2 text-xs font-bold text-[#FFFFFF] bg-[#CB2957] hover:bg-[#A81E46] rounded-[8px] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          {isResetSubmitting ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <KeyRound className="w-3.5 h-3.5" />
-                          )}
-                          <span>Konfirmasi Reset</span>
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              )}
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

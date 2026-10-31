@@ -23,7 +23,8 @@ import {
 import { PortalAnnouncementsWidget } from '~/components/dashboard/PortalAnnouncementsWidget'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { StatusBadge } from '~/components/ui/status-badge'
-import { formatRupiah, cn } from '~/lib/utils'
+import { resolveStudentSessionStatus } from '~/lib/attendance-helpers'
+import { formatRupiah, cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/parent/')({
   component: ParentDashboardOverview,
@@ -50,9 +51,13 @@ function ParentDashboardOverview() {
     (e) => e.studentId === student?.id
   )
   const attendanceStatus = latestSession
-    ? latestSession.isCompleted
-      ? childSessionEntry?.status || 'hadir'
-      : 'terjadwal'
+    ? resolveStudentSessionStatus({
+        isCompleted: latestSession.isCompleted,
+        sessionDate: latestSession.sessionDate,
+        endTime: latestSession.endTime,
+        entryStatus: childSessionEntry?.status,
+        hasEntry: Boolean(childSessionEntry),
+      })
     : 'terjadwal'
 
   // 2. Latest Grade & Tutor Feedback
@@ -153,7 +158,7 @@ function ParentDashboardOverview() {
                 <MapPin className="w-3.5 h-3.5 text-[#555555]" />
                 <span>{latestSession.roomName}</span>
               </div>
-              <span className="text-[11px] text-[#555555] block">Lantai 1 Gedung Bimbel</span>
+              <span className="text-[11px] text-[#555555] block">Lantai 1 Gedung Pintar Yuk</span>
             </div>
 
             <div className="space-y-1">
@@ -184,7 +189,11 @@ function ParentDashboardOverview() {
           title="Tingkat Kehadiran"
           value={attendanceRate}
           unit="%"
-          description={`${attendedSessions} dari ${childData.totalCompleted || totalSessions} pertemuan terlaksana`}
+          description={
+            childData.totalCompleted > 0
+              ? `${attendedSessions} dari ${childData.totalCompleted} pertemuan dihadiri`
+              : 'Belum ada sesi evaluasi presensi'
+          }
           footer={
             <div className="flex items-center justify-between font-medium text-[#292524]">
               <span>Target Lembaga</span>
@@ -250,7 +259,7 @@ function ParentDashboardOverview() {
             <div className="flex items-center justify-between font-medium text-[#292524]">
               <span>Jatuh Tempo</span>
               <span className="text-[11px] text-[#555555] font-semibold">
-                {currentInvoice?.dueDate || 'Tepat Waktu'}
+                {formatDueDate(currentInvoice?.dueDate) || 'Tepat Waktu'}
               </span>
             </div>
           }

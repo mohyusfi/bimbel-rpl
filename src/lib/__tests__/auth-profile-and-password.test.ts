@@ -228,6 +228,10 @@ describe('Autentikasi Ketat, Pembaruan Profil Mandiri & Reset Password Admin', {
       const successLogin = await authStore.login(email, newPass, 'tutor')
       expect(successLogin.success).toBe(true)
       expect(authStore.getState().isAuthenticated).toBe(true)
+
+      // 6. Kembalikan kata sandi tutor ke default password123 agar test idempotent
+      await authStore.updatePassword(newPass, oldPass)
+      await authStore.logout()
     })
   })
 
@@ -278,6 +282,17 @@ describe('Autentikasi Ketat, Pembaruan Profil Mandiri & Reset Password Admin', {
       const loginRes = await authStore.login(studentEmail, customNewPass, 'student')
       expect(loginRes.success).toBe(true)
       expect(authStore.getState().isAuthenticated).toBe(true)
+
+      // 6. Kembalikan password siswa ke default password123 via Admin
+      await authStore.logout()
+      authStore.quickLogin('admin')
+      await authStore.adminResetUserPassword({
+        targetRole: 'student',
+        targetId: 'stu-1',
+        email: studentEmail,
+        newPassword: 'password123',
+      })
+      await authStore.logout()
     })
 
     it('Admin dapat mereset kata sandi orang tua ke default (password123)', async () => {

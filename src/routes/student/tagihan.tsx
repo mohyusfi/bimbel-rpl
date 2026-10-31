@@ -15,7 +15,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { useStudentDashboardData } from '~/hooks/use-admin-data'
 import type { Invoice } from '~/lib/admin-store'
-import { formatRupiah } from '~/lib/utils'
+import { formatRupiah, formatDueDate } from '~/lib/utils'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge } from '~/components/ui/status-badge'
 import { UploadProofModal } from '~/components/dashboard/UploadProofModal'
@@ -78,7 +78,7 @@ function StudentTagihanPage() {
             {row.original.programName}
           </span>
           <span className="text-xs text-[#555555]">
-            Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{row.original.dueDate}</span>
+            Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{formatDueDate(row.original.dueDate)}</span>
           </span>
         </div>
       ),
@@ -261,14 +261,14 @@ function StudentTagihanPage() {
           </div>
         </div>
 
-        {/* Right: Rekening Resmi Bimbel Tadulako Cendekia */}
+        {/* Right: Rekening Resmi Pintar Yuk */}
         <div className="xl:col-span-2 bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-5 flex flex-col justify-between">
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-[#000000] shrink-0" />
                 <span className="font-bold text-sm text-[#000000]">
-                  Rekening Resmi Pembayaran Bimbel
+                  Rekening Resmi Pintar Yuk
                 </span>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#166534] bg-[#F6F6F6] px-2 py-0.5 rounded-[6px] shrink-0 self-start sm:self-auto">
@@ -314,7 +314,7 @@ function StudentTagihanPage() {
                   </button>
                 </div>
                 <span className="text-xs text-[#555555] block mt-0.5">
-                  a.n. <strong>Bimbel Tadulako Cendekia</strong>
+                  a.n. <strong>Pintar Yuk</strong>
                 </span>
               </div>
             </div>
@@ -357,7 +357,7 @@ function StudentTagihanPage() {
                     {row.programName}
                   </h3>
                   <p className="text-xs text-[#555555] mt-0.5">
-                    Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{row.dueDate}</span>
+                    Jatuh tempo: <span className="tabular-nums font-medium text-[#292524]">{formatDueDate(row.dueDate)}</span>
                   </p>
                 </div>
                 <div className="text-right shrink-0">

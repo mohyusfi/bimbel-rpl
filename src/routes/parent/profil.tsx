@@ -286,7 +286,7 @@ function ParentProfilePage() {
               <input
                 type="email"
                 disabled
-                value={user?.email || 'ahmad.dahlan@wali.tadulakocendekia.sch.id'}
+                value={user?.email || ''}
                 className="w-full px-3.5 py-2.5 text-xs rounded-[8px] border bg-[#F9F9F9] border-[#E5E5E5] text-[#777777] cursor-not-allowed"
               />
               <p className="text-[11px] text-[#777777]">

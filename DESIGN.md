@@ -294,7 +294,7 @@ Halaman publik terdiri dari **5 blok utama** di atas permukaan hitam penutup (CT
 
 \`\`\`text
 ┌────────────────────────────────────────────────────────────────────┐
-│ Tadulako Cendekia     Program  Untuk Orang Tua  Cara Daftar  FAQ   │
+│ Pintar Yuk            Program  Untuk Orang Tua  Cara Daftar  FAQ   │
 │                                                  Masuk   [Daftar]  │  header (border 2px hitam)
 ├────────────────────────────────────────────────────────────────────┤
 │ Bimbingan belajar tatap muka     │ █ JADWAL KELAS SORE · PALU █    │  1. HERO 2 kolom:
@@ -338,13 +338,13 @@ Halaman publik terdiri dari **5 blok utama** di atas permukaan hitam penutup (CT
 │ █ COBA SATU KELAS DULU. GRATIS.                                  █ │  CTA + FOOTER hitam
 │ █ Ringkasan singkat          [Daftar sekarang →] [Tanya via WA]  █ │
 │ █ ────────────────────────────────────────────────────────────── █ │
-│ █ Tadulako Cendekia │ Program │ Masuk (4 peran) │ Kontak         █ │
+│ █ Pintar Yuk        │ Program │ Masuk (4 peran) │ Kontak         █ │
 └────────────────────────────────────────────────────────────────────┘
 \`\`\`
 
 ### 7.1 Header
 
-- **Logo:** Teks \`Tadulako Cendekia\` (\`Archivo\` condensed, \`Tadulako\` tebal 800, \`Cendekia\` 500), tanpa kotak ikon/monogram.
+- **Logo:** Teks \`Pintar Yuk\` (\`Archivo\` condensed, \`Pintar\` tebal 800, \`Yuk\` 500), tanpa kotak ikon/monogram.
 - **Navigasi desktop:** 4 tautan (\`Program\`, \`Untuk Orang Tua\`, \`Cara Daftar\`, \`FAQ\`) dengan garis bawah merah \`2px\` saat hover.
 - **Aksi kanan:** \`Masuk\` sebagai tautan teks dan \`Daftar\` sebagai tombol hitam (\`.btn-primary\`).
 - **Mobile (\`<= 900px\`):** Tombol hamburger berbingkai hitam \`2px\` membuka drawer kanan berlatar \`#EEEEEE\`.
@@ -353,7 +353,7 @@ Halaman publik terdiri dari **5 blok utama** di atas permukaan hitam penutup (CT
 
 - **Grid 2 kolom (\`.lp-hero-grid\`):**
   - **Kolom kiri (\`.lp-hero-main\`):** Baris pengantar singkat, headline \`Archivo\` raksasa (\`clamp(3.25rem, 6.8vw, 6.25rem)\`) dengan kata terakhir \`tahu.\` berwarna \`#CB2957\`, paragraf penjelasan, serta tombol \`.btn-accent\` (\`Daftar sekarang\`) + tautan \`Lihat program\`.
-  - **Kolom kanan (\`aside.lp-board\`):** Papan **Jadwal Kelas Sore** bergaya poster cetak (bingkai \`2px solid #000000\`, header hitam pekat, 4 baris interaktif SD, SMP, SMA, dan UTBK beserta hari/jam dan sisa kursi). Setiap baris dapat diklik untuk langsung membuka modal pendaftaran sesuai jenjang.
+  - **Kolom kanan (\`aside.lp-board\`):** Papan **Jadwal Kelas** bergaya poster cetak (bingkai \`2px solid #000000\`, header hitam pekat, 4 baris interaktif SD, SMP, SMA, dan UTBK beserta hari/jam dan sisa kursi). Setiap baris dapat diklik untuk langsung membuka modal pendaftaran sesuai jenjang.
 - Di bawah grid 2 kolom terdapat daftar 3 fakta nyata yang dipisahkan garis hitam (\`12\` siswa maks/kelas, \`4\` jenjang, \`Gratis\` kelas pertama).
 
 ### 7.3 Section Program (\`01–04\`)

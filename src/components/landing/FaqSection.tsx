@@ -5,15 +5,15 @@ import { cn } from '~/lib/utils'
 const FAQ_ITEMS = [
   {
     id: 'faq-ans-1',
-    question: 'Apa bedanya dengan bimbel lain?',
+    question: 'Apa bedanya Pintar Yuk dengan tempat les lain?',
     answer:
-      'Kelasnya kecil, paling banyak 12 siswa, jadi tutor bisa memperhatikan tiap anak. Jadwal disusun supaya tidak bentrok, dan orang tua menerima notifikasi kehadiran langsung di portal setiap pertemuan. Materinya mengikuti kurikulum sekolah di Palu dan standar UTBK-SNBT.',
+      'Kami menerapkan 4 metode belajar terarah (Konsep Dasar, Active Recall, Deliberate Practice, dan Klinik Personal) di kelas kecil maksimal 12 siswa. Tutor mendampingi pemahaman dari akar masalah, jadwal anti-bentrok, dan kehadiran siswa terkirim otomatis ke portal orang tua di setiap sesi.',
   },
   {
     id: 'faq-ans-2',
-    question: 'Di YouTube banyak video materi gratis. Kenapa harus ikut bimbel?',
+    question: 'Di YouTube banyak video materi gratis. Kenapa harus belajar di Pintar Yuk?',
     answer:
-      'Video tidak bisa menjawab saat anak bingung di soal yang sulit, dan tidak ada yang mengecek apakah anak benar-benar paham. Di sini tutor mendampingi langkah demi langkah, dan try out rutin menunjukkan seberapa siap anak sebenarnya.',
+      'Video hanya menyajikan materi satu arah tanpa umpan balik saat anak bingung di soal yang rumit. Di Pintar Yuk, tutor memancing dialog aktif (Active Recall), mengoreksi alur berpikir saat latihan, dan try out berkala menunjukkan kesiapan riil anak.',
   },
   {
     id: 'faq-ans-3',

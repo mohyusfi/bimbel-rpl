@@ -5,6 +5,8 @@ import {
   Package,
   Edit,
   X,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import {
   useAdminRooms,
@@ -28,6 +30,12 @@ export function RuanganView() {
   const [isAddRoomOpen, setIsAddRoomOpen] = React.useState(false)
   const [editingRoom, setEditingRoom] = React.useState<Room | null>(null)
   const [editingCourse, setEditingCourse] = React.useState<Course | null>(null)
+  const [isSubmittingRoom, setIsSubmittingRoom] = React.useState(false)
+  const [roomError, setRoomError] = React.useState<string | null>(null)
+  const [isEditingRoom, setIsEditingRoom] = React.useState(false)
+  const [editRoomError, setEditRoomError] = React.useState<string | null>(null)
+  const [isSubmittingCourse, setIsSubmittingCourse] = React.useState(false)
+  const [courseError, setCourseError] = React.useState<string | null>(null)
 
   // Room Form State (Add)
   const [roomForm, setRoomForm] = React.useState({
@@ -53,19 +61,29 @@ export function RuanganView() {
   // Handle Add Room
   const handleAddRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const cap = Math.min(12, Math.max(1, Number(roomForm.capacity) || 12))
-    await addRoom({
-      name: roomForm.name.trim(),
-      capacity: cap,
-      facilities: roomForm.facilities.trim(),
-    })
-    setIsAddRoomOpen(false)
-    setRoomForm({ name: '', capacity: 12, facilities: '' })
+    if (isSubmittingRoom) return
+    setRoomError(null)
+    setIsSubmittingRoom(true)
+    try {
+      const cap = Math.min(12, Math.max(1, Number(roomForm.capacity) || 12))
+      await addRoom({
+        name: roomForm.name.trim(),
+        capacity: cap,
+        facilities: roomForm.facilities.trim(),
+      })
+      setIsAddRoomOpen(false)
+      setRoomForm({ name: '', capacity: 12, facilities: '' })
+    } catch (err: unknown) {
+      setRoomError(err instanceof Error ? err.message : 'Gagal menambahkan ruangan.')
+    } finally {
+      setIsSubmittingRoom(false)
+    }
   }
 
   // Handle Open Room Edit
   const handleOpenRoomEdit = (room: Room) => {
     setEditingRoom(room)
+    setEditRoomError(null)
     setEditRoomForm({
       name: room.name,
       capacity: Math.min(12, Math.max(1, room.capacity)),
@@ -76,23 +94,32 @@ export function RuanganView() {
   // Handle Save Room Edit
   const handleEditRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingRoom) return
+    if (!editingRoom || isEditingRoom) return
 
-    const cap = Math.min(12, Math.max(1, Number(editRoomForm.capacity) || 12))
-    await updateRoom({
-      id: editingRoom.id,
-      updates: {
-        name: editRoomForm.name.trim(),
-        capacity: cap,
-        facilities: editRoomForm.facilities.trim(),
-      },
-    })
-    setEditingRoom(null)
+    setEditRoomError(null)
+    setIsEditingRoom(true)
+    try {
+      const cap = Math.min(12, Math.max(1, Number(editRoomForm.capacity) || 12))
+      await updateRoom({
+        id: editingRoom.id,
+        updates: {
+          name: editRoomForm.name.trim(),
+          capacity: cap,
+          facilities: editRoomForm.facilities.trim(),
+        },
+      })
+      setEditingRoom(null)
+    } catch (err: unknown) {
+      setEditRoomError(err instanceof Error ? err.message : 'Gagal memperbarui data ruangan.')
+    } finally {
+      setIsEditingRoom(false)
+    }
   }
 
   // Handle Open Course Edit
   const handleOpenCourseEdit = (course: Course) => {
     setEditingCourse(course)
+    setCourseError(null)
     setCourseForm({
       price: course.price,
       maxStudents: Math.min(12, Math.max(1, course.maxStudents)),
@@ -103,18 +130,26 @@ export function RuanganView() {
   // Handle Save Course Edit
   const handleCourseEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingCourse) return
+    if (!editingCourse || isSubmittingCourse) return
 
-    const maxStudents = Math.min(12, Math.max(1, Number(courseForm.maxStudents) || 12))
-    await updateCourse({
-      id: editingCourse.id,
-      updates: {
-        price: Number(courseForm.price),
-        maxStudents,
-        description: courseForm.description.trim(),
-      },
-    })
-    setEditingCourse(null)
+    setCourseError(null)
+    setIsSubmittingCourse(true)
+    try {
+      const maxStudents = Math.min(12, Math.max(1, Number(courseForm.maxStudents) || 12))
+      await updateCourse({
+        id: editingCourse.id,
+        updates: {
+          price: Number(courseForm.price),
+          maxStudents,
+          description: courseForm.description.trim(),
+        },
+      })
+      setEditingCourse(null)
+    } catch (err: unknown) {
+      setCourseError(err instanceof Error ? err.message : 'Gagal memperbarui tarif paket.')
+    } finally {
+      setIsSubmittingCourse(false)
+    }
   }
 
   return (
@@ -149,7 +184,7 @@ export function RuanganView() {
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
-              Ruang Belajar Fisik Bimbel
+              Ruang Belajar Fisik Pintar Yuk
             </h2>
           </div>
           <span className="text-xs text-[#555555]">
@@ -301,13 +336,13 @@ export function RuanganView() {
         </div>
       </div>
 
-      {/* SECTION 2: Master Paket Program Bimbel */}
+      {/* SECTION 2: Master Paket Program Pintar Yuk */}
       <div className="space-y-4 pt-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 pb-2 border-b border-[#D2D2D2]">
           <div className="flex items-center gap-2">
             <Package className="w-4 h-4 text-[#000000] shrink-0" />
             <h2 className="font-display font-bold text-base text-[#000000]">
-              Master Paket Program Bimbingan Belajar
+              Master Paket Program Belajar Pintar Yuk
             </h2>
           </div>
           <span className="text-xs text-[#555555]">
@@ -417,7 +452,12 @@ export function RuanganView() {
       {/* DIALOG 1: Tambah Ruangan Baru */}
       <Dialog.Root
         open={isAddRoomOpen}
-        onOpenChange={(open) => !open && setIsAddRoomOpen(false)}
+        onOpenChange={(open) => {
+          if (!open && !isSubmittingRoom) {
+            setIsAddRoomOpen(false)
+            setRoomError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -428,10 +468,13 @@ export function RuanganView() {
                   Tambah Ruang Belajar Baru
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isSubmittingRoom}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isSubmittingRoom}
+                      onClick={() => setRoomError(null)}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -440,6 +483,15 @@ export function RuanganView() {
               </div>
 
               <form onSubmit={handleAddRoomSubmit} className="space-y-3.5 text-xs">
+                {roomError && (
+                  <div
+                    className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                    role="alert"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{roomError}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="font-medium text-[#000000]">
                     Nama Ruangan *
@@ -496,16 +548,28 @@ export function RuanganView() {
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                   <button
                     type="button"
-                    onClick={() => setIsAddRoomOpen(false)}
-                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                    disabled={isSubmittingRoom}
+                    onClick={() => {
+                      setIsAddRoomOpen(false)
+                      setRoomError(null)
+                    }}
+                    className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                    disabled={isSubmittingRoom}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                   >
-                    Simpan Ruangan
+                    {isSubmittingRoom ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Menyimpan Ruangan...</span>
+                      </>
+                    ) : (
+                      <span>Simpan Ruangan</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -517,7 +581,12 @@ export function RuanganView() {
       {/* DIALOG 2: Edit Ruangan */}
       <Dialog.Root
         open={Boolean(editingRoom)}
-        onOpenChange={(open) => !open && setEditingRoom(null)}
+        onOpenChange={(open) => {
+          if (!open && !isEditingRoom) {
+            setEditingRoom(null)
+            setEditRoomError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -528,10 +597,13 @@ export function RuanganView() {
                   Edit Data Ruang Belajar
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isEditingRoom}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isEditingRoom}
+                      onClick={() => setEditRoomError(null)}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -541,6 +613,15 @@ export function RuanganView() {
 
               {editingRoom && (
                 <form onSubmit={handleEditRoomSubmit} className="space-y-3.5 text-xs">
+                  {editRoomError && (
+                    <div
+                      className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                      role="alert"
+                    >
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{editRoomError}</span>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <label className="font-medium text-[#000000]">
                       Nama Ruangan *
@@ -595,16 +676,28 @@ export function RuanganView() {
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
-                      onClick={() => setEditingRoom(null)}
-                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      disabled={isEditingRoom}
+                      onClick={() => {
+                        setEditingRoom(null)
+                        setEditRoomError(null)
+                      }}
+                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                      disabled={isEditingRoom}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
-                      Simpan Perubahan
+                      {isEditingRoom ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Menyimpan Perubahan...</span>
+                        </>
+                      ) : (
+                        <span>Simpan Perubahan</span>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -617,7 +710,12 @@ export function RuanganView() {
       {/* DIALOG 3: Edit Tarif & Kuota Paket Program */}
       <Dialog.Root
         open={Boolean(editingCourse)}
-        onOpenChange={(open) => !open && setEditingCourse(null)}
+        onOpenChange={(open) => {
+          if (!open && !isSubmittingCourse) {
+            setEditingCourse(null)
+            setCourseError(null)
+          }
+        }}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs" />
@@ -628,10 +726,13 @@ export function RuanganView() {
                   Edit Tarif & Ketentuan Paket
                 </Dialog.Title>
                 <Dialog.Close
+                  disabled={isSubmittingCourse}
                   render={
                     <button
                       type="button"
-                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] cursor-pointer"
+                      disabled={isSubmittingCourse}
+                      onClick={() => setCourseError(null)}
+                      className="p-1 text-[#555555] hover:text-[#000000] rounded-[6px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     />
                   }
                 >
@@ -641,6 +742,16 @@ export function RuanganView() {
 
               {editingCourse && (
                 <form onSubmit={handleCourseEditSubmit} className="space-y-3.5 text-xs">
+                  {courseError && (
+                    <div
+                      className="p-3 bg-[#F6E7E3] border border-[#901B14]/30 rounded-[8px] flex items-start gap-2.5 text-xs text-[#901B14]"
+                      role="alert"
+                    >
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{courseError}</span>
+                    </div>
+                  )}
+
                   <div className="p-3 bg-[#F6F6F6] rounded-[10px] border border-[#D2D2D2]">
                     <div className="font-bold text-[14px] text-[#000000]">
                       {editingCourse.name}
@@ -713,16 +824,28 @@ export function RuanganView() {
                   <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D2D2D2]">
                     <button
                       type="button"
-                      onClick={() => setEditingCourse(null)}
-                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] transition-colors cursor-pointer"
+                      disabled={isSubmittingCourse}
+                      onClick={() => {
+                        setEditingCourse(null)
+                        setCourseError(null)
+                      }}
+                      className="px-3.5 py-2 text-xs font-semibold text-[#000000] bg-[#FFFFFF] border border-[#D2D2D2] rounded-[8px] hover:bg-[#F6F6F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] transition-colors cursor-pointer"
+                      disabled={isSubmittingCourse}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#FFFFFF] bg-[#000000] rounded-[8px] hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     >
-                      Simpan Perubahan
+                      {isSubmittingCourse ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Menyimpan Perubahan...</span>
+                        </>
+                      ) : (
+                        <span>Simpan Perubahan</span>
+                      )}
                     </button>
                   </div>
                 </form>

@@ -30,7 +30,8 @@ import { downloadMaterialFile } from '~/lib/download-material'
 import { SummaryMetricCard } from '~/components/dashboard/SummaryMetricCard'
 import { DataTable } from '~/components/ui/data-table'
 import { StatusBadge, type BadgeStatus } from '~/components/ui/status-badge'
-import { cn } from '~/lib/utils'
+import { resolveStudentSessionStatus } from '~/lib/attendance-helpers'
+import { cn, formatDueDate } from '~/lib/utils'
 
 export const Route = createFileRoute('/student/')({
   ssr: false,
@@ -114,12 +115,34 @@ function StudentDashboardPage() {
         topic: session.topic || session.subjectName,
         roomName: session.roomName,
         tutorName: session.tutorName,
-        status: session.isCompleted ? (entry?.status || 'hadir') : 'terjadwal',
+        status: resolveStudentSessionStatus({
+          isCompleted: session.isCompleted,
+          sessionDate: session.sessionDate,
+          endTime: session.endTime,
+          entryStatus: entry?.status,
+          hasEntry: Boolean(entry),
+        }),
         isCompleted: session.isCompleted,
         note: entry?.note,
       }
     })
   }, [sessions, student?.id])
+
+  const menungguTutorCount = React.useMemo(() => {
+    return actualSessionRows.filter((r) => r.status === 'menunggu_tutor').length
+  }, [actualSessionRows])
+
+  const belumDicatatCount = React.useMemo(() => {
+    return actualSessionRows.filter((r) => r.status === 'belum_dicatat').length
+  }, [actualSessionRows])
+
+  const belumDiabsenCount = React.useMemo(() => {
+    return actualSessionRows.filter((r) => r.status === 'belum_diabsen').length
+  }, [actualSessionRows])
+
+  const terjadwalCount = React.useMemo(() => {
+    return actualSessionRows.filter((r) => r.status === 'terjadwal').length
+  }, [actualSessionRows])
 
   // Filtered actual sessions
   const filteredActualSessions = React.useMemo(() => {
@@ -303,7 +326,11 @@ function StudentDashboardPage() {
         <SummaryMetricCard
           title="Tingkat Kehadiran"
           value={`${attendanceRate}%`}
-          description={`${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`}
+          description={
+            totalCompleted > 0
+              ? `${attendedSessions} dari ${totalCompleted} sesi terlaksana dihadiri`
+              : 'Belum ada sesi evaluasi presensi'
+          }
           icon={CheckCircle2}
           footer={
             <div className="flex items-center justify-end">
@@ -346,7 +373,7 @@ function StudentDashboardPage() {
           value={sppStatusLabel}
           description={
             latestInvoice?.dueDate
-              ? `Jatuh tempo: ${latestInvoice.dueDate}`
+              ? `Jatuh tempo: ${formatDueDate(latestInvoice.dueDate)}`
               : 'Tagihan SPP bulan berjalan'
           }
           icon={CreditCard}
@@ -430,7 +457,7 @@ function StudentDashboardPage() {
             <p className="text-xs text-[#555555] mt-0.5">
               {activeTab === 'kalender'
                 ? `Rekap kehadiran tatap muka kelas ${student?.className || 'UTBK Intensif A'} per sesi kalender.`
-                : `Jadwal rutin mingguan kelas ${student?.className || 'UTBK Intensif A'} di unit Tadulako Cendekia.`}
+                : `Jadwal rutin mingguan kelas ${student?.className || 'UTBK Intensif A'} di unit Pintar Yuk.`}
             </p>
           </div>
 
@@ -491,7 +518,22 @@ function StudentDashboardPage() {
                   <option value="sakit">Sakit ({sakitCount})</option>
                   <option value="izin">Izin ({izinCount})</option>
                   <option value="alpa">Alpa ({alpaCount})</option>
-                  <option value="terjadwal">Sesi Terjadwal</option>
+                  {menungguTutorCount > 0 && (
+                    <option value="menunggu_tutor">
+                      Menunggu Presensi Tutor ({menungguTutorCount})
+                    </option>
+                  )}
+                  {belumDicatatCount > 0 && (
+                    <option value="belum_dicatat">
+                      Belum Dicatat ({belumDicatatCount})
+                    </option>
+                  )}
+                  {belumDiabsenCount > 0 && (
+                    <option value="belum_diabsen">
+                      Belum Diabsen ({belumDiabsenCount})
+                    </option>
+                  )}
+                  <option value="terjadwal">Sesi Terjadwal ({terjadwalCount})</option>
                 </select>
               </div>
             }
