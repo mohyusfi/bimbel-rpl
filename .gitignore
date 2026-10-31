@@ -1,11 +1,44 @@
-.env
+# Dependencies
 node_modules/
-.codegraph/
+
+# Production & Build outputs
 dist/
-.vercel
+.output/
+.vercel/
+
+# Environment variables
+.env
 .env*
+!.env.example
+
+# Local scratch & experiment scripts
+.scratch/
+scratch/
+
+# Testing & Reports
 test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
 .playwright-cli/
+
+# Tools & IDE
+.codegraph/
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS temporary files
+.DS_Store
+Thumbs.db
