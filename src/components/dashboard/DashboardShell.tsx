@@ -675,8 +675,10 @@ export function DashboardShell({
         </header>
 
         {/* Main Content Canvas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full space-y-6">
-          {children}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full">
+          <div className="w-full max-w-[1240px] mx-auto space-y-6">
+            {children}
+          </div>
         </main>
       </div>
       </div>
