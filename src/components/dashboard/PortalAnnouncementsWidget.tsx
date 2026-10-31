@@ -22,7 +22,7 @@ export function PortalAnnouncementsWidget({
         <div className="flex items-center gap-2">
           <Megaphone className="w-4 h-4 text-[#CB2957]" />
           <h2 className="font-display font-bold text-base text-[#000000]">
-            Pengumuman Resmi Anemone
+            Pengumuman Resmi Pintar Yuk
           </h2>
         </div>
         <span className="text-xs font-medium text-[#555555]">

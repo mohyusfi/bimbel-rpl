@@ -221,12 +221,12 @@ export async function validateStudentEmailAvailability(
     if (existingStudent.status === 'nonaktif') {
       return {
         available: false,
-        error: 'Email ini tercatat sebagai siswa nonaktif di Anemone Cendekia. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.',
+        error: 'Email ini tercatat sebagai siswa nonaktif di Pintar Yuk. Silakan hubungi staf Tata Usaha untuk pengaktifan kembali.',
       }
     }
     return {
       available: false,
-      error: 'Email ini telah terdaftar sebagai siswa aktif di Anemone Cendekia.',
+      error: 'Email ini telah terdaftar sebagai siswa aktif di Pintar Yuk.',
     }
   }
 
@@ -258,7 +258,7 @@ export async function validateStudentEmailAvailability(
     if (existingReg.status === 'terverifikasi') {
       return {
         available: false,
-        error: 'Email ini telah terdaftar dan terverifikasi di Anemone Cendekia.',
+        error: 'Email ini telah terdaftar dan terverifikasi di Pintar Yuk.',
       }
     }
     // Jika 'ditolak', siswa diizinkan mendaftar kembali

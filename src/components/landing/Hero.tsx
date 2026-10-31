@@ -99,7 +99,7 @@ export function Hero({ onOpenRegister, onSelectProgram }: HeroProps) {
             animate="visible"
           >
             <div className="lp-board-head">
-              <span className="lp-board-title">Jadwal Kelas Sore</span>
+              <span className="lp-board-title">Jadwal Kelas</span>
             </div>
             <ul className="lp-board-list">
               {SCHEDULE_BOARD_ITEMS.map((item) => (

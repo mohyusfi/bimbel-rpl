@@ -67,7 +67,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
               <div className="border-b-2 border-[#000000] pb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <h1 className="font-display font-extrabold text-xl tracking-tight text-[#000000]">
-                    ANEMONE CENDEKIA
+                    PINTAR YUK
                   </h1>
                   <p className="text-xs text-[#555555] mt-0.5">
                     Lembaga Bimbingan Belajar SD, SMP, SMA & Intensif UTBK-SNBT
@@ -75,7 +75,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                   <p className="text-[11px] text-[#555555] mt-1">
                     Jl. Soekarno-Hatta, Kampus Bumi Tadulako, Kota Palu, Sulawesi Tengah 94118
                     <br />
-                    WhatsApp Tata Usaha: 0821-9988-7766 · Email: admin@anemonecendekia.id
+                    WhatsApp Tata Usaha: 0821-9988-7766 · Email: admin@pintaryuk.id
                   </p>
                 </div>
 
@@ -158,7 +158,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
               <div className="p-3 bg-[#F6F6F6] rounded-[8px] border border-[#D2D2D2] text-xs">
                 <span className="font-medium text-[#555555]">Catatan: </span>
                 <span className="italic text-stone-800">
-                  Pembayaran SPP bimbingan belajar telah terverifikasi sah di sistem tata usaha Anemone Cendekia Palu.
+                  Pembayaran SPP bimbingan belajar telah terverifikasi sah di sistem tata usaha Pintar Yuk Palu.
                 </span>
               </div>
 
@@ -168,7 +168,7 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                   <p className="text-[11px] text-[#555555]">
                     Dokumen ini sah diterbitkan secara digital oleh
                     <br />
-                    Sistem Informasi Anemone Cendekia Kota Palu.
+                    Sistem Informasi Pintar Yuk Kota Palu.
                   </p>
                 </div>
                 <div className="text-center w-48 relative">
@@ -178,11 +178,11 @@ export function ReceiptModal({ invoice, isOpen, onClose }: ReceiptModalProps) {
                     Petugas Tata Usaha,
                   </p>
 
-                  {/* Stempel Resmi Anemone Cendekia */}
+                  {/* Stempel Resmi Pintar Yuk */}
                   <div className="my-1 flex justify-center">
                     <div className="border-2 border-double border-[#166534] text-[#166534] px-2.5 py-1 rounded-[6px] -rotate-6 select-none bg-white/90 shadow-2xs">
                       <p className="text-[8px] font-extrabold uppercase tracking-widest leading-none text-center">
-                        ANEMONE CENDEKIA
+                        PINTAR YUK
                       </p>
                       <p className="text-[12px] font-black tracking-widest leading-tight text-center my-0.5">
                         LUNAS

@@ -147,10 +147,10 @@ function AdminPengumumanPage() {
             Pusat Informasi & Notifikasi
           </span>
           <h1 className="font-display font-extrabold text-2xl sm:text-[28px] text-[#000000] tracking-tight leading-tight">
-            Pengumuman Resmi Anemone
+            Pengumuman Resmi Pintar Yuk
           </h1>
           <p className="text-xs sm:text-sm text-[#555555] mt-1">
-            Publikasi pengumuman operasional, libur bimbingan, dan jadwal try out untuk seluruh warga Anemone.
+            Publikasi pengumuman operasional, libur bimbingan, dan jadwal try out untuk seluruh warga Pintar Yuk.
           </p>
         </div>
 
@@ -291,7 +291,7 @@ function AdminPengumumanPage() {
             <Dialog.Popup className="w-full max-w-lg bg-[#FFFFFF] border border-[#D2D2D2] rounded-[14px] p-4 sm:p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-[#D2D2D2] pb-3">
                 <Dialog.Title className="font-display font-bold text-base text-[#000000]">
-                  Terbitkan Pengumuman Resmi Anemone
+                  Terbitkan Pengumuman Resmi Pintar Yuk
                 </Dialog.Title>
                 <Dialog.Close
                   render={

@@ -44,7 +44,7 @@ export function MobileDrawer({
       >
         <div className="mobile-drawer-header">
           <span className="lp-logo">
-            Anemone <span>Cendekia</span>
+            Pintar <span>Yuk</span>
           </span>
           <button
             type="button"

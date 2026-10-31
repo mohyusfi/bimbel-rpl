@@ -326,7 +326,7 @@ function ParentBillingPage() {
                 7123-4567-89
               </span>
               <span className="text-[11px] text-[#555555] block mt-0.5">
-                a.n. Anemone Cendekia
+                a.n. Pintar Yuk
               </span>
             </div>
 

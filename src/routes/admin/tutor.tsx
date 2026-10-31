@@ -146,9 +146,9 @@ function AdminTutorPage() {
   // Copy WhatsApp template
   const handleCopyWhatsAppTemplate = () => {
     if (!credentialsModalData) return
-    const text = `*TADULAKO CENDEKIA — KREDENSIAL AKSES PORTAL PENGAJAR*
+    const text = `*PINTAR YUK — KREDENSIAL AKSES PORTAL PENGAJAR*
 Yth. Bapak/Ibu/Kak ${credentialsModalData.name},
-Akun portal pengajar Anda di Bimbel Tadulako Cendekia telah aktif.
+Akun portal pengajar Anda di Bimbel Pintar Yuk telah aktif.
 
 *Akses Portal Pengajar:*
 • Email: ${credentialsModalData.email}
@@ -245,7 +245,7 @@ Gunakan akun ini untuk memantau jadwal mengajar, pengisian presensi kelas, modul
     },
     {
       key: 'subjects' as const,
-      label: 'Mata Pelajaran Anemone',
+      label: 'Mata Pelajaran Pintar Yuk',
       count: subjects.length,
       unit: 'Bidang Studi',
       description: 'Kurikulum materi bimbingan lintas 4 jenjang program',
@@ -386,7 +386,7 @@ Gunakan akun ini untuk memantau jadwal mengajar, pengisian presensi kelas, modul
             Direktori Tutor & Mata Pelajaran
           </h1>
           <p className="text-xs sm:text-sm text-[#555555] mt-1">
-            Manajemen pengajar Anemone, kualifikasi akademik, dan distribusi kurikulum mata pelajaran.
+            Manajemen pengajar Pintar Yuk, kualifikasi akademik, dan distribusi kurikulum mata pelajaran.
           </p>
         </div>
 
