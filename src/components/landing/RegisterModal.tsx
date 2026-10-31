@@ -122,7 +122,7 @@ export function RegisterModal({
       } catch {
         // Abaikan error pengecekan server
       }
-    }, 250)
+    }, 500)
 
     return () => clearTimeout(timer)
   }, [formData.parentPhone, formData.parentEmail])

@@ -23,10 +23,23 @@ export type SubmitRegistrationInput = z.infer<typeof submitRegistrationSchema>
 export const submitRegistrationWithTurnstileFn = createServerFn({ method: 'POST' })
   .validator((d: unknown) => submitRegistrationSchema.parse(d))
   .handler(async ({ data }): Promise<ServerResult<Registration>> => {
+    // 0. Evaluasi Rate Limit berbasis Composite Key (Session + Email Calon Siswa)
+    const { rateLimitService } = await import('~/server/services/rate-limit.service')
+    const rateLimitBlocked = await rateLimitService.enforce<Registration>({
+      tier: 'PUBLIC_REGISTRATION',
+      action: 'reg:submit',
+      targetId: data.studentEmail,
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     // 1. Verifikasi token Turnstile terlebih dahulu
+    const remoteIp = await rateLimitService.getClientIp()
     const { turnstileService } = await import('~/server/services/turnstile.service')
     const verifyResult = await turnstileService.verifyToken(data.turnstileToken, {
       expectedAction: 'signup',
+      remoteIp,
     })
 
     if (!verifyResult.success) {
@@ -71,6 +84,19 @@ export const checkExistingParentFn = createServerFn({ method: 'POST' })
     parentName?: string
     kids?: string
   }>> => {
+    const { rateLimitService } = await import('~/server/services/rate-limit.service')
+    const rateLimitBlocked = await rateLimitService.enforce<{
+      exists: boolean
+      parentName?: string
+      kids?: string
+    }>({
+      tier: 'PUBLIC_LOOKUP',
+      action: 'reg:check-parent',
+    })
+    if (rateLimitBlocked) {
+      return rateLimitBlocked
+    }
+
     const { registrationService } = await import('~/server/services/registration.service')
     return await registrationService.checkExistingParent({
       phone: data.phone,

@@ -116,7 +116,10 @@ export function LoginPage() {
     try {
       // 2. Validasi token Turnstile sisi server via Server Function
       const verifyRes = await verifyLoginTurnstileFn({
-        data: { turnstileToken: effectiveToken },
+        data: {
+          turnstileToken: effectiveToken,
+          identifier: cleanInput,
+        },
       })
 
       if (!verifyRes.success) {
