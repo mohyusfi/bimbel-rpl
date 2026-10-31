@@ -23,8 +23,8 @@ const PTN_STORIES: StoryItem[] = [
     school: 'Alumni SMAN 1 Palu',
     initials: 'RS',
     avatarColor: '#1E3A8A',
-    quote: 'Awalnya ragu bisa tembus Kedokteran Untad karena persaingan sangat ketat. Di Anemone Cendekia, pembahasannya detail sampai ke konsep dasar bukan cuma hafalan rumus kilat. Try out berkala bikin terbiasa dengan ritme waktu ujian.',
-    fullStory: 'Awalnya ragu bisa tembus Kedokteran Untad karena persaingan sangat ketat. Di Anemone Cendekia, pembahasannya detail sampai ke konsep dasar bukan cuma hafalan rumus kilat.\n\nTutor selalu sabar mendampingi sesi tanya jawab sampai saya benar-benar menguasai logika soal. Try out berkala dengan sistem scoring mirip SNBT resmi sangat melatih ketenangan mental dan manajemen waktu saat hari pelaksanaan ujian.',
+    quote: 'Awalnya ragu bisa tembus Kedokteran Untad karena persaingan sangat ketat. Di Pintar Yuk, pembahasannya detail sampai ke konsep dasar bukan cuma hafalan rumus kilat. Try out berkala bikin terbiasa dengan ritme waktu ujian.',
+    fullStory: 'Awalnya ragu bisa tembus Kedokteran Untad karena persaingan sangat ketat. Di Pintar Yuk, pembahasannya detail sampai ke konsep dasar bukan cuma hafalan rumus kilat.\n\nTutor selalu sabar mendampingi sesi tanya jawab sampai saya benar-benar menguasai logika soal. Try out berkala dengan sistem scoring mirip SNBT resmi sangat melatih ketenangan mental dan manajemen waktu saat hari pelaksanaan ujian.',
   },
   {
     id: 'ptn-2',
@@ -89,8 +89,8 @@ const PTN_STORIES: StoryItem[] = [
     school: 'Alumni SMAN 2 Palu',
     initials: 'RN',
     avatarColor: '#991B1B',
-    quote: 'Dulu bingung harus mulai belajar dari mana karena cakupan materi ujian terasa sangat luas. Anemone Cendekia memberi peta jalan belajar mingguan yang terstruktur sehingga progres terasa nyata.',
-    fullStory: 'Dulu bingung harus mulai belajar dari mana karena cakupan materi ujian terasa sangat luas. Anemone Cendekia memberi peta jalan belajar mingguan yang terstruktur sehingga progres terasa nyata.\n\nSelain itu orang tua saya merasa tenang karena setiap pertemuan selalu ada pemberitahuan kehadiran otomatis, jadi proses belajar terpantau dengan transparan.',
+    quote: 'Dulu bingung harus mulai belajar dari mana karena cakupan materi ujian terasa sangat luas. Pintar Yuk memberi peta jalan belajar mingguan yang terstruktur sehingga progres terasa nyata.',
+    fullStory: 'Dulu bingung harus mulai belajar dari mana karena cakupan materi ujian terasa sangat luas. Pintar Yuk memberi peta jalan belajar mingguan yang terstruktur sehingga progres terasa nyata.\n\nSelain itu orang tua saya merasa tenang karena setiap pertemuan selalu ada pemberitahuan kehadiran otomatis, jadi proses belajar terpantau dengan transparan.',
   },
   {
     id: 'ptn-8',
@@ -111,7 +111,7 @@ const MINDSET_STORIES: StoryItem[] = [
     name: 'Faradilla AlFath',
     program: 'Alumni 2022',
     destination: 'Data Analyst — Perusahaan Teknologi',
-    school: 'Alumni UI & Anemone Cendekia',
+    school: 'Alumni UI & Pintar Yuk',
     initials: 'FA',
     avatarColor: '#0F172A',
     quote: 'Cara mikir runtut dan penalaran kritis yang dilatih tutor beneran kepake pas kuliah sampai kerja. Kita dibiasakan jangan cuma meniru formula orang lain, tapi memahami alasan di balik setiap langkah solusi.',
@@ -169,8 +169,8 @@ const MINDSET_STORIES: StoryItem[] = [
     school: 'Alumni SMAN Madani Palu',
     initials: 'RM',
     avatarColor: '#064E3B',
-    quote: 'Di Anemone Cendekia, kita diajarin cara merefleksikan proses belajar sendiri. Sekarang di dunia riset, saya bisa mandiri menyusun metodologi dan mencari solusi tanpa harus selalu menunggu arahan.',
-    fullStory: 'Di Anemone Cendekia, kita diajarin cara merefleksikan proses belajar sendiri. Sekarang di dunia riset, saya bisa mandiri menyusun metodologi dan mencari solusi tanpa harus selalu menunggu arahan.\n\nKemampuan mengenali batas kemampuan dan menyusun strategi belajar mandiri adalah bekal jangka panjang yang sangat berarti.',
+    quote: 'Di Pintar Yuk, kita diajarin cara merefleksikan proses belajar sendiri. Sekarang di dunia riset, saya bisa mandiri menyusun metodologi dan mencari solusi tanpa harus selalu menunggu arahan.',
+    fullStory: 'Di Pintar Yuk, kita diajarin cara merefleksikan proses belajar sendiri. Sekarang di dunia riset, saya bisa mandiri menyusun metodologi dan mencari solusi tanpa harus selalu menunggu arahan.\n\nKemampuan mengenali batas kemampuan dan menyusun strategi belajar mandiri adalah bekal jangka panjang yang sangat berarti.',
   },
   {
     id: 'mindset-7',
@@ -217,7 +217,7 @@ export function StoriesMarqueeSection() {
       <div className="container lp-stories-head">
         <span className="lp-stories-tag">Rekam Jejak Belajar</span>
         <h2 className="lp-stories-title">
-          Ini cerita siswa Anemone Cendekia yang <span>lolos PTN</span> dan kampus impian:
+          Ini cerita siswa Pintar Yuk yang <span>lolos PTN</span> dan kampus impian:
         </h2>
       </div>
 

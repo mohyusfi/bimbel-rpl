@@ -5,7 +5,7 @@ Dokumen ini adalah **aturan utama (Rules of Engagement)** wajib untuk setiap age
 ---
 
 ## 1. Profil Proyek & Peran Pengguna (RBAC)
-Sistem Informasi Bimbel Berbasis Web (**Tadulako Cendekia**). Platform terpadu single-tenant dengan 4 peran terisolasi:
+Sistem Informasi Bimbel Berbasis Web (**Pintar Yuk**). Platform terpadu single-tenant dengan 4 peran terisolasi:
 1. **Admin**: Tata usaha, verifikasi pendaftaran & pembayaran, manajemen jadwal anti-bentrok, master data.
 2. **Tutor**: Jadwal mengajar, checklist presensi harian, modul/tugas, input nilai & catatan evaluasi.
 3. **Siswa**: Jadwal belajar, unduh materi, pantau kehadiran & nilai, status tagihan SPP.

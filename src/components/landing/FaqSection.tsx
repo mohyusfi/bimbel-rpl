@@ -5,15 +5,15 @@ import { cn } from '~/lib/utils'
 const FAQ_ITEMS = [
   {
     id: 'faq-ans-1',
-    question: 'Apa bedanya Anemone dengan tempat les lain?',
+    question: 'Apa bedanya Pintar Yuk dengan tempat les lain?',
     answer:
       'Kami menerapkan 4 metode belajar terarah (Konsep Dasar, Active Recall, Deliberate Practice, dan Klinik Personal) di kelas kecil maksimal 12 siswa. Tutor mendampingi pemahaman dari akar masalah, jadwal anti-bentrok, dan kehadiran siswa terkirim otomatis ke portal orang tua di setiap sesi.',
   },
   {
     id: 'faq-ans-2',
-    question: 'Di YouTube banyak video materi gratis. Kenapa harus belajar di Anemone?',
+    question: 'Di YouTube banyak video materi gratis. Kenapa harus belajar di Pintar Yuk?',
     answer:
-      'Video hanya menyajikan materi satu arah tanpa umpan balik saat anak bingung di soal yang rumit. Di Anemone, tutor memancing dialog aktif (Active Recall), mengoreksi alur berpikir saat latihan, dan try out berkala menunjukkan kesiapan riil anak.',
+      'Video hanya menyajikan materi satu arah tanpa umpan balik saat anak bingung di soal yang rumit. Di Pintar Yuk, tutor memancing dialog aktif (Active Recall), mengoreksi alur berpikir saat latihan, dan try out berkala menunjukkan kesiapan riil anak.',
   },
   {
     id: 'faq-ans-3',

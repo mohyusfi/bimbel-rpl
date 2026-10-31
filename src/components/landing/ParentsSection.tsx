@@ -49,7 +49,7 @@ export function ParentsSection() {
           >
             <div className="lp-message-bubble">
               <div className="lp-message-head">
-                <strong>Anemone Cendekia</strong>
+                <strong>Pintar Yuk</strong>
                 <span>16.02</span>
               </div>
               <p>Fahri sudah hadir di kelas Fisika UTBK hari ini, pukul 16.00–17.30.</p>

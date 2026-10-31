@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="app.diagrams.net" version="24.0.0" type="device">
+  <diagram id="diag_pendaftaran_rombel" name="1. Pendaftaran &amp; Rombel Kelas">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="920" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="hdr_tab1" value="&lt;div style=&quot;font-size: 16px; font-weight: bold; letter-spacing: 0.5px; color: #FFFFFF; font-family: Helvetica, Arial, sans-serif;&quot;&gt;SEQUENCE DIAGRAM: ALUR PENDAFTARAN SISWA BARU &amp;amp; PENETAPAN KELAS&lt;/div&gt;&lt;div style=&quot;font-size: 12px; color: #CBD5E1; margin-top: 4px; font-weight: normal; font-family: Helvetica, Arial, sans-serif;&quot;&gt;Sistem Informasi Bimbel Pintar Yuk &amp;bull; Alur Bisnis untuk Presentasi Non-Teknis&lt;/div&gt;" style="shape=rectangle;fillColor=#000000;strokeColor=#CB2957;strokeWidth=2;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="1100" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="part_parent" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Orang Tua / Calon Siswa&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #94A3B8;&quot;&gt;(Pengguna Eksternal)&lt;/div&gt;" style="shape=rectangle;fillColor=#0F172A;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="120" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line_parent" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="170" as="sourcePoint"/>
+            <mxPoint x="200" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="part_system" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Portal Web Pintar Yuk&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #CB2957; font-weight: bold;&quot;&gt;(Sistem Bimbel)&lt;/div&gt;" style="shape=rectangle;fillColor=#000000;strokeColor=#CB2957;strokeWidth=2;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="470" y="120" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line_system" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="170" as="sourcePoint"/>
+            <mxPoint x="580" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="part_admin" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Staf Tata Usaha (Admin)&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #94A3B8;&quot;&gt;(Pengelola Bimbel)&lt;/div&gt;" style="shape=rectangle;fillColor=#0F172A;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="120" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line_admin" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="950" y="170" as="sourcePoint"/>
+            <mxPoint x="950" y="780" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act_sys1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="573" y="195" width="14" height="145" as="geometry"/>
+        </mxCell>
+        <mxCell id="act_adm1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="943" y="340" width="14" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t1_1" value="&lt;b&gt;1.&lt;/b&gt; Mengisi formulir pendaftaran daring &amp;amp; memilih paket bimbingan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="200" y="200" as="sourcePoint"/>
+            <mxPoint x="573" y="200" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_2" value="&lt;b&gt;2.&lt;/b&gt; Validasi anti-bot (Turnstile) &amp;amp; keunikan data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="587" y="235" as="sourcePoint"/>
+            <mxPoint x="587" y="260" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="630" y="235"/>
+              <mxPoint x="630" y="260"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_3" value="&lt;b&gt;3.&lt;/b&gt; Data tersimpan &amp;bull; Terbit No. Registrasi resmi (REG-YYYYMM-XXXX)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#CB2957;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="573" y="295" as="sourcePoint"/>
+            <mxPoint x="200" y="295" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_4" value="&lt;b&gt;4.&lt;/b&gt; Notifikasi ke Staf TU: Ada berkas calon siswa baru perlu diverifikasi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="587" y="340" as="sourcePoint"/>
+            <mxPoint x="943" y="340" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_5" value="&lt;b&gt;5.&lt;/b&gt; Verifikasi data calon siswa &amp;amp; cek ketersediaan kursi kelas (maks 12 siswa)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="957" y="375" as="sourcePoint"/>
+            <mxPoint x="957" y="400" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="1000" y="375"/>
+              <mxPoint x="1000" y="400"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="alt_frame1" value="&lt;div style=&quot;font-weight: bold; font-size: 12px; color: #0F172A;&quot;&gt;alt : KEPUTUSAN VERIFIKASI ADMISI OLEH TATA USAHA&lt;/div&gt;" style="shape=umlFrame;whiteSpace=wrap;html=1;width=320;height=25;boundedLbl=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="70" y="440" width="1060" height="310" as="geometry"/>
+        </mxCell>
+        <mxCell id="lbl_app1" value="&lt;span style=&quot;background-color: #0F172A; color: #FFFFFF; padding: 3px 8px; font-weight: bold; font-size: 11px; border-radius: 3px;&quot;&gt;[DISETUJUI] Berkas Valid &amp;amp; Kuota Kelas Tersedia&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="85" y="470" width="320" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="act_adm_app" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="943" y="495" width="14" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="act_sys_app" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="573" y="495" width="14" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t1_6a" value="&lt;b&gt;6a.&lt;/b&gt; Klik Setujui Pendaftaran &amp;amp; pilih Rombel Kelas aktif (Class Plotting)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="943" y="505" as="sourcePoint"/>
+            <mxPoint x="587" y="505" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_7a" value="&lt;b&gt;7a.&lt;/b&gt; Terbitkan Nomor Induk Siswa (NIS PNT-YYYY-XXXX), buat akun siswa &amp;amp; wali, masukkan rombel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="587" y="535" as="sourcePoint"/>
+            <mxPoint x="587" y="555" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="630" y="535"/>
+              <mxPoint x="630" y="555"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_8a" value="&lt;b&gt;8a.&lt;/b&gt; [SUKSES] Siswa resmi diterima di bimbel &amp;bull; Akun aktif &amp;amp; informasi kelas tersedia" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#166534;strokeWidth=1.8;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#166534;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="573" y="575" as="sourcePoint"/>
+            <mxPoint x="200" y="575" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="div_alt1" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="70" y="605" as="sourcePoint"/>
+            <mxPoint x="1130" y="605" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_rej1" value="&lt;span style=&quot;background-color: #CB2957; color: #FFFFFF; padding: 3px 8px; font-weight: bold; font-size: 11px; border-radius: 3px;&quot;&gt;[DITOLAK] Berkas Kurang / Kuota Kelas Penuh&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="85" y="615" width="320" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="act_adm_rej" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="943" y="635" width="14" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="act_sys_rej" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="573" y="635" width="14" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t1_6b" value="&lt;b&gt;6b.&lt;/b&gt; Klik Tolak &amp;amp; isi catatan alasan penolakan (misal: kuota penuh / berkas buram)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="943" y="645" as="sourcePoint"/>
+            <mxPoint x="587" y="645" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_7b" value="&lt;b&gt;7b.&lt;/b&gt; Ubah status menjadi DITOLAK &amp;amp; simpan catatan alasan penolakan" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="587" y="675" as="sourcePoint"/>
+            <mxPoint x="587" y="695" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="630" y="675"/>
+              <mxPoint x="630" y="695"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t1_8b" value="&lt;b&gt;8b.&lt;/b&gt; [PENOLAKAN] Notifikasi penolakan transparan beserta instruksi perbaikan berkas" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.8;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#CB2957;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="573" y="715" as="sourcePoint"/>
+            <mxPoint x="200" y="715" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend_tab1" value="&lt;div style=&quot;font-size: 11px; color: #334155; line-height: 1.5;&quot;&gt;&lt;b&gt;KETERANGAN &amp;amp; PANDUAN BACA PRESENTASI:&lt;/b&gt;&lt;br/&gt;&amp;bull; &lt;b&gt;Garis Hitam Tebal &amp;rarr;&lt;/b&gt; : Permintaan / Aksi aktif yang dilakukan pengguna (isi formulir, persetujuan admin).&lt;br/&gt;&amp;bull; &lt;b&gt;Garis Putus-Putus &amp;dash;&amp;rarr;&lt;/b&gt; : Konfirmasi sistem atau pengiriman notifikasi balik ke pengguna.&lt;br/&gt;&amp;bull; &lt;b&gt;Kotak Percabangan (alt)&lt;/b&gt; : Tata usaha memiliki otoritas menolak pendaftaran jika kuota rombel (maks 12 siswa) telah penuh atau berkas tidak valid.&lt;/div&gt;" style="shape=rectangle;fillColor=#F1F5F9;strokeColor=#CBD5E1;strokeWidth=1;align=left;verticalAlign=middle;spacingLeft=15;spacingRight=15;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="800" width="1100" height="75" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="diag_tagihan_kwitansi" name="2. Tagihan SPP &amp; Kwitansi">
+    <mxGraphModel dx="1500" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="hdr_tab2" value="&lt;div style=&quot;font-size: 16px; font-weight: bold; letter-spacing: 0.5px; color: #FFFFFF; font-family: Helvetica, Arial, sans-serif;&quot;&gt;SEQUENCE DIAGRAM: ALUR TAGIHAN SPP, PEMBAYARAN &amp;amp; PENERBITAN KWITANSI&lt;/div&gt;&lt;div style=&quot;font-size: 12px; color: #CBD5E1; margin-top: 4px; font-weight: normal; font-family: Helvetica, Arial, sans-serif;&quot;&gt;Sistem Informasi Bimbel Pintar Yuk &amp;bull; Tata Kelola Keuangan Transparan untuk Presentasi Non-Teknis&lt;/div&gt;" style="shape=rectangle;fillColor=#000000;strokeColor=#CB2957;strokeWidth=2;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="30" width="1200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="part2_admin" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Staf Tata Usaha (Admin)&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #94A3B8;&quot;&gt;(Penerbit &amp;amp; Verifikator)&lt;/div&gt;" style="shape=rectangle;fillColor=#0F172A;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line2_admin" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="180" y="170" as="sourcePoint"/>
+            <mxPoint x="180" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="part2_system" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Portal Web Pintar Yuk&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #CB2957; font-weight: bold;&quot;&gt;(Sistem Keuangan Bimbel)&lt;/div&gt;" style="shape=rectangle;fillColor=#000000;strokeColor=#CB2957;strokeWidth=2;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="120" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line2_system" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="490" y="170" as="sourcePoint"/>
+            <mxPoint x="490" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="part2_parent" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Orang Tua / Siswa&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #94A3B8;&quot;&gt;(Pembayar SPP)&lt;/div&gt;" style="shape=rectangle;fillColor=#0F172A;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="120" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line2_parent" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="800" y="170" as="sourcePoint"/>
+            <mxPoint x="800" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="part2_bank" value="&lt;div style=&quot;font-weight: bold; font-size: 13px; color: #FFFFFF;&quot;&gt;Bank / Rekening Bimbel&lt;/div&gt;&lt;div style=&quot;font-size: 11px; color: #94A3B8;&quot;&gt;(Kanal Transfer Resmi)&lt;/div&gt;" style="shape=rectangle;fillColor=#0F172A;strokeColor=#64748B;strokeWidth=1.5;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="120" width="200" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="line2_bank" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1110" y="170" as="sourcePoint"/>
+            <mxPoint x="1110" y="850" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act2_adm1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="173" y="190" width="14" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_sys1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="483" y="190" width="14" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_par1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="793" y="270" width="14" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_bnk1" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="1103" y="315" width="14" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_sys2" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="483" y="415" width="14" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_adm2" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="173" y="485" width="14" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t2_1" value="&lt;b&gt;1.&lt;/b&gt; Terbitkan tagihan SPP bulanan siswa aktif" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="187" y="195" as="sourcePoint"/>
+            <mxPoint x="483" y="195" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_2" value="&lt;b&gt;2.&lt;/b&gt; Standarisasi Nomor Invoice (INV-YYYYMM-XXXX), status: Belum Dibayar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="497" y="225" as="sourcePoint"/>
+            <mxPoint x="497" y="245" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="540" y="225"/>
+              <mxPoint x="540" y="245"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_3" value="&lt;b&gt;3.&lt;/b&gt; Notifikasi rincian tagihan &amp;amp; nomor rekening tujuan ke akun Orang Tua" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#CB2957;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="497" y="275" as="sourcePoint"/>
+            <mxPoint x="793" y="275" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_4" value="&lt;b&gt;4.&lt;/b&gt; Transfer dana SPP via ATM / Mobile Banking" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="807" y="320" as="sourcePoint"/>
+            <mxPoint x="1103" y="320" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_5" value="&lt;b&gt;5.&lt;/b&gt; Penerbitan struk / resi bukti transfer bank" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1103" y="355" as="sourcePoint"/>
+            <mxPoint x="807" y="355" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_6" value="&lt;b&gt;6.&lt;/b&gt; Mengunggah foto struk bukti transfer ke portal web" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="793" y="420" as="sourcePoint"/>
+            <mxPoint x="497" y="420" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_7" value="&lt;b&gt;7.&lt;/b&gt; Simpan berkas bukti &amp;amp; transisi status invoice: Menunggu Verifikasi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="483" y="445" as="sourcePoint"/>
+            <mxPoint x="483" y="465" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="440" y="445"/>
+              <mxPoint x="440" y="465"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_8" value="&lt;b&gt;8.&lt;/b&gt; Notifikasi ke Staf TU: Ada pembayaran baru perlu diverifikasi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="483" y="490" as="sourcePoint"/>
+            <mxPoint x="187" y="490" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_9" value="&lt;b&gt;9.&lt;/b&gt; Tinjau foto bukti &amp;amp; cek mutasi rekening bimbel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="173" y="515" as="sourcePoint"/>
+            <mxPoint x="173" y="535" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="130" y="515"/>
+              <mxPoint x="130" y="535"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="alt_frame2" value="&lt;div style=&quot;font-weight: bold; font-size: 12px; color: #0F172A;&quot;&gt;alt : HASIL AUDIT VERIFIKASI PEMBAYARAN OLEH TATA USAHA&lt;/div&gt;" style="shape=umlFrame;whiteSpace=wrap;html=1;width=350;height=25;boundedLbl=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="60" y="560" width="1180" height="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="lbl_app2" value="&lt;span style=&quot;background-color: #0F172A; color: #FFFFFF; padding: 3px 8px; font-weight: bold; font-size: 11px; border-radius: 3px;&quot;&gt;[BUKTI SAH] Transfer Masuk &amp;amp; Nominal Sesuai&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="75" y="585" width="330" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_adm_app" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="173" y="605" width="14" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_sys_app" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="483" y="605" width="14" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t2_10a" value="&lt;b&gt;10a.&lt;/b&gt; Klik Setujui Pembayaran (Approve)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="187" y="615" as="sourcePoint"/>
+            <mxPoint x="483" y="615" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_11a" value="&lt;b&gt;11a.&lt;/b&gt; Ubah status: LUNAS &amp;bull; Terbitkan Nomor Kwitansi Resmi (KWT-YYYYMM-XXXX) berstempel digital" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="497" y="635" as="sourcePoint"/>
+            <mxPoint x="497" y="655" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="540" y="635"/>
+              <mxPoint x="540" y="655"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_12a" value="&lt;b&gt;12a.&lt;/b&gt; [LUNAS] Notifikasi pembayaran sukses &amp;bull; Lembar Kwitansi Resmi siap diunduh / dicetak" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#166534;strokeWidth=1.8;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#166534;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="497" y="670" as="sourcePoint"/>
+            <mxPoint x="793" y="670" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="div_alt2" value="" style="edgeStyle=none;html=1;dashed=1;strokeColor=#94A3B8;strokeWidth=1.5;endArrow=none;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="60" y="695" as="sourcePoint"/>
+            <mxPoint x="1240" y="695" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_rej2" value="&lt;span style=&quot;background-color: #CB2957; color: #FFFFFF; padding: 3px 8px; font-weight: bold; font-size: 11px; border-radius: 3px;&quot;&gt;[BUKTI TIDAK VALID] Nominal Kurang / Foto Rusak&lt;/span&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="75" y="705" width="330" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_adm_rej" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#0F172A;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="173" y="725" width="14" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="act2_sys_rej" value="" style="shape=rectangle;fillColor=#FFFFFF;strokeColor=#CB2957;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="483" y="725" width="14" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg_t2_10b" value="&lt;b&gt;10b.&lt;/b&gt; Klik Tolak &amp;amp; tulis catatan alasan penolakan (misal: nominal tidak sesuai / foto buram)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0F172A;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="187" y="735" as="sourcePoint"/>
+            <mxPoint x="483" y="735" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_11b" value="&lt;b&gt;11b.&lt;/b&gt; Ubah status invoice: DITOLAK &amp;amp; simpan catatan revisi" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.5;endArrow=block;endFill=1;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#0F172A;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="497" y="755" as="sourcePoint"/>
+            <mxPoint x="497" y="775" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="540" y="755"/>
+              <mxPoint x="540" y="775"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg_t2_12b" value="&lt;b&gt;12b.&lt;/b&gt; [REVISI] Notifikasi penolakan &amp;amp; tombol unggah ulang foto bukti transfer yang benar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#CB2957;strokeWidth=1.8;dashed=1;endArrow=open;endFill=0;fontSize=11;fontFamily=Helvetica,Arial,sans-serif;fontColor=#CB2957;labelBackgroundColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="483" y="790" as="sourcePoint"/>
+            <mxPoint x="793" y="790" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend_tab2" value="&lt;div style=&quot;font-size: 11px; color: #334155; line-height: 1.5;&quot;&gt;&lt;b&gt;KETERANGAN &amp;amp; PANDUAN BACA PRESENTASI:&lt;/b&gt;&lt;br/&gt;&amp;bull; &lt;b&gt;Garis Hitam Tebal &amp;rarr;&lt;/b&gt; : Aksi aktif pengguna (penerbitan tagihan oleh admin, transfer ke bank, unggah struk).&lt;br/&gt;&amp;bull; &lt;b&gt;Garis Putus-Putus &amp;dash;&amp;rarr;&lt;/b&gt; : Konfirmasi sistem &amp;amp; notifikasi instan (rincian tagihan, struk bank, lembar kwitansi).&lt;br/&gt;&amp;bull; &lt;b&gt;Penerbitan Kwitansi Resmi&lt;/b&gt; : Hanya diterbitkan secara otomatis setelah dana diverifikasi masuk ke rekening bimbel oleh Staf Tata Usaha.&lt;/div&gt;" style="shape=rectangle;fillColor=#F1F5F9;strokeColor=#CBD5E1;strokeWidth=1;align=left;verticalAlign=middle;spacingLeft=15;spacingRight=15;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="855" width="1200" height="75" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

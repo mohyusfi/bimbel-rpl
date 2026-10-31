@@ -158,7 +158,7 @@ function ParentDashboardOverview() {
                 <MapPin className="w-3.5 h-3.5 text-[#555555]" />
                 <span>{latestSession.roomName}</span>
               </div>
-              <span className="text-[11px] text-[#555555] block">Lantai 1 Gedung Anemone</span>
+              <span className="text-[11px] text-[#555555] block">Lantai 1 Gedung Pintar Yuk</span>
             </div>
 
             <div className="space-y-1">

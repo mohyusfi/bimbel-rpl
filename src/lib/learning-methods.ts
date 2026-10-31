@@ -55,7 +55,7 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     },
     badge: 'Fondasi Utama',
     heroLead:
-      'Siswa sering kesulitan saat tipe soal sedikit dimodifikasi karena hanya menghafal rumus. Di Anemone, setiap topik diurai dari prinsip pertama hingga siswa paham mengapa rumus itu ada dan kapan harus dipakai.',
+      'Siswa sering kesulitan saat tipe soal sedikit dimodifikasi karena hanya menghafal rumus. Di Pintar Yuk, setiap topik diurai dari prinsip pertama hingga siswa paham mengapa rumus itu ada dan kapan harus dipakai.',
     recommendedPackage: 'SMP',
     recommendedPackageName: 'SMP Prestasi & SD Cendekia',
     metrics: [
@@ -138,7 +138,7 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     },
     badge: 'Interaktif Nyata',
     heroLead:
-      'Membaca buku berulang kali hanya memberi ilusi pemahaman. Anemone membatasi rombel maksimal 10–12 siswa dan mewajibkan uji panggil memori aktif (active recall) di setiap pertemuan kelas.',
+      'Membaca buku berulang kali hanya memberi ilusi pemahaman. Pintar Yuk membatasi rombel maksimal 10–12 siswa dan mewajibkan uji panggil memori aktif (active recall) di setiap pertemuan kelas.',
     recommendedPackage: 'SMA',
     recommendedPackageName: 'SMA Sukses & SMP Prestasi',
     metrics: [
@@ -221,7 +221,7 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     },
     badge: 'Hasil Terukur',
     heroLead:
-      'Bukan sekadar memperbanyak latihan soal acak. Deliberate practice Anemone memetakan subtes mana yang masih rapuh, melatih manajemen waktu per soal, dan memberi simulasi try out terstandar.',
+      'Bukan sekadar memperbanyak latihan soal acak. Deliberate practice Pintar Yuk memetakan subtes mana yang masih rapuh, melatih manajemen waktu per soal, dan memberi simulasi try out terstandar.',
     recommendedPackage: 'UTBK',
     recommendedPackageName: 'Intensif UTBK-SNBT 2026',
     metrics: [
@@ -304,7 +304,7 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
     },
     badge: 'Dukungan Penuh',
     heroLead:
-      'Setiap anak memiliki ritme belajar yang berbeda. Melalui klinik personal Anemone, siswa dapat berkonsultasi mengenai tugas harian sekolah, persiapan ulangan harian, serta konsultasi psikologis belajar.',
+      'Setiap anak memiliki ritme belajar yang berbeda. Melalui klinik personal Pintar Yuk, siswa dapat berkonsultasi mengenai tugas harian sekolah, persiapan ulangan harian, serta konsultasi psikologis belajar.',
     recommendedPackage: 'SD',
     recommendedPackageName: 'SD Cendekia & SMP Prestasi',
     metrics: [
@@ -345,7 +345,7 @@ export const LEARNING_METHODS: LearningMethodItem[] = [
       {
         stepNumber: '04',
         title: 'Rangkuman & Notifikasi Orang Tua',
-        description: 'Catatan progres dan tugas yang tuntas dicatat tutor ke dalam sistem Anemone.',
+        description: 'Catatan progres dan tugas yang tuntas dicatat tutor ke dalam sistem Pintar Yuk.',
         tutorAction: 'Menyimpan progres evaluasi di dashboard kelas.',
         studentAction: 'Merasa tenang dan siap menghadapi ujian sekolah keesokan harinya.',
         realExample: 'Notifikasi otomatis terkirim ke WhatsApp / portal orang tua murid.',

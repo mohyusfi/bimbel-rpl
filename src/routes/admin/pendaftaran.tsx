@@ -291,7 +291,7 @@ Pendaftaran putra/putri Anda, *${credentialsModalData.studentName}*, untuk progr
 ${parentCredsInfo}
 • Tautan Masuk: https://tadulakocendekia.sch.id/masuk
 
-Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Anemone Cendekia.`
+Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan Anda pada Pintar Yuk.`
 
     navigator.clipboard.writeText(text)
     setIsTemplateCopied(true)
@@ -345,10 +345,10 @@ Mohon simpan informasi kredensial ini dengan baik. Terima kasih atas kepercayaan
     if (duplicateStudent) {
       if (duplicateStudent.status === 'nonaktif') {
         setAddModalError(
-          'Email ini tercatat sebagai siswa nonaktif di Anemone Cendekia. Silakan ubah status siswa di menu Data Siswa untuk pengaktifan kembali.'
+          'Email ini tercatat sebagai siswa nonaktif di Pintar Yuk. Silakan ubah status siswa di menu Data Siswa untuk pengaktifan kembali.'
         )
       } else {
-        setAddModalError('Email ini telah terdaftar sebagai siswa aktif di Anemone Cendekia.')
+        setAddModalError('Email ini telah terdaftar sebagai siswa aktif di Pintar Yuk.')
       }
       return
     }
