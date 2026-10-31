@@ -1,15 +1,15 @@
-# Anemone Cendekia — Domain Vocabulary
+# Pintar Yuk — Domain Vocabulary
 
-Kamus resmi domain sistem pendidikan dan pembelajaran terpadu Anemone Cendekia (Kota Palu).
+Kamus resmi domain sistem pendidikan dan pembelajaran terpadu Pintar Yuk (Kota Palu).
 
 ## Language
 
-**Anemone Cendekia**:
+**Pintar Yuk**:
 Identitas lembaga pendidikan tatap muka terpadu berbasis konsep dasar dan pendampingan personal di Kota Palu untuk jenjang SD, SMP, SMA, dan Persiapan UTBK-SNBT.
 _Avoid_: Bimbel Konvensional, Les Privat Biasa, Kursus Lepas
 
 **Metode Belajar (LearningMethod)**:
-Kerangka pedagogis terstandarisasi yang diterapkan pengajar Anemone untuk membimbing siswa hingga menguasai materi dari akar masalah (Konsep Dasar, Active Recall, Deliberate Practice, Klinik Personal).
+Kerangka pedagogis terstandarisasi yang diterapkan pengajar Pintar Yuk untuk membimbing siswa hingga menguasai materi dari akar masalah (Konsep Dasar, Active Recall, Deliberate Practice, Klinik Personal).
 _Avoid_: Trik Cepat, Tips Kilat, Hafalan Rumus
 
 **Jadwal (Schedule)**:
@@ -37,7 +37,7 @@ Skor numerik (skala 0–100) hasil Try Out, Kuis, atau Tugas mandiri beserta cat
 _Avoid_: Rapor mentah, Poin, Angka
 
 **Tagihan SPP (Invoice)**:
-Kewajiban pembayaran biaya bimbingan belajar siswa dengan siklus status: Belum Dibayar, Menunggu Verifikasi, Lunas, atau Dibatalkan.
+Kewajiban pembayaran biaya bimbingan belajar siswa dengan siklus status: Belum Dibayar, Menunggu Verifikasi, Lunas, atau Ditolak.
 _Avoid_: Biaya les, Nota bayar, Tagihan kuitansi
 
 **Kwitansi (Receipt)**:
@@ -57,7 +57,7 @@ Identitas pengguna terdaftar yang memegang satu dari empat peran operasional ter
 _Avoid_: Akun role, Hak akses, Role user
 
 **Super Admin (Pimpinan Lembaga / Kepala Cabang)**:
-Tingkat kewenangan administratif tertinggi pada sistem Anemone Cendekia yang dipegang oleh Pimpinan Lembaga atau Kepala Cabang. Memiliki hak penuh untuk mengelola staf Tata Usaha (termasuk membuat akun admin baru), meninjau laporan keuangan agregat, serta mengawasi seluruh operasional bimbingan belajar tanpa batasan rombel.
+Tingkat kewenangan administratif tertinggi pada sistem Pintar Yuk yang dipegang oleh Pimpinan Lembaga atau Kepala Cabang. Memiliki hak penuh untuk mengelola staf Tata Usaha (termasuk membuat akun admin baru), meninjau laporan keuangan agregat, serta mengawasi seluruh operasional bimbingan belajar tanpa batasan rombel.
 _Avoid_: Master admin, Root user, Admin utama, Owner sistem
 
 **Orang Tua / Wali (ParentGuardian)**:
